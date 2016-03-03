@@ -6,7 +6,7 @@ algo_path=/projectnb/landsat/projects/Colombia/images/007058/Results/FIT1/trainR
 njob=400
 
 for job in $(seq 1 $njob); do
-    qsub -j y -V -l -N yclass_$job -b y \
+    qsub -j y -V -N yclass_$job -b y \
 	  yatsm -v classify $cfg_path $algo_path $job $njob
   done
 
