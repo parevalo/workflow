@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cd /projectnb/landsat/projects/Colombia/images/007058/Results/FIT1/logs
 
 cfg_path=/projectnb/landsat/projects/Colombia/images/007058/Results/FIT1/758_FIT1.yaml

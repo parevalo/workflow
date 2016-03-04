@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cd /projectnb/landsat/projects/Colombia/images/008059/Results/FIT1/Class
 
 ts_path=/projectnb/landsat/projects/Colombia/images/008059
