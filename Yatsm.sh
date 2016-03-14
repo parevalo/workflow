@@ -7,6 +7,6 @@ njob=400
 
 for job in $(seq 1 $njob); do
     qsub -j y -V -N yatsm_$job -b y \
-	 yatsm line --check_cache --resume $yconfig $job $njob
+	 yatsm -v line --check_cache --resume $yconfig $job $njob
 done
 
