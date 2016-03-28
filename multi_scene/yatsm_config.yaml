@@ -50,7 +50,7 @@ YATSM:
 CCDCesque:
     init:  # hyperparameters
         consecutive: 5
-        threshold: 3.5
+        threshold: 3.7
         min_obs: 14
         min_rmse: 170
         test_indices: [2, 3, 4, 5]
@@ -119,8 +119,8 @@ classification:
     # Training data masked values
     roi_mask_values: [0, 255]
     # Date range
-    training_start: "2001-03-03"
-    training_end: "2001-01-04"
-    training_date_format: "%Y-%m-%d"
+    training_start: "$TRAINSTART"
+    training_end: "$TRAINEND"
+    training_date_format: "%Y-%j"
     # Cache X feature input and y labels for training data image into file?
     cache_training: "$IMG/.traincache" 
