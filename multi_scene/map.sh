@@ -4,6 +4,10 @@
 # It also automates finding the example image, which is the first 
 # Landsat 7 image found in the folder
 
+# TODO
+# Make this and the other files more verbose as a way to keep track of the
+# workflow
+
 # List of scenes to be processed
 
 scn_list="005058 006058"
@@ -38,6 +42,6 @@ for s in $scn_list; do
     # Run map script
     qsub -j y -V -N map_$pt$rw -b y \
      yatsm -v map --root $ts_path --result $res_path --image $img_path\
-      class $class_date Class1_"$class_date".tif    
+      class $class_date Class3_"$class_date".tif    
     
 done 

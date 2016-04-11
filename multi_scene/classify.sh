@@ -29,7 +29,8 @@ for s in $scn_list; do
     export IMG=$ROOTDIR/$s/images
     export TRAINING=$ROOTDIR/$s/images/Training1.tif
     
-    # Test for scenes and change the start and end train date accordingly    
+    # Test for scenes and change the start and end train date accordingly   
+    # THIS SECTION IS PROBABLY UNNECESSARY 
     if [ $s = "005058" ]; then 
         export TRAINSTART="2000-078"
         export TRAINEND="2001-032"
@@ -43,10 +44,13 @@ for s in $scn_list; do
 
     # CD to classifiers folder
     cd /projectnb/landsat/projects/Colombia/logs/$pt$rw
+    
 
     # Run classification, verify algorithm being used
     for job in $(seq 1 $njob); do
         qsub -j y -V -N class$pt$rw"_"$job -b y \
-         yatsm -v classify $yconfig $algopath/$pt$rw"_trainRF1.pkl" $job $njob 
+         yatsm -v classify $yconfig $algopath/mergedtrain_859-658-558.pkl $job $njob 
+         # yatsm -v classify $yconfig $algopath/$pt$rw"_trainRF1.pkl" $job $njob 
+        
     done
 done 

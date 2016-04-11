@@ -3,7 +3,7 @@
 # the corresponding yatsm line jobs to be run. Change FIT folder if necessary.
 
 # List of scenes to be processed
-scn_list="006058" #004058 006060 007059
+scn_list="006058 007058 008059" #004058 006060 007059
 
 # General settings: path to template, root dir, num of jobs 
 
@@ -19,18 +19,20 @@ for s in $scn_list; do
     
     # Export all relevant variables for the yaml file
     export INPUT=$ROOTDIR/$s/$pt$rw"_input.csv" 
-    export RESULTS=$ROOTDIR/$s/Results/FIT1/TSR
-    export CONFIG=$ROOTDIR/$s/Results/FIT1
+    export RESULTS=$ROOTDIR/$s/Results/FIT2/TSR
     export IMG=$ROOTDIR/$s/images
     #export TRAINING=To be determined
     
     # CD to log folder for that path-row
-    cd /projectnb/landsat/projects/Colombia/logs/$pt$rw
+    cd /projectnb/landsat/projects/Colombia/logs/$pt$rw/FIT2
  
     # Run yatsm
     for job in $(seq 1 $njob); do
         qsub -j y -V -N y$pt$rw"_"$job -b y \
          yatsm -v line --check_cache --resume $yconfig $job $njob
     done
-       
+    
+    # For debugging purposes only
+    #yatsm -v line --check_cache --resume $yconfig 1 $njob
+  
 done

@@ -39,7 +39,7 @@ YATSM:
     prediction: glmnet_Lasso20
     design_matrix: "1 + x + harm(x, 1)"
     reverse: False
-    commission_alpha:
+    commission_alpha: 0.1
     # Re-fit each segment, adding new coefficients & RMSE info to record
     refit:
         prefix: [robust]
@@ -51,7 +51,7 @@ CCDCesque:
     init:  # hyperparameters
         consecutive: 5
         threshold: 3.7
-        min_obs: 14
+        min_obs: 6
         min_rmse: 170
         test_indices: [2, 3, 4, 5]
         retrain_time: 365.25
@@ -123,4 +123,5 @@ classification:
     training_end: "$TRAINEND"
     training_date_format: "%Y-%j"
     # Cache X feature input and y labels for training data image into file?
-    cache_training: "$IMG/.traincache" 
+    #cache_training: "$IMG/.traincache"
+    cache_training: #/projectnb/landsat/projects/Colombia/classifiers/traincache_859-658-558.npz"

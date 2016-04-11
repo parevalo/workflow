@@ -6,7 +6,7 @@
 
 # List of scenes to be processed
 
-scn_list="005058 006058"
+scn_list="005058" # 006058"
 
 # General setting: path to template, root dir, etc
 
@@ -45,6 +45,6 @@ for s in $scn_list; do
 
     # Run training, verify number correspond to training raster number
     qsub -j y -V -N "train_"$pt$rw -b y \
-     yatsm -v train --diagnostics $yconfig $rfconfig $pt$rw"_trainRF1".pkl 
+     yatsm -v train --diagnostics $yconfig $rfconfig mergedtrain_859-658-558.pkl 
 
 done 
