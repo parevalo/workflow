@@ -28,7 +28,7 @@ for s in $scn_list; do
     # Set scene, TS(images) and results paths for the map script 
     scn_path=$rootdir/$s
     ts_path=$scn_path/images
-    res_path=$scn_path/Results/M1/TSR
+    res_path=$scn_path/Results/M2/TSR
 
     # Find example image
     img=$(find $ts_path -maxdepth 1 -type d -name "*LE7*" | head -1 )
@@ -39,12 +39,17 @@ for s in $scn_list; do
     class_day=-01-01
  
     # CD to Class folder
-    cd /projectnb/landsat/projects/Colombia/images/$s/Results/M1/Class
+    cd /projectnb/landsat/projects/Colombia/images/$s/Results/M2/Class
 
     # Run map script for multiple dates
-    for yr in $(seq -w 0 15); do    
-        qsub -j y -V -N map_$pt$rw"-"$yr -b y \
-         yatsm -v map --root $ts_path --result $res_path --image $img_path\
-          class 20$yr$class_day ClassM1A_20$yr$class_date".tif"
+    for yr in $(seq -w 00 15); do    
+        qsub -j y -V -N mapB_$pt$rw"-"$yr -b y \
+         yatsm -v map --root $ts_path --result $res_path --image $img_path \
+          class 20$yr$class_day ClassM2B_20$yr$class_day".tif"
     done
+
+    # For debugging purposes
+    #qsub -j y -V -N map_test -b y \
+    # yatsm -v map --root $ts_path --result $res_path --image $img_path\
+    #  class 2000-01-01 Class2000_delete.tif
 done 
