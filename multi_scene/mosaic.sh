@@ -7,17 +7,18 @@
 
 
 module load gdal/1.11.1 
-cd /projectnb/landsat/projects/Colombia/Mosaics/M1B
+cd /projectnb/landsat/projects/Colombia/Mosaics/M2B
+dt="-01-01"
 
 # Quick mosaic, stacks images in sequential order based on the folder pathrow
-# Using 8 cores and more RAM to speed up the process
+# Using 8 cores and more RAM to speed up the process.
 
-for yr in $(seq -w 03 15); do
-    qsub -pe omp 4 -V -N mosaic_$yr -j y -b y gdalwarp --config \
-    GDAL_CACHEMAX 500 -wm 500 -multi -co NBITS=4 -wt Byte -t_srs EPSG:4686 \
-    -srcnodata 0 \
-    "/projectnb/landsat/projects/Colombia/images/*/Results/M1/Class/ClassM1B_20"$yr".tif" \
-    20$yr"_seq.tif"
+for yr in $(seq -w 02 15); do
+    qsub -pe omp 8 -V -N mosaic_$yr -j y -b y gdalwarp --config \
+    GDAL_CACHEMAX 500 -wm 500 -multi -co COMPRESS=PACKBITS \
+     -wt Byte -t_srs EPSG:4686 -srcnodata 0 \
+    "/projectnb/landsat/projects/Colombia/images/*/Results/M2/Class/ClassM2B_20"$yr$dt"_crop.tif" \
+    20$yr$dt"_seq.tif"
 done
 
 
