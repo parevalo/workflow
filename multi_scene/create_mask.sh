@@ -1,0 +1,18 @@
+#!/bin/bash -l
+
+module load python/2.7.5_nopath
+module load gdal/1.11.1
+
+cd /projectnb/landsat/projects/Colombia/Mosaics/M2B
+
+#for yr in $(seq -w 01 01); do
+#    qsub -V -j y -b y gdal_calc.py -A 20$yr"-01-01_seq.tif" \
+#    --outfile=$yr"_2-3.tif" --calc="logical_or(A == 2, A == 3)" \
+#    --NoDataValue=3 --type=Byte --co="NBITS=2"
+#done
+
+# Not working with qsub for some reason
+ gdal_calc.py -A 2001-01-01_seq.tif \
+ --outfile=$2001_2-3.tif --calc="logical_or(A == 2, A == 3)" \
+ --NoDataValue=3 --type=Byte --co="NBITS=2"
+
