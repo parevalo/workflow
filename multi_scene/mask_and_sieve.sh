@@ -4,7 +4,6 @@
 # around it. The area of the mask will be the valid area for gdal_sieve to
 # operate upon. The masking process is split in two because gdal_proximity
 # is not giving the expected output, so it needs to be reclassified.
-# ADD WRITE TO SCRATCH 
 
 module load python/2.7.5_nopath
 module load gdal/1.11.1
@@ -30,7 +29,7 @@ suf=-01-01_crop_class.tif
     
     for yr in $(seq -w 01 01); do
 
-        # Calculate proximity in order to generate mask
+        # Calculate proximity in order to generate first mask
 
         qsub -j y -V -N mA_$pt$rw"_"$yr -b y \
          gdal_proximity.py $pre$yr$suf maskA_$yr"_2-3.tif" -co NBITS=2 \
@@ -40,15 +39,32 @@ suf=-01-01_crop_class.tif
         # supposed to. Double quotes needed in the calc section to avoid problems
 
         qsub -j y -V -N mB_$pt$rw"_"$yr -hold_jid mA_$pt$rw"_"$yr -b y \
-         gdal_calc.py -A maskA_$yr"_2-3.tif" --outfile="maskB_"$yr"_2-3.tif" \
+         gdal_calc.py -A maskA_$yr"_2-3.tif" --outfile=maskB_$yr"_2-3.tif" \
           --calc='"logical_or(A == 0, A == 1)"' --NoDataValue=3 --type=Byte \
            --co="NBITS=2"
 
-        # Run sieve
+        # Create water mask to remove from the sieving mask to make the sieving
+        # more targeted
+        
+        qsub -j y -V -N mC_$pt$rw"_"$yr -hold_jid mB_$pt$rw"_"$yr -b y \
+         gdal_calc.py -A $pre$yr$suf --outfile=maskC_$yr"_6.tif" \
+          --calc='"(A == 6)"' --NoDataValue=3 --type=Byte --co="NBITS=2"
+
+        # Get final mask
+                
+        qsub -j y -V -N mD_$pt$rw"_"$yr -hold_jid mC_$pt$rw"_"$yr -b y \
+         gdal_calc.py -A maskB_$yr"_2-3.tif" -B maskC_$yr"_6.tif" \
+           --outfile=maskD_$yr".tif" \
+            --calc="A-B" --NoDataValue=3 --type=Byte --co="NBITS=2"
+
+        # Run sieve with that mask
 
         export GDAL_CACHEMAX=2048
-        qsub -j y -V -N sieve_$yr -hold_jid mB_$pt$rw"_"$yr -b y \
-         gdal_sieve.py -st 8 -8  $pre$yr$suf -mask maskB_$yr"_2-3.tif" ClassM2B_$yr"_sieved".tif
+        qsub -j y -V -N sieve_$yr -hold_jid mD_$pt$rw"_"$yr -b y \
+         gdal_sieve.py -st 8 -8  $pre$yr$suf -mask maskD_$yr".tif" \
+          ClassM2B_$yr"_sieved_NEW".tif
+
+        # Update novalue in the sieved tif
     done
 done
 
