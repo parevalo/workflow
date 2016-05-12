@@ -20,7 +20,7 @@ suf=-01-01_crop_class.tif
 
 # Iterate over scenes
 
- for s in $scn_list; do
+for s in $scn_list; do
     # Get path and row in short version
     pt=${s:2:1}
     rw=${s:4:2}
@@ -48,14 +48,14 @@ suf=-01-01_crop_class.tif
         
         qsub -j y -V -N mC_$pt$rw"_"$yr -hold_jid mB_$pt$rw"_"$yr -b y \
          gdal_calc.py -A $pre$yr$suf --outfile=maskC_$yr"_6.tif" \
-          --calc='"(A == 6)"' --NoDataValue=3 --type=Byte --co="NBITS=2"
+          --calc='"(A != 6)"' --NoDataValue=3 --type=Byte --co="NBITS=2"
 
         # Get final mask
                 
         qsub -j y -V -N mD_$pt$rw"_"$yr -hold_jid mC_$pt$rw"_"$yr -b y \
          gdal_calc.py -A maskB_$yr"_2-3.tif" -B maskC_$yr"_6.tif" \
            --outfile=maskD_$yr".tif" \
-            --calc="A-B" --NoDataValue=3 --type=Byte --co="NBITS=2"
+            --calc='"A*B"' --NoDataValue=3 --type=Byte --co="NBITS=2"
 
         # Run sieve with that mask
 
@@ -64,8 +64,7 @@ suf=-01-01_crop_class.tif
          gdal_sieve.py -st 8 -8  $pre$yr$suf -mask maskD_$yr".tif" \
           ClassM2B_$yr"_sieved_NEW".tif
 
-        # Update novalue in the sieved tif
+         
     done
 done
 
-# Cleanup?
