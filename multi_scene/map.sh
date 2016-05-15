@@ -10,9 +10,9 @@
 
 # List of scenes to be processed
 
-scn_list="004057 004058 004061 004062 005057 005058 005059 005060 \
-          005061 006058 006059 006060 006061 007058 007059 007060 \
-          008058 008059 008060 009059"
+scn_list="007059" #004058 004061 004062 005057 005058 005059 005060 \
+          #005061 006058 006059 006060 006061 007058 007059 007060 \
+          #008058 008059 008060 009059" #004057
 
 # General setting: path to template, root dir, etc
 
@@ -28,7 +28,7 @@ for s in $scn_list; do
     # Set scene, TS(images) and results paths for the map script 
     scn_path=$rootdir/$s
     ts_path=$scn_path/images
-    res_path=$scn_path/Results/M2/TSR
+    res_path=$scn_path/Results/M3/TSR
 
     # Find example image
     img=$(find $ts_path -maxdepth 1 -type d -name "*LE7*" | head -1 )
@@ -36,16 +36,16 @@ for s in $scn_list; do
     
     # Set variables for map script
     img_path=$ts_path/$example_img/$example_img"_stack" 
-    class_day=-01-01
+    dt=-01-01
  
     # CD to Class folder
-    cd /projectnb/landsat/projects/Colombia/images/$s/Results/M2/Class
+    cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
 
     # Run map script for multiple dates
-    for yr in $(seq -w 00 15); do    
-        qsub -j y -V -N mapB_$pt$rw"-"$yr -b y \
+    for yr in $(seq -w 01 01); do    
+        qsub -j y -V -N maptest_$pt$rw"-"$yr -b y \
          yatsm -v map --root $ts_path --result $res_path --image $img_path \
-          class 20$yr$class_day ClassM2B_20$yr$class_day".tif"
+          --after --before --predict-proba class 20$yr$dt ClassM3_20$yr$dt".tif"
     done
 
     # For debugging purposes

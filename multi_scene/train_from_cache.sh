@@ -23,16 +23,16 @@ rw=${s:4:2}
 # TRAINING are needed even if they're not used
 
 export INPUT=$ROOTDIR/$scn/$pt$rw"_input.csv"
-export RESULTS=$ROOTDIR/$scn/Results/M1/TSR
+export RESULTS=$ROOTDIR/$scn/Results/M3/TSR
 export IMG=$ROOTDIR/$scn/images
 export TRAINING=$train_dir/$scn/Training1.tif
-export TRAINCACHE=$train_dir/train_cached/M1_full_traincache.npz
+export TRAINCACHE=$train_dir/train_cached/M3/M3_full_traincache.npz
 
 # CD to classifiers folder
-cd /projectnb/landsat/projects/Colombia/classifiers
+cd /projectnb/landsat/projects/Colombia/classifiers/M3
 
 # Run training, verify number correspond to training raster number
-qsub -j y -V -N trainM1_full -b y \
- yatsm -v train --diagnostics $yconfig $rfconfig M1_fulltrain_custom2.pkl
+qsub -j y -V -N trainM3_full -b y \
+ yatsm -v train --diagnostics $yconfig $rfconfig M3_fulltrain_noweights.pkl
 
  

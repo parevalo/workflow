@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# This script runs the training script for a given list of scenes.
-# It is NOT designed to change the model parameters inside the YAML file,
-# as the training process doesn't take them into account 
+# This script runs the training script for a given list of scenes in order to
+# get the cache files, which then will be merged into a single file. This will
+# be used to produce a single pickle used to classify all of the images.
 
 # List of scenes to be processed, arrays of training dates (start and end)
-# Not very efficient, put everything into a file and read from there!
 
 scn_list="004057 005058 005060 006058 006059 006060 007058 007059 008059"
 trn_str=(2001-033 2000-078 2000-350 2001-031 2000-005 2000-005 2001-062 2003-004 2001-005) 
@@ -28,20 +27,20 @@ for s in $scn_list; do
 
     # Export all relevant variables for the yaml file
     export INPUT=$ROOTDIR/$s/$pt$rw"_input.csv"
-    export RESULTS=$ROOTDIR/$s/Results/M1/TSR
+    export RESULTS=$ROOTDIR/$s/Results/M3/TSR
     export IMG=$ROOTDIR/$s/images
     export TRAINING=$train_dir/$s/Training1.tif
-    export TRAINCACHE=$train_dir/train_cached/cache$pt$rw".npz"
+    export TRAINCACHE=$train_dir/train_cached/M3/cache$pt$rw".npz"
     
     export TRAINSTART=${trn_str[$i]}
     export TRAINEND=${trn_end[$i]}
     let i+=1
 
     # CD to classifiers folder
-    cd /projectnb/landsat/projects/Colombia/classifiers
+    cd /projectnb/landsat/projects/Colombia/classifiers/M3
 
     # Run training, verify number correspond to training raster number
-    qsub -j y -V -N "trainM1_"$pt$rw -b y \
-     yatsm -v train --diagnostics $yconfig $rfconfig M1_train$pt$rw".pkl" 
+    qsub -j y -V -N "trainM3_"$pt$rw -b y \
+     yatsm -v train --diagnostics $yconfig $rfconfig M3_train$pt$rw".pkl" 
 
 done 
