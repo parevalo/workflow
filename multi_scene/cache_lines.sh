@@ -6,7 +6,7 @@
 #          005061 006058 006059 006060 006061 007058 007059 007060 \
 #          008058 008059 008060 009059" #004057
 
-scn_list="006061 005060 008060 009059"
+scn_list="003058 003059" # 004059 007061 009060"
 # General settings: path to template, root dir, num of jobs 
 
 yconfig=/projectnb/landsat/projects/Colombia/workflow/multi_scene/yatsm_config.yaml

@@ -33,10 +33,11 @@ for s in $scn_list; do
 
         qsub -j y -V -N mA_$pt$rw"_"$yr -b y \
          gdal_proximity.py $pre$yr$suf maskA_$yr"_2-3.tif" -co NBITS=2 \
-          -ot Byte -values 2,3 -maxdist 2 -nodata 3 -fixed-buf-val 1 #-use_input_nodata YES
+          -ot Byte -values 2,3 -maxdist 4 -fixed-buf-val 1 -nodata 3 #-use_input_nodata YES
 
         # Reclassify proximity because it's not giving the output the way it's 
-        # supposed to. Double quotes needed in the calc section to avoid problems
+        # supposed to. Double quotes needed in the calc section to avoid 
+        # problems when qsub'd
 
         qsub -j y -V -N mB_$pt$rw"_"$yr -hold_jid mA_$pt$rw"_"$yr -b y \
          gdal_calc.py -A maskA_$yr"_2-3.tif" --outfile=maskB_$yr"_2-3.tif" \
@@ -60,11 +61,16 @@ for s in $scn_list; do
         # Run sieve with that mask
 
         export GDAL_CACHEMAX=2048
-        qsub -j y -V -N sieve_$yr -hold_jid mD_$pt$rw"_"$yr -b y \
-         gdal_sieve.py -st 8 -8  $pre$yr$suf -mask maskD_$yr".tif" \
-          ClassM2B_$yr"_sieved_NEW".tif
+        qsub -j y -V -N sv_$pt$rw"_"$yr -hold_jid mD_$pt$rw"_"$yr -b y \
+         gdal_sieve.py -st 12 -8  $pre$yr$suf -mask maskD_$yr".tif" \
+          ClassM2B_$yr"_sievedF".tif
 
-         
+        # Post sieving-post processing...
+        qsub -j y -V -N postsv_$yr -hold_jid sv_$pt$rw"_"$yr -b y \
+         gdal_calc.py -A $pre$yr$suf -B ClassM2B_$yr"_sievedF.tif" \
+           --outfile=fixed_sieveF.tif \
+           --calc='"(logical_and(logical_and(A != 2, A != 3), A != 4))*A +'\
+          '(A == 2)*B + (A == 3)*B + (A == 4)*B"'
     done
 done
 

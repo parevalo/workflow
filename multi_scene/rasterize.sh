@@ -6,7 +6,7 @@
 # same name
 
 # Scenes for which there is training data
-scn_list="004057" #005058 005060 006058 006059 006060 007058 007059 008059
+scn_list="005058 005060 006058 006059 006060 007058 007059 008059" #004057
 
 # Folder setting
 rootdir=/projectnb/landsat/projects/Colombia/images

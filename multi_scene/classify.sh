@@ -28,20 +28,6 @@ for s in $scn_list; do
     export INPUT=$ROOTDIR/$s/$pt$rw"_input.csv"
     export RESULTS=$ROOTDIR/$s/Results/M3/TSR
     export IMG=$ROOTDIR/$s/images
-    #export TRAINING=$ROOTDIR/$s/images/Training1.tif
-    
-    # Change the start and end train date accordingly if using diff. training
-    # 
-    #if [ $s = "005058" ]; then 
-    #    export TRAINSTART="2000-078"
-    #    export TRAINEND="2001-032"
-    #elif [ $s = "006058" ]; then 
-    #    export TRAINSTART="2001-031"
-    #    export TRAINEND="2003-013"
-    #else
-    #    echo "Date in conditions don't match those in the list"
-    #    exit
-    #fi
 
     # CD to log folder
     cd /projectnb/landsat/projects/Colombia/logs/$pt$rw/M3

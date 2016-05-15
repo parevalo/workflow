@@ -1,5 +1,4 @@
-# Example configuration file for YATSM line runner
-#
+
 # This configuration includes details about the dataset and how YATSM should
 # run
 
@@ -43,7 +42,7 @@ YATSM:
     # Re-fit each segment, adding new coefficients & RMSE info to record
     refit:
         prefix: [robust]
-        prediction: [RLM]
+        prediction: [rlm_maxiter10]
         stay_regularized: [True]
 
 # Parameters for CCDCesque algorithm -- referenced by "algorithm" key in YATSM
@@ -51,14 +50,14 @@ CCDCesque:
     init:  # hyperparameters
         consecutive: 5
         threshold: 3.7
-        min_obs: 6
+        min_obs: 9
         min_rmse: 170
         test_indices: [2, 3, 4, 5]
         retrain_time: 365.25
         screening: RLM
         screening_crit: 380.0
         slope_test: True
-        remove_noise: False
+        remove_noise: True
         dynamic_rmse: False
 
 # Regression estimators
@@ -123,5 +122,4 @@ classification:
     training_end: "$TRAINEND"
     training_date_format: "%Y-%j"
     # Cache X feature input and y labels for training data image into file?
-    #cache_training: "$IMG/.traincache"
-    cache_training: #/projectnb/landsat/projects/Colombia/classifiers/traincache_859-658-558.npz"
+    cache_training: "$TRAINCACHE"

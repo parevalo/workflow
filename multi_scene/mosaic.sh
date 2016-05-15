@@ -1,23 +1,23 @@
 #!/bin/bash -l
-# Basic version of mosaicking script for a single date. A more advanced version
-# will be needed to specify the order of the rasters according the the scenes
-# with the highest number of images
+# Mosaic script with sequential or ordered scenes. (sequential seems to work
+# better) 
 # MAGNA SIRGAS is EPSG:4686. Could also use MS-Bogota zone: 3116
 # UTM18-19N are EPSG:32618-32619
 
 
 module load gdal/1.11.1 
-cd /projectnb/landsat/projects/Colombia/Mosaics/M2B
+cd /projectnb/landsat/projects/Colombia/Mosaics/M3
+imgf=/projectnb/landsat/projects/Colombia/images
 dt="-01-01"
 
 # Quick mosaic, stacks images in sequential order based on the folder pathrow
 # Using 8 cores and more RAM to speed up the process.
 
-for yr in $(seq -w 02 15); do
+for yr in $(seq -w 01 15); do
     qsub -pe omp 8 -V -N mosaic_$yr -j y -b y gdalwarp --config \
     GDAL_CACHEMAX 500 -wm 500 -multi -co COMPRESS=PACKBITS \
      -wt Byte -t_srs EPSG:4686 -srcnodata 0 \
-    "/projectnb/landsat/projects/Colombia/images/*/Results/M2/Class/ClassM2B_20"$yr$dt"_crop.tif" \
+    "$imgf/*/Results/M3/Class/ClassM3_20"$yr$dt"_crop_class.tif" \
     20$yr$dt"_seq.tif"
 done
 
