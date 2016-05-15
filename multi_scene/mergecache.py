@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy as np
 import os
 
@@ -6,7 +8,7 @@ import os
 # file, used to train a single classifier to classify all of the scenes
 
 # cd to folder
-os.chdir("/projectnb/landsat/projects/Colombia/Training/train_cached")
+os.chdir("/projectnb/landsat/projects/Colombia/Training/train_cached/M3")
 
 # Find npz files
 files = [f for f in os.listdir('.') if f.endswith(".npz")]
@@ -35,5 +37,5 @@ row = np.hstack(rowl)
 col = np.hstack(coll)
 labels = np.hstack(labelsl)
 
-np.savez('M1_full_traincache.npz', X=X, y=y, row=row, col=col, labels=labels)
+np.savez('M3_full_traincache.npz', X=X, y=y, row=row, col=col, labels=labels)
     
