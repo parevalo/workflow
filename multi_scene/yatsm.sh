@@ -3,13 +3,15 @@
 # the corresponding yatsm line jobs to be run. Change FIT folder if necessary.
 
 # List of scenes to be processed
-scn_list="006058 007058 008059" #004058 006060 007059
+scn_list="006061" #003058 003059 004057 004058 004059 004061 004062 005057 005058 \
+          #005059 005060 005061 006058 006059 006060 007058 007060 \
+          #007061 008058 008059 008060 009059 009060" #007059 006061
 
 # General settings: path to template, root dir, num of jobs 
 
 yconfig=/projectnb/landsat/projects/Colombia/workflow/multi_scene/yatsm_config.yaml
 export ROOTDIR=/projectnb/landsat/projects/Colombia/images
-njob=400
+njob=512
 
 # Iterate over scenes
 for s in $scn_list; do
@@ -19,20 +21,22 @@ for s in $scn_list; do
     
     # Export all relevant variables for the yaml file
     export INPUT=$ROOTDIR/$s/$pt$rw"_input.csv" 
-    export RESULTS=$ROOTDIR/$s/Results/FIT2/TSR
+    export RESULTS=$ROOTDIR/$s/Results/M3/TSR
     export IMG=$ROOTDIR/$s/images
     #export TRAINING=To be determined
     
     # CD to log folder for that path-row
-    cd /projectnb/landsat/projects/Colombia/logs/$pt$rw/FIT2
+    cd /projectnb/landsat/projects/Colombia/logs/$pt$rw/M3
  
     # Run yatsm
     for job in $(seq 1 $njob); do
         qsub -j y -V -N y$pt$rw"_"$job -b y \
-         yatsm -v line --check_cache --resume $yconfig $job $njob
+         yatsm -v line --check_cache $yconfig $job $njob
     done
     
     # For debugging purposes only
-    #yatsm -v line --check_cache --resume $yconfig 1 $njob
+    #qsub -j y -V -b y -N checkTS \
+    # yatsm -v line --check_cache $yconfig 121 $njob
   
 done
+
