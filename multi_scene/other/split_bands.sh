@@ -1,7 +1,8 @@
 #!/bin/bash -l
 
 # Script to split the categorical and prediction probability bands into
-# separate files.  
+# separate files. This script is not necessary when the two class maps
+# (M2B and M3) are merged because gdalcalc can use only their first band.  
 
 # List of scenes to be processed
 
@@ -24,7 +25,7 @@ for s in $scn_list; do
     # cd to the corresponding class folder
     cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
     
-    # Submit the clipping job
+    # Submit the splitting job
     for yr in $(seq -w 00 01); do
         qsub -j y -V -N split$pt$rw"-"$yr -b y \
          gdal_translate -b 1 -ot Byte -co NBITS=4 ClassM3_20$yr$dt"_crop.tif" \

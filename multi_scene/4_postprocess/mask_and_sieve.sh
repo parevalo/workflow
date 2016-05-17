@@ -44,12 +44,14 @@ for s in $scn_list; do
           --calc='"logical_or(A == 0, A == 1)"' --NoDataValue=3 --type=Byte \
            --co="NBITS=2"
 
-        # Create water mask to remove from the sieving mask to make the sieving
-        # more targeted
+        # Create mask to remove areas we don't want to have in the sieving mask,
+		# so that they cannot be modified e.g. all water areas and areas
+        # were yatsm detected changes during the entire study period. CHECK
         
         qsub -j y -V -N mC_$pt$rw"_"$yr -hold_jid mB_$pt$rw"_"$yr -b y \
-         gdal_calc.py -A $pre$yr$suf --outfile=maskC_$yr"_6.tif" \
-          --calc='"(A != 6)"' --NoDataValue=3 --type=Byte --co="NBITS=2"
+         gdal_calc.py -A $pre$yr$suf -B numchange_2001-2015_$pt$rw".tif"
+		  --outfile=maskC_$yr"_6.tif" \
+          --calc='"(A != 6) * (B == 0) "' --NoDataValue=3 --type=Byte --co="NBITS=2"
 
         # Get final mask
                 
@@ -65,12 +67,14 @@ for s in $scn_list; do
          gdal_sieve.py -st 12 -8  $pre$yr$suf -mask maskD_$yr".tif" \
           ClassM3_$yr"_sievedF".tif
 
-        # Post sieving-post processing...
+        # Post sieving-post processing, in order to revert any changes
+		# made to other land cover types (including pastures)
+
         qsub -j y -V -N postsv_$yr -hold_jid sv_$pt$rw"_"$yr -b y \
          gdal_calc.py -A $pre$yr$suf -B ClassM3_$yr"_sievedF.tif" \
            --outfile=fixed_sieveF.tif \
-           --calc='"(logical_and(logical_and(A != 2, A != 3), A != 4))*A +'\
-          '(A == 2)*B + (A == 3)*B + (A == 4)*B"'
+           --calc='"logical_and(A != 2, A != 3)*A +'\
+          '(A == 2)*B + (A == 3)*B"'
     done
 done
 
