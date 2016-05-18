@@ -6,9 +6,9 @@
 
 # List of scenes to be processed
 
-scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
+scn_list="003059 004057 004058 004059 004061 004062 005057 005058 \
           005059 005060 005061 006058 006059 006060 006061 007058 007059 \
-          007060 007061 008058 008059 008060 009059 009060"
+          007060 007061 008058 008059 008060 009059 009060" #003058
 
 # General setting: path to template, root dir, etc
 
@@ -41,7 +41,6 @@ for s in $scn_list; do
     qsub -j y -V -N chgmap_$pt$rw -b y \
      yatsm -v changemap --root $ts_path --result $res_path --image $img_path \
       --magnitude num 2001-01-01 2015-01-01 numchange_2001-2015_$pt$rw".tif"
-    done
 
     # For debugging purposes
     #qsub -j y -V -N map_test -b y \

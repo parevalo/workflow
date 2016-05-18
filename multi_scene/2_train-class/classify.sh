@@ -15,7 +15,7 @@ scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
 yconfig=/projectnb/landsat/projects/Colombia/workflow/multi_scene/yatsm_config.yaml
 algopath=/projectnb/landsat/projects/Colombia/classifiers
 export ROOTDIR=/projectnb/landsat/projects/Colombia/images
-njob=25
+njob=20
 
 # Iterate over scenes
 
@@ -36,7 +36,7 @@ for s in $scn_list; do
     # Run classification, verify classifier being used
     for job in $(seq 1 $njob); do
         qsub -j y -V -N c$pt$rw"_nrnw_"$job -b y \
-         yatsm -v classify $yconfig $algopath/M3/M3_fulltrain_noweights.pkl $job $njob 
+         yatsm -v classify $yconfig $algopath/M1/M1_fulltrain_noweights.pkl $job $njob 
         
     done
     

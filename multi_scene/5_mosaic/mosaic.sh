@@ -13,12 +13,12 @@ dt="-01-01"
 # Quick mosaic, stacks images in sequential order based on the folder pathrow
 # Using 8 cores and more RAM to speed up the process.
 
-for yr in $(seq -w 01 15); do
-    qsub -pe omp 8 -V -N mosaic_$yr -j y -b y gdalwarp --config \
-    GDAL_CACHEMAX 500 -wm 500 -multi -co COMPRESS=PACKBITS \
-     -wt Byte -t_srs EPSG:4686 -srcnodata 0 \
-    "$imgf/*/Results/M3/Class/ClassM3_20"$yr$dt"_crop_class.tif" \
-    20$yr$dt"_seq.tif"
+for yr in $(seq -w 03 03); do
+    qsub -pe omp 4 -V -N mosaic_$yr -j y -b y gdalwarp --config \
+     GDAL_CACHEMAX 4000 -wm 4000 -multi -co COMPRESS=PACKBITS -co NBITS=4 \
+     -wt Byte -wo NUM_THREADS=4 -t_srs EPSG:4686 -srcnodata 0 \
+     "$imgf/*/Results/M3/Class/ClassM3_20"$yr$dt"_M1train.tif" \
+     20$yr$dt"_M1train.tif"
 done
 
 

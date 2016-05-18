@@ -4,7 +4,8 @@
 # This was required because M2B is better at estimating stable forest but less 
 # than ideal at estimating deforestation in very dynamic areas and viceversa. 
 # However, model M2B won't be used anymore, and instead, two versions of M3, 
-# one classified with classifier M1 and the other with M3.
+# one classified with classifier M1 and the other with M3. Script is 
+# incomplete, so it doesn't work as is.
 
 module load python/2.7.5_nopath
 module load gdal/1.11.1
@@ -31,12 +32,22 @@ for s in $scn_list; do
     for yr in $(seq -w 01 01); do
  		# Create variable for model M2
 		m2_path=$rootdir/$s/Results/M2/Class/ClassM2B_20$yr$suf
-        
-	    # Replace grassl. in M1 with whatever is in M3 as long as there is no change
-         gdal_calc.py -A $pre$yr"-01-01_M1train.tif" -B $pre$yr"-01-01_M3train.tif" \
-           -C numchange_2001-2015_759.tif --outfile=merged_20$yr$suf \
-           --calc="(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)"
 
+	    # Create a mask of the places where we want to replace the results.
+        # This could be done directly but we need the mask in order to do the
+        # sieving correctly (i.e. using the corresponding change map)
+
+        #qsub -j y -V -N merge_$pt$rw"_"$yr -b y \
+        # gdal_calc.py -A $pre$yr$suf -B $m2_path --outfile=repl_mask_$yr$suf \
+        #   --calc='"logical_and(A == 4, B == 1)"'
+
+        # Merge the maps of the two models (A = M3, B = M2) TEST!
+
+        #qsub -j y -V -N merge_$pt$rw"_"$yr -b y \
+        # gdal_calc.py -A $pre$yr$suf -B $m2_path \
+        #   --outfile=Finalclass_$yr$suf \
+        #   --calc='"logical_and(A == 4, B == 1)*B +'\
+        #  'logical_and(A != 4, B != 1)*A"'
     done
 done
 
