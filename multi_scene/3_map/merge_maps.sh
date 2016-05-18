@@ -17,7 +17,7 @@ scn_list="007059" #003058 003059 004057 004058 004059 004061 004062 005057 00505
 
 rootdir=/projectnb/landsat/projects/Colombia/images
 pre=ClassM3_20
-suf=-01-01.tif
+suf="-01-01.tif"
 
 # Iterate over scenes
 
@@ -29,13 +29,12 @@ for s in $scn_list; do
     cd $rootdir/$s/Results/M3/Class
     
     for yr in $(seq -w 01 01); do
- 		# Create variable for model M2
-		m2_path=$rootdir/$s/Results/M2/Class/ClassM2B_20$yr$suf
-        
 	    # Replace grassl. in M1 with whatever is in M3 as long as there is no change
-         gdal_calc.py -A $pre$yr"-01-01_M1train.tif" -B $pre$yr"-01-01_M3train.tif" \
-           -C numchange_2001-2015_759.tif --outfile=merged_20$yr$suf \
-           --calc="(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)"
+        # add qsub bit
+        gdal_calc.py -A $pre$yr"-01-01_M1train.tif" -B $pre$yr"-01-01_M3train.tif" \
+         -C numchange_2001-2015_759.tif --outfile=mergedmaps_20$yr$suf \
+         --calc="(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)" \
+         --type=Byte --co NBITS=4 --overwrite --NoDataValue=0
 
     done
 done
