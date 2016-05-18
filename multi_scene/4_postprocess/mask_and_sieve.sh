@@ -74,8 +74,8 @@ for s in $scn_list; do
         qsub -j y -V -N postsv_$yr -hold_jid sv_$pt$rw"_"$yr -b y \
          gdal_calc.py -A $pre$yr$suf -B $pre$yr"_sieved.tif" \
            --outfile=$pre$yr"_postsieved.tif" \
-           --calc='"logical_and(A != 2, A != 3)*A +'\
-          '(A == 2)*B + (A == 3)*B"' --overwrite
+           --calc='"logical_and(A != 2, A != 3)*A + (A == 2)*B + (A == 3)*B"' \
+           --NoDataValue=0 --type=Byte --co="NBITS=4" --overwrite
     done
 done
 
