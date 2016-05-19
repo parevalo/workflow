@@ -42,7 +42,7 @@ for s in $scn_list; do
     cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
 
     # Run map script for multiple dates
-    for yr in $(seq -w 01 15); do    
+    for yr in $(seq -w 16 16); do    
         qsub -j y -V -N map_$pt$rw"-"$yr -b y \
          yatsm -v map --root $ts_path --result $res_path --image $img_path \
           --after --before --predict-proba class 20$yr$dt ClassM3_20$yr$dt"_M1train.tif"

@@ -9,9 +9,9 @@
 module load python/2.7.5_nopath
 module load gdal/1.11.1
 
-scn_list="007059" #003058 003059 004057 004058 004059 004061 004062 005057 005058 \
-#          005059 005060 005061 006058 006059 006060 006061 007058 007059 \
-#          007060 007061 008058 008059 008060 009059 009060"
+scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
+          005059 005060 005061 006058 006059 006060 006061 007058 007059 \
+          007060 007061 008058 008059 008060 009059 009060"
 
 # General settings
 
@@ -28,12 +28,13 @@ for s in $scn_list; do
 
     cd $rootdir/$s/Results/M3/Class
     
-    for yr in $(seq -w 01 01); do
-	    # Replace grassl. in M1 with whatever is in M3 as long as there is no change
-        # add qsub bit
+    for yr in $(seq -w 01 15); do
+	    # Replace grassl. in M1 with whatever is in M3 as long as there is 
+        # no change in the entire period
+        qsub -V -j y -b y -N mapmerge_$pt$rw \
         gdal_calc.py -A $pre$yr"-01-01_M1train.tif" -B $pre$yr"-01-01_M3train.tif" \
-         -C numchange_2001-2015_759.tif --outfile=mergedmaps_20$yr$suf \
-         --calc="(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)" \
+         -C numchange_2001-2015_$pt$rw".tif" --outfile=mergedmaps_20$yr$suf \
+         --calc='"(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)"' \
          --type=Byte --co NBITS=4 --overwrite --NoDataValue=0
 
     done
