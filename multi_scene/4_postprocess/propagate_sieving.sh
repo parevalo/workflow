@@ -34,7 +34,7 @@ for s in $scn_list; do
         gdal_calc.py -A mergedmaps_20$yr"-01-01.tif" -B mergedmaps_2016_sieved.tif \
         -C sieved_pixels_2016.tif --outfile=mergedmaps_20$yr"_sieved.tif" \
          --calc='"(C == 0)*A + (C == 1)*B"' --type=Byte --co="NBITS=4" \
-         --NoDataValue=0 --overwrite
+         --overwrite --NoDataValue=0
     done
 
 done
