@@ -27,13 +27,16 @@ for s in $scn_list; do
     rw=${s:4:2}
 
     cd $rootdir/$s/Results/M3/Class
-    
-    for yr in $(seq -w 01 15); do
+    export GDAL_CACHEMAX=2048
+
+    for yr in $(seq -w 16 16); do
+
 	    # Replace grassl. in M1 with whatever is in M3 as long as there is 
-        # no change in the entire period
+        # no change in the ENTIRE  period
+
         qsub -V -j y -b y -N mapmerge_$pt$rw \
         gdal_calc.py -A $pre$yr"-01-01_M1train.tif" -B $pre$yr"-01-01_M3train.tif" \
-         -C numchange_2001-2015_$pt$rw".tif" --outfile=mergedmaps_20$yr$suf \
+         -C numchange_2001-2016_$pt$rw".tif" --outfile=mergedmaps_20$yr$suf \
          --calc='"(C == -9999)*((A == 2)*B + (A != 2)*A) + ((C != -9999)*A)"' \
          --type=Byte --co NBITS=4 --overwrite --NoDataValue=0
 

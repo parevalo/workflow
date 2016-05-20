@@ -45,7 +45,7 @@ for s in $scn_list; do
     for yr in $(seq -w 16 16); do    
         qsub -j y -V -N map_$pt$rw"-"$yr -b y \
          yatsm -v map --root $ts_path --result $res_path --image $img_path \
-          --after --before --predict-proba class 20$yr$dt ClassM3_20$yr$dt"_M1train.tif"
+          --after --before --predict-proba class 20$yr$dt ClassM3_20$yr$dt"_M3train.tif"
     done
 
     # For debugging purposes
