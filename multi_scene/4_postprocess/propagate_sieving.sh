@@ -24,7 +24,7 @@ for s in $scn_list; do
     
     # Create mask for sieved areas  (i.e where sieved and original differ)
     qsub -j y -V -N sa_$pt$rw"_"$yr -b y \
-    dal_calc.py -A mergedmaps_2016-01-01.tif -B mergedmaps_2016_sieved.tif \
+    gdal_calc.py -A mergedmaps_2016-01-01.tif -B mergedmaps_2016_sieved.tif \
       --outfile=sieved_pixels_2016.tif --calc='"A != B"' \
       --type=Byte --co="NBITS=2" --overwrite
 
