@@ -23,14 +23,14 @@ for s in $scn_list; do
     cd $rootdir/$s/Results/M3/Class
     
     # Create mask for sieved areas  (i.e where sieved and original differ)
-    qsub -j y -V -N sa_$pt$rw"_"$yr -b y \
+    qsub -j y -V -N sa_$pt$rw -b y \
     gdal_calc.py -A mergedmaps_2016-01-01.tif -B mergedmaps_2016_sieved.tif \
       --outfile=sieved_pixels_2016.tif --calc='"A != B"' \
       --type=Byte --co="NBITS=2" --overwrite
 
     # Propagate the changes
     for yr in $(seq -w 01 15); do    
-       qsub -j y -V -N ps_$pt$rw"_"$yr -hold_jid sa_$pt$rw"_"$yr -b y \
+       qsub -j y -V -N ps_$pt$rw"_"$yr -hold_jid sa_$pt$rw -b y \
         gdal_calc.py -A mergedmaps_20$yr"-01-01.tif" -B mergedmaps_2016_sieved.tif \
         -C sieved_pixels_2016.tif --outfile=mergedmaps_20$yr"_sieved.tif" \
          --calc='"(C == 0)*A + (C == 1)*B"' --type=Byte --co="NBITS=4" \
