@@ -24,5 +24,7 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 ### File locations:
 
 **Images**: `/projectnb/landsat/projects/Colombia/<path><row>/images`
+
 **Image cache**: `/projectnb/landsat/projects/Colombia/<path><row>/images/.cache` 
+
 **Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/M3/TSR`
