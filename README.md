@@ -3,7 +3,7 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 
 **UPDATE WITH EXPLANATIONS OF ALL OF THE STEPS!**
 
-## Stratification:
+### Stratification:
 
 * 0 - Other classes to other classes
 * 1 - Stable forest
@@ -20,3 +20,9 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 * 12 - All other to forest
 * 13 - ALL CLASSES to unclassified
 * 14 - True NoData
+
+### File locations:
+
+**Images**: `/projectnb/landsat/projects/Colombia/<path><row>/images`
+**Image cache**: `/projectnb/landsat/projects/Colombia/<path><row>/images/.cache` 
+**Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/M3/TSR`
