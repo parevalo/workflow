@@ -10,16 +10,17 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 * 2 - Stable grassland
 * 3 - Stable urban
 * 4 - Stable pasture/cropland
-* 5 - Stable regrowth
+* 5 - Stable regrowth (includes regrowth to forest)
 * 6 - Stable water
 * 7 - Stable other (sandbanks, rocks)
 * 8 - Forest to pastures
 * 9 - Forest to regrowth
 * 10 - Forest to all others
 * 11 - Pastures to regrowth
-* 12 - All other to forest
+* 12 - All others (except forest and pastures) to regrowth
 * 13 - ALL CLASSES to unclassified
-* 14 - True NoData
+* 14 - Loss of regrowth (regrowth to all other classes except to forest)
+* 15 - True NoData
 
 ### File locations:
 
