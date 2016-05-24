@@ -11,13 +11,13 @@ limit=/projectnb/landsat/projects/Colombia/vector/amazon_boundary.shp
 for yr in $(seq -w 01 16); do
     
     # Unset NoData so that we can operate over areas with value of 0
-    gdal_edit.py -unsetnodata 20$yr"_final.tif"
+    gdal_edit.py -unsetnodata 20$yr"_final_UTM18N.tif"
     
     # Clip    
     qsub -j y -V -N clip$yr -b y \
      gdalwarp -cutline $limit -cl amazon_boundary \
       -ot Byte -co COMPRESS=PACKBITS -overwrite 20$yr"_final.tif" \
-       20$yr"_final_crop.tif"
+       20$yr"_final_UTM18N_crop.tif"
 
 done
 

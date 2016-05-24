@@ -19,7 +19,7 @@ for yr in $(seq -w 16 16); do
      GDAL_CACHEMAX 4000 -wm 4000 -multi -co COMPRESS=PACKBITS -co NBITS=4 \
      -wt Byte -wo NUM_THREADS=4 -tr 30 30 -srcnodata 0 \
      "$imgf"/*/Results/M3/Class/mergedmaps_20"$yr$suf" \
-     20$yr$suf
+     warp_20$yr$suf
 done
 
 

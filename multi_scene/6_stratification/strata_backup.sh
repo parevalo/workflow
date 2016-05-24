@@ -4,14 +4,14 @@
 
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
 
-initial=2001_final_UTM18N_crop.tif
+initial=2001_final_crop.tif
 
 # Get strata for each of the three end years we want to check 
 
-for yr in $(seq -w 16 16); do
+for yr in $(seq -w 15 16); do
     qsub -j y -V -N strata_$yr -b y \
-     gdal_calc.py -A $initial -B 20$yr"_final_UTM18N_crop.tif" \
-      --outfile=strata_01_$yr"_UTM18N.tif" \
+     gdal_calc.py -A $initial -B 20$yr"_final_crop.tif" \
+      --outfile=deletestrata_01_$yr".tif" \
       --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*2 +' \
               'logical_and(A == 3, B==3)*3 + logical_and(A == 4, B==4)*4 +' \
               'logical_and(A == 5, B==5)*5 + logical_and(A == 5, B==1)*5 +' \

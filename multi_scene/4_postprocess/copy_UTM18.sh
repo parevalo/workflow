@@ -24,7 +24,7 @@ for s in $scn_list; do
     cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
     
     # Create the copies
-    for yr in $(seq -w 16 16); do
+    for yr in $(seq -w 01 01); do
         cp -v $pref$yr$suf $pref$yr"_final_UTM18N.tif"
     done
 done
