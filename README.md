@@ -17,8 +17,8 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 * 9 - Forest to regrowth
 * 10 - Forest to all others
 * 11 - Pastures to regrowth
-* 12 - All others (except forest and pastures) to regrowth
-* 13 - ALL CLASSES (except forest) to unclassified
+* 12 - Grassland, Urban, Water and "Other" to regrowth
+* 13 - ALL CLASSES (except forest and regrowth) to unclassified
 * 14 - Loss of regrowth (regrowth to all other classes except to forest)
 * 15 - True NoData
 
