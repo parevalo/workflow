@@ -15,7 +15,7 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 * 7 - Stable other (sandbanks, rocks)
 * 8 - Forest to pastures
 * 9 - Forest to regrowth
-* 10 - Forest to all others
+* 10 - Forest to all others (Grasslands, urban, water and "Other")
 * 11 - Pastures to regrowth
 * 12 - Grassland, Urban, Water and "Other" to regrowth
 * 13 - ALL CLASSES (except forest and regrowth) to unclassified
@@ -28,4 +28,9 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 
 **Image cache**: `/projectnb/landsat/projects/Colombia/<path><row>/images/.cache` 
 
-**Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/M3/TSR`
+**Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/Results/M3/TSR`
+
+**Individual scene classification results**: 
+`/projectnb/landsat/projects/Colombia/<path><row>/Results/M3/Class/mergedmaps_<year>_final.tif`
+
+**Final mosaics**: `/projectnb/landsat/projects/Colombia/Mosaics/M3`
