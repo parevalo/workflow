@@ -15,7 +15,7 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 * 7 - Stable other (sandbanks, rocks)
 * 8 - Forest to pastures
 * 9 - Forest to regrowth
-* 10 - Forest to all others
+* 10 - Forest to all others (Grasslands, urban, water and "Other")
 * 11 - Pastures to regrowth
 * 12 - Grassland, Urban, Water and "Other" to regrowth
 * 13 - ALL CLASSES (except forest and regrowth) to unclassified
