@@ -28,6 +28,9 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 
 **Image cache**: `/projectnb/landsat/projects/Colombia/<path><row>/images/.cache` 
 
-**Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/M3/TSR`
+**Time Series Results**: `/projectnb/landsat/projects/Colombia/<path><row>/Results/M3/TSR`
+
+**Individual scene classification results**: 
+`/projectnb/landsat/projects/Colombia/<path><row>/Results/M3/Class/mergedmaps_<year>_final.tif`
 
 **Final mosaics**: `/projectnb/landsat/projects/Colombia/Mosaics/M3`
