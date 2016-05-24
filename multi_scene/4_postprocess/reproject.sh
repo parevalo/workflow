@@ -26,10 +26,11 @@ for s in $scn_list; do
     # cd to the corresponding class folder
     cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
     
+   
     # Submit the clipping job
     for yr in $(seq -w 16 16); do
         qsub -V -b y -j y -N reproj_$pt$rw"_"$yr \
-        gdalwarp -co COMPRESS=PACKBITS -co NBITS=4 -wt Byte \
+        gdalwarp -co COMPRESS=PACKBITS -co NBITS=4 -wt Byte -overwrite \
         -t_srs EPSG:32618 -tr 30 30 $pref$yr$suf $pref$yr"_final_UTM18N.tif"
     done
 done
