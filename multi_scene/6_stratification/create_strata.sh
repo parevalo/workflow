@@ -16,14 +16,14 @@ for yr in $(seq -w 16 16); do
               'logical_and(A == 3, B==3)*3 + logical_and(A == 4, B==4)*4 +' \
               'logical_and(A == 5, B==5)*5 + logical_and(A == 5, B==1)*5 +' \
               'logical_and(A == 6, B==6)*6 +' \
-              'logical_and(A == 7, B==7)*7 + logical_and(A == 1, B==4)*8 +' \
+              'logical_and(A == 7, B==7)*3 + logical_and(A == 1, B==4)*8 +' \
               'logical_and(A == 1, B==5)*9 +' \
               'logical_and(A == 1, logical_or(B==2, B==3))*10 +' \
               'logical_and(A == 1, logical_or(B==6, B==7))*10 +' \
               'logical_and(A == 1, B == 0)*10 +' \
               'logical_and(A == 4, B==5)*11 +' \
-              'logical_and(logical_or(A == 2, A==3), B==5)*12 +' \
-              'logical_and(logical_or(A == 6, A==7), B==5)*12 +' \
+              'logical_and(logical_or(A == 2, A==3), B==5)*11 +' \
+              'logical_and(logical_or(A == 6, A==7), B==5)*11 +' \
               'logical_and(logical_and(logical_and(A!=0,A!=1), A!=5), B==0)*13 +' \
               'logical_and(A == 5, logical_and(B != 5, B!= 1))*14 +' \
               'logical_and(A == 0, B==0)*15"' \
