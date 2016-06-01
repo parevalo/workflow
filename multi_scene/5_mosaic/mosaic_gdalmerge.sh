@@ -25,7 +25,7 @@ done
 # Mosaics for EAST ZONE (UTM19N)
 for yr in $(seq -w 01 16); do
     qsub -V -N mrgUTM19_$yr -j y -b y \
-     gdal_merge.py -o eastUTM18_20$yr".tif" -co COMPRESS=PACKBITS -co NBITS=4 \
+     gdal_merge.py -o eastUTM19_20$yr".tif" -co COMPRESS=PACKBITS -co NBITS=4 \
      -ot Byte -n 0 \
     $imgf/003058/$fld$yr$suf $imgf/003059/$fld$yr$suf \
     $imgf/004057/$fld$yr$suf $imgf/004058/$fld$yr$suf $imgf/004059/$fld$yr$suf \
