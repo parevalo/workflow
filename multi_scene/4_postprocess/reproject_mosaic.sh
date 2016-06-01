@@ -11,7 +11,8 @@ export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
 # cd to the corresponding class folder
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
     
-# Project to UTM18N 
+# Project to UTM18N. Extent calculated manually in order to "snap" the new
+# raster to the west zone grid. 
 #qsub -V -b y -j y -N reproj_UTM18N \
 #gdalwarp -co COMPRESS=PACKBITS -co NBITS=4 -wt Byte -overwrite \
 #-te 725295 -429765 1506435 595185 -te_srs EPSG:32618 \
