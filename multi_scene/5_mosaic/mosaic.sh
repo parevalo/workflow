@@ -1,6 +1,8 @@
 #!/bin/bash -l
-# Mosaic script with sequential or ordered scenes. (sequential seems to work
-# better) 
+
+# Script to create mosaics for each of the UTM zones. The mosaics are created
+# with the scenes in sequence because this improves the appearance, and because
+# most of the training data and areas of interest are located towards the west
 
 export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
 
