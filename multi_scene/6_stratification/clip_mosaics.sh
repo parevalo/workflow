@@ -7,14 +7,11 @@ limit=/projectnb/landsat/projects/Colombia/vector/amazon_boundary.shp
 
 #Do clipping
 
-for yr in $(seq -w 16 16); do
-    
-    # Clip    
+for yr in $(seq -w 01 16); do
     qsub -j y -V -N clip$yr -b y \
-     gdalwarp -cutline $limit -cl amazon_boundary \
-      -ot Byte -co COMPRESS=PACKBITS -overwrite finalmergeexample.tif \
-      20$yr"_final_UTM18N_crop.tif"
-
+    gdalwarp -cutline $limit -cl amazon_boundary \
+    -ot Byte -co COMPRESS=PACKBITS -overwrite 20$yr"_final.tif" \
+    20$yr"_final_crop.tif"
 done
 
 
