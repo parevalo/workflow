@@ -1,0 +1,54 @@
+21:01:54 DEBUG: Using map image /projectnb/landsat/projects/Colombia/Mosaics/M3/strata_01_16_UTM18N.tif
+21:01:54 DEBUG: Sampling method is stratified
+21:01:54 DEBUG: Sample size is 850
+21:01:54 DEBUG: Allocation is [ 50 200  75  50  75  50  50  50  50  50  50  50  50]
+21:01:54 DEBUG: Mask values are [ 15 255]
+21:01:54 DEBUG: Writing output raster to sample.gtif (GTiff)
+21:01:54 DEBUG: Writing output vector to /projectnb/landsat/projects/Colombia/Mosaics/M3/sample_may2016.shp (ESRI Shapefile)
+21:01:54 DEBUG: Setting NumPy seed to 10000
+21:01:57 DEBUG: Read in map image to be sampled
+21:02:41 DEBUG: Found 13 classes
+21:02:46 DEBUG:     class 0 - 1779332px (0.12%)
+21:02:50 DEBUG:     class 1 - 452933973px (29.63%)
+21:02:54 DEBUG:     class 2 - 14596905px (0.95%)
+21:02:59 DEBUG:     class 3 - 418217px (0.03%)
+21:03:03 DEBUG:     class 4 - 25520000px (1.67%)
+21:03:08 DEBUG:     class 5 - 5494025px (0.36%)
+21:03:12 DEBUG:     class 6 - 6730354px (0.44%)
+21:03:17 DEBUG:     class 8 - 4514362px (0.3%)
+21:03:21 DEBUG:     class 9 - 1342309px (0.09%)
+21:03:26 DEBUG:     class 10 - 3318582px (0.22%)
+21:03:30 DEBUG:     class 11 - 582675px (0.04%)
+21:03:34 DEBUG:     class 13 - 1814562px (0.12%)
+21:03:39 DEBUG:     class 14 - 1194388px (0.08%)
+21:03:39 DEBUG: Performing sampling
+21:03:39 DEBUG: Sampling class 0
+21:03:48 DEBUG:     collected samples
+21:03:48 DEBUG: Sampling class 1
+21:06:21 DEBUG:     collected samples
+21:06:21 DEBUG: Sampling class 2
+21:06:33 DEBUG:     collected samples
+21:06:33 DEBUG: Sampling class 3
+21:06:40 DEBUG:     collected samples
+21:06:40 DEBUG: Sampling class 4
+21:06:55 DEBUG:     collected samples
+21:06:55 DEBUG: Sampling class 5
+21:07:05 DEBUG:     collected samples
+21:07:05 DEBUG: Sampling class 6
+21:07:15 DEBUG:     collected samples
+21:07:15 DEBUG: Sampling class 8
+21:07:25 DEBUG:     collected samples
+21:07:25 DEBUG: Sampling class 9
+21:07:32 DEBUG:     collected samples
+21:07:32 DEBUG: Sampling class 10
+21:07:40 DEBUG:     collected samples
+21:07:40 DEBUG: Sampling class 11
+21:07:47 DEBUG:     collected samples
+21:07:47 DEBUG: Sampling class 13
+21:07:55 DEBUG:     collected samples
+21:07:55 DEBUG: Sampling class 14
+21:08:03 DEBUG:     collected samples
+21:08:03 DEBUG: Randomizing order of samples
+21:08:03 DEBUG: Finished collecting samples
+21:08:03 DEBUG: Writing raster output to sample.gtif
+21:08:09 DEBUG: Writing vector output to /projectnb/landsat/projects/Colombia/Mosaics/M3/sample_may2016.sh
