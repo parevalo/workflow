@@ -39,8 +39,6 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 
 **Reprojected mosaics of east region matching west grid**: `eastUTM18_<year>.tif`
 
-**Mosaics of east region**: `eastUTM19_<year>.tif`
-
 **Mosaics of entire region**: `<year>_final.tif`
 
 **Mosaics of entire region clipped to amazon boundary**: `<year>_final_crop.tif`
