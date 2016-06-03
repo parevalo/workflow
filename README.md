@@ -31,7 +31,7 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 
 **Final mosaics, strata and samples**: `/projectnb/landsat/projects/Colombia/Mosaics/M3`
 
-## File names:
+### File names:
 
 **Mosaics of east region**: `eastUTM19_<year>.tif`
 
@@ -52,4 +52,4 @@ Repository to include all the basic scripts needed to run all steps of yatsm for
 **Sample obtained straight from script**: `sample_may2016_UTM18N.shp`
 
 **Definitive, ready to use samples for each zone**: 
-`sample_east_UTM19N_ID_PR_ZONE` and `sample_west_UTM18N_ID_PR_ZONE`
+`sample_east_UTM19N_ID_PR_ZONE.shp` and `sample_west_UTM18N_ID_PR_ZONE.shp`
