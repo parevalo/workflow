@@ -45,8 +45,9 @@ def calculate_areas(df):
    
     for i in range(numclasses):
         # Iterate over columns (Attepmt again using removing p line below and indexing directly)
-        p = w * table[:, i] / ni
-        np.sqrt(np.sum((w * p - p**2) / (ni  - 1)))
+        p = w * table[:, i] / ni #Delete if line below works
+        S[i] = np.sqrt(np.sum((w * p[:, i] - p[:, i]**2) / (ni  - 1)))
+		
+    	print S
 
-    print S
     return S
