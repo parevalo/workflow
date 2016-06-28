@@ -4,10 +4,12 @@
 # Modified by Paulo Arevalo
 
 
-"""HTML Cleaner.
+"""Script to count the number of pixels per class in a given raster file. 
+   Outputs a csv with the class numbers and pixel count.
+   Current version only really checks the first band. 
 
 Usage:
-  CountValues.py <filename>
+  CountValues.py <filename> <output>
 
 
 """
@@ -25,7 +27,7 @@ if __name__ == '__main__':
 
 
 path = args['<filename>']
-
+out_csv = args['<output>']
 
  
 gdalData = gdal.Open(path)
@@ -44,13 +46,20 @@ for i in xrange(1, bands + 1):
     band_i = gdalData.GetRasterBand(i)
     raster = band_i.ReadAsArray()
 
-    # count unique values for the given band
-  
+    # count unique values for the given band (missing values get a count of 0)
+     
     flatraster = raster.flatten()
     stats = np.bincount(flatraster)
     max = flatraster.max()
     min = flatraster.min()
+    outarray = np.zeros((max+1, 2))
+    outarray[:, 0] = np.arange(max+1)
+    outarray[:, 1] = stats
 
-# Print class and number of pixels
+
+# Print/export class and number of pixels
 for i in (range(min, max+1)):
     print "Class {0}: {1}".format(i, stats[i])
+
+np.savetxt(out_csv, outarray, delimiter=',', header="class,pixels", fmt='%01d')
+
