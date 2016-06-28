@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
-"""Area calculation with standard errors. Assumes input table has row and 
-   column labels.   
+"""Area calculation with standard errors. For now it assumes that input table 
+   has row and column labels, and that the last four columns are samples per 
+   class, number of map pixel per class, area in ha and class weigth.
 
 Usage:
     estimate_area.py <csv>
@@ -31,7 +32,11 @@ def read_csv(csvfile):
 
 
 def calculate_areas(df):
-    # Convert to numpy array to make it easier
+    """
+    Calculates area proportions and their standard error, as well as estimated
+    area and it's confidence interval
+    """
+    # Convert to numpy array to make it easier to index
     table = df.values
 
     # Get number of rows, assumed to be number of classes, and column labels
@@ -39,22 +44,29 @@ def calculate_areas(df):
     headers = df.dtypes.index[0:numclasses]
     
     # Calculate total area
-    total_area = np.sum(table[:, 14]
+    total_area = np.sum(table[:, 14])
 
-    # Calculate terms of the equation. 
-    S = np.zeros((numclasses))
+    # Initialize empty arrays for area proportions and standard error
+    p = np.zeros((numclasses, numclasses))
+    se = np.zeros((numclasses))
+
+    # Calculate fixed terms of the equation. 
     ni = table[:, 12]
     w = table[:, 15]
    
+    # Calculate area proportions and standard error of them
     for i in range(numclasses):
-        # Iterate over columns 
-        p = w * table[:, i] / ni 
-        S[i] = np.sqrt(np.sum((w * p - p**2) / (ni  - 1)))
+        # Iterate over columns (e.g. reference samples)
+        p[:, i] = w * table[:, i] / ni 
+        se[i] = np.sqrt(np.sum((w * p[:, i] - p[:, i]**2) / (ni  - 1)))
    
-    print headers
-    print S*1.96*100
+    # Calculate estimated area by class and its confidence interval
 
-    return S
+    class_area = p.sum(axis=0) * total_area
+    class_ci = se * 1.96 * total_area
+
+
+    return (se, p, class_area, class_ci)
 
 def main():
     csvfile = arguments['<csv>']
@@ -66,7 +78,15 @@ def main():
     df = read_csv(csvfile)
 
     # Calculate areas
-    S = calculate_areas(df)
+    se, p, class_area, class_ci = calculate_areas(df)
+    
+    # Print/export values
+    print "-------> Estimated area with lower and upper 95% CI"
+    for i in range(se.shape[0]):
+        print df.dtypes.index[i] + " = {:0.2f} {:0.2f} {:0.2f}".format(\
+                                    class_area[i], \
+                                    class_area[i] - class_ci[i], \
+                                    class_area[i] + class_ci[i])
 
 if __name__ == '__main__':
     arguments = docopt(__doc__)
