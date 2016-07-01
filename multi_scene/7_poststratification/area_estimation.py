@@ -5,7 +5,7 @@
    class, number of map pixel per class, area in ha and class weigth.
 
 Usage:
-    estimate_area.py <input_csv> <output_csv>
+    area_estimation.py <input_csv> <output_csv>
 """
 #TODO:
 #- Add back multiple options for specifying row columns/labels
