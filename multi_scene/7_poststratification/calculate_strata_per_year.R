@@ -138,7 +138,6 @@ calc_area_prop = function(strata, reference){
     class_prop[r] = sum(fss$pixels * ref_prop[,r])/sum(ss$pixels)
   }
   return(list(class_prop, ref_var, fss, ref_prop)) 
-  #return(ref_prop)
 }
 
 # Call the function for every reference year we want and get area proportions and sample variance
@@ -163,12 +162,13 @@ for (i in (1:length(rast_names))){
 rownames(area_prop) = years[2:length(years)]
 refcodes = sort(unique(samples$ref_2016))
 colnames(area_prop) = refcodes
-#No all the rows in area_prop add to 1, check!
+#Not all the rows in area_prop add to 1, check! Maybe there is some sort of double counting in the labels??
 
 ## 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 # add function to iterate over each class, then call the fnc for each year until 2015
-# get filtered sample size from filtered_ss for each year
+# get filtered sample size from filtered_ss for each year (only needed if problem with 2002 and 2010 is fixed)
 
+# Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
 se_prop = data.frame()
 #Iterate over years
 for (y in 1:length(ref_var_list)){
@@ -185,10 +185,13 @@ rownames(se_prop) = years[2:length(years)]
 colnames(se_prop) = refcodes
 ## Years 2002 and 2010 have NA's because stratum 8 and 13 (respectively) only have 1 value and thus no variance
 
-# Calculate area in ha from area proportions 
-area_ha = area_prop*N * 30^2 / 100^2
-# Calculate confidence interval
-area_ci = se_prop * 1.96 * N
+# Total area in ha
+N_ha = N * 30^2 / 100^2
+# Calculate area in ha from area proportions
+area_ha = area_prop * N_ha
+# Calculate confidence interval in ha
+area_ci = se_prop * 1.96 * N_ha
 #Upper and lower CI
 area_ha + area_ci
-area_ha + area_ci
+area_ha - area_ci
+area_ci
