@@ -142,7 +142,7 @@ calc_area_prop = function(strata, reference){
 
 # Call the function for every reference year we want and get area proportions and sample variance
 # NOTE the double square brackets to allow for substitution
-ca = calc_area_prop(samples$final_strata_01_02_UTM18N, samples$ref_2002)
+ca = calc_area_prop(samples$final_strata_01_03_UTM18N, samples$ref_2003)
 
 area_prop = data.frame()
 ref_var_list = list()
@@ -196,14 +196,22 @@ area_ha + area_ci
 area_ha - area_ci
 area_ci
 
-# Reference sample count per year
-yearly_ref_class = data.frame()
-for (f in 2:(length(field_names))){
+# Reference sample count per year. Use something like this above to deal with varying number of classes per year
+# Get unique classes through all the reference years
+unique_classes = sort(unique(unlist(samples@data[field_names])))
+# Initialize zero matrix with year * class dimensions and proper row and column names
+m = matrix(0, nrow=length(years), ncol=length(unique_classes), dimnames=list(years, unique_classes))
+
+for (f in 1:(length(field_names))){
+  # Get table, then check if unique classes is in that table, then use the boolean to assign values
   a = table(samples[[field_names[f]]])
-  yearly_ref_class = rbind(yearly_ref_class, a)
+  class_check = unique_classes %in% names(a)
+  m[f,class_check] = a
+  
 }
 
-yearly_ref_class = rbind(0, yearly_ref_class)
-yearly_ref_class[1,2:11] = table(samples$ref_2001)
-rownames(yearly_ref_class) = years
-colnames(yearly_ref_class) = refcodes
+
+#TODO:
+#- Create sample proportions between 2001-2002 with the reference samples as if they were original random samples. 
+#- Check why the changes in the code for the reference label calculation is breaking the rest. Need to implement a way to
+# check for the unique values for each year to avoid vectors with different lengths
