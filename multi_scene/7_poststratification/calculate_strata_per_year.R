@@ -41,7 +41,7 @@ for (y in years){
       } else {
         # Find FIRST date and make the comparison. 
         chgdate = na.omit(as.numeric(unlist(strsplit(samples$CHGDATE[row], "[^0-9]"))))
-        if (y < chgdate[1]){
+        if (y <= chgdate[1]){
           field[row] = samples$CODE1[row]
         } else {
           field[row] = samples$strata[row]
@@ -195,3 +195,15 @@ area_ci = se_prop * 1.96 * N_ha
 area_ha + area_ci
 area_ha - area_ci
 area_ci
+
+# Reference sample count per year
+yearly_ref_class = data.frame()
+for (f in 2:(length(field_names))){
+  a = table(samples[[field_names[f]]])
+  yearly_ref_class = rbind(yearly_ref_class, a)
+}
+
+yearly_ref_class = rbind(0, yearly_ref_class)
+yearly_ref_class[1,2:11] = table(samples$ref_2001)
+rownames(yearly_ref_class) = years
+colnames(yearly_ref_class) = refcodes
