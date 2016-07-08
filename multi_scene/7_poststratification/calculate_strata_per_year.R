@@ -92,14 +92,12 @@ strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$fin
 calc_area_prop = function(strata, reference){
 
   # Generate numbered sequence from the unique values in the REFERENCE field
-  ref_codes = sort(unique(reference))
+  ref_codes = unique_classes #sort(unique(reference))
   ref_ind=seq_along(ref_codes)
   
   # Obtain unique values in the STRATA field
-  str_codes = sort(unique(strata))
+  str_codes = unique_classes#sort(unique(strata))
   str_ind=seq_along(str_codes)
-  
-  # Check if values in strata are the same as in reference, or check i
   
   # Initialize empty df for proportions per strata, and for sample variance per strata
   ref_prop = data.frame()
@@ -142,14 +140,16 @@ calc_area_prop = function(strata, reference){
 
 # Call the function for every reference year we want and get area proportions and sample variance
 # NOTE the double square brackets to allow for substitution
-ca = calc_area_prop(samples$final_strata_01_03_UTM18N, samples$ref_2003)
+# THE SCRIPT REQUIRES THE STRATA TO BE THE ORIGINAL STRATA, SO NO NEED TO ITERATE OVER RASTERS!! THOSE RASTERS ARE ONLY NEEDED
+# IF WE WANT TO CALCULATE THE ACCURACIES
+ca = calc_area_prop(samples$final_strata_01_16_UTM18N, samples$ref_2003)
 
 area_prop = data.frame()
 ref_var_list = list()
 filtered_ss = list()
 for (i in (1:length(rast_names))){
   # Compare year strata with year reference. Field names must start at 2002, hence i+1
-  out = calc_area_prop(samples[[rast_names[i]]], samples[[field_names[i+1]]]) 
+  out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]]) 
   ap = out[[1]]
   rv = out[[2]]
   fs = out[[3]]
@@ -192,9 +192,16 @@ area_ha = area_prop * N_ha
 # Calculate confidence interval in ha
 area_ci = se_prop * 1.96 * N_ha
 #Upper and lower CI
-area_ha + area_ci
-area_ha - area_ci
-area_ci
+area_upper = area_ha + area_ci
+area_lower = area_ha - area_ci
+
+write.csv(area_ha, file="area_ha.csv")
+write.csv(area_lower, file="area_lower.csv")
+write.csv(area_upper, file="area_upper.csv")
+
+plot(area_ha[,2], type="l", xlab="Years", ylab="Area in ha")
+lines(area_upper[,2], col="red")
+lines(area_lower[,2], col="red")
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 # Get unique classes through all the reference years
@@ -210,8 +217,3 @@ for (f in 1:(length(field_names))){
   
 }
 
-
-#TODO:
-#- Create sample proportions between 2001-2002 with the reference samples as if they were original random samples. 
-#- Check why the changes in the code for the reference label calculation is breaking the rest. Need to implement a way to
-# check for the unique values for each year to avoid vectors with different lengths
