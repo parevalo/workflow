@@ -6,6 +6,7 @@
 
 require(rgdal)
 require(raster)
+require(ggplot2)
 
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
@@ -88,6 +89,9 @@ strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$fin
 ## 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA
 # Returns a vector with length equal to the number of reference classes
 # Reorganize to make more legible
+
+#Delete/reorganize duplicate at the bottom of the script
+unique_classes = sort(unique(unlist(samples@data[field_names])))
 
 calc_area_prop = function(strata, reference){
 
@@ -195,13 +199,10 @@ area_ci = se_prop * 1.96 * N_ha
 area_upper = area_ha + area_ci
 area_lower = area_ha - area_ci
 
+# Write results to csv
 write.csv(area_ha, file="area_ha.csv")
 write.csv(area_lower, file="area_lower.csv")
 write.csv(area_upper, file="area_upper.csv")
-
-plot(area_ha[,2], type="l", xlab="Years", ylab="Area in ha")
-lines(area_upper[,2], col="red")
-lines(area_lower[,2], col="red")
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 # Get unique classes through all the reference years
@@ -209,6 +210,7 @@ unique_classes = sort(unique(unlist(samples@data[field_names])))
 # Initialize zero matrix with year * class dimensions and proper row and column names
 m = matrix(0, nrow=length(years), ncol=length(unique_classes), dimnames=list(years, unique_classes))
 
+# Why did I do this block?
 for (f in 1:(length(field_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
   a = table(samples[[field_names[f]]])
@@ -217,3 +219,38 @@ for (f in 1:(length(field_names))){
   
 }
 
+## 5) Plots
+
+# Basic, ugly plot
+plot(area_ha[,2], type="l", xlab="Years", ylab="Area in ha")
+lines(area_upper[,2], col="red")
+lines(area_lower[,2], col="red")
+
+# Nice, good looking plots
+
+# Create vector with name of classes, doesn't include class 13
+
+strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                 "Stable pasture/cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
+                 "Forest to regrowth", "Pasture to all others", "Loss of regrowth")
+
+# Scientific of "general" number formatting?
+for(i in 1:length(area_ha)){
+  # Define data and variables to use
+  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i]))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper")
+  
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line
+  a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
+    scale_x_continuous(breaks=years[2:16]) + scale_y_continuous(labels=function(n){format(n, scientific = FALSE)}) +
+    ylab("Area in ha") + ggtitle(strata_names[[i]]) + 
+    theme(plot.title = element_text(size=18), axis.title=element_text(size=12))
+  
+  print(a)
+}
+
+#TODO
+#- Refactor function above to use matrices? Make temporal fix permanent
+#- Create a function to make the plots. Use ggplot or something nice.
+#- Organize sections better, especially the last one.
