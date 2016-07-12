@@ -6,6 +6,7 @@
 
 require(rgdal)
 require(raster)
+require(reshape2)
 require(ggplot2)
 
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
@@ -90,34 +91,30 @@ strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$fin
 # Returns a vector with length equal to the number of reference classes
 # Reorganize to make more legible
 
-#Delete/reorganize duplicate at the bottom of the script
+# Get unique classes through all the reference years
 unique_classes = sort(unique(unlist(samples@data[field_names])))
 
 calc_area_prop = function(strata, reference){
 
-  # Generate numbered sequence from the unique values in the REFERENCE field
-  ref_codes = unique_classes #sort(unique(reference))
-  ref_ind=seq_along(ref_codes)
-  
-  # Obtain unique values in the STRATA field
-  str_codes = unique_classes#sort(unique(strata))
-  str_ind=seq_along(str_codes)
+  # Generate numbered sequence from the unique classes 
+  class_codes = unique_classes
+  class_ind=seq_along(ref_codes)
   
   # Initialize empty df for proportions per strata, and for sample variance per strata
   ref_prop = data.frame()
   ref_var = data.frame()
   
-  # Compare the fields
-  for (s in str_ind){
-    for (r in ref_ind){
+  # Compare the fields, iterate over "strata" and "reference" classes
+  for (s in class_ind){
+    for (r in class_ind){
       # Compared fields and get TRUE or FALSE on each row
-      cond_bool = strata == str_codes[s] & reference == ref_codes[r]
+      cond_bool = strata == class_codes[s] & reference == class_codes[r]
       # Get row numbers that meet that condition
       ind = which(cond_bool)
       # Get location of rows for the current strata
-      str_ref = which(strata == str_codes[s])
+      str_ref = which(strata == class_codes[s])
       # Get proportion on reference class present on that strata
-      ref_prop[s, r] = length(ind)/strata_pixels$x[strata_pixels$Group.1 == str_codes[s]]
+      ref_prop[s, r] = length(ind)/strata_pixels$x[strata_pixels$Group.1 == class_codes[s]]
       # Calculate variance of current reference code in current strata (needed later)
       # THIS IS PRODUCING NA'S IN 01-02, REF-2002 IN STRATA 8 BC THERE IS ONLY ONE OBSERVATION, HOW TO DEAL
       # WITH THIS?
@@ -126,15 +123,15 @@ calc_area_prop = function(strata, reference){
   }
   
   # Assign column and row names for easier reference
-  rownames(ref_prop) = paste0("strat_",str_codes)
-  colnames(ref_prop) = paste0("ref_", ref_codes)
-  rownames(ref_var) = paste0("strat_",str_codes)
-  colnames(ref_var) = paste0("ref_", ref_codes)
+  rownames(ref_prop) = paste0("strat_",class_codes)
+  colnames(ref_prop) = paste0("ref_", class_codes)
+  rownames(ref_var) = paste0("strat_",class_codes)
+  colnames(ref_var) = paste0("ref_", class_codes)
   
   # Calculate reference class proportions (i.e. by columns) using total, original strata areas.
   class_prop = vector()
   # Filter only total sample sizes that are present in the strata for that year
-  fss = ss[ss$stratum %in% str_codes,]
+  fss = ss[ss$stratum %in% class_codes,]
   for (r in 1:ncol(ref_prop)){
     # LEAVE THE SUM OF THE ENTIRE STRATA?
     class_prop[r] = sum(fss$pixels * ref_prop[,r])/sum(ss$pixels)
@@ -144,8 +141,8 @@ calc_area_prop = function(strata, reference){
 
 # Call the function for every reference year we want and get area proportions and sample variance
 # NOTE the double square brackets to allow for substitution
-# THE SCRIPT REQUIRES THE STRATA TO BE THE ORIGINAL STRATA, SO NO NEED TO ITERATE OVER RASTERS!! THOSE RASTERS ARE ONLY NEEDED
-# IF WE WANT TO CALCULATE THE ACCURACIES
+# THE SCRIPT REQUIRES THE STRATA TO BE THE ORIGINAL STRATA, SO NO NEED TO ITERATE OVER RASTERS!! 
+# THOSE RASTERS ARE ONLY NEEDED IF WE WANT TO CALCULATE THE ACCURACIES
 ca = calc_area_prop(samples$final_strata_01_16_UTM18N, samples$ref_2003)
 
 area_prop = data.frame()
@@ -166,11 +163,8 @@ for (i in (1:length(rast_names))){
 rownames(area_prop) = years[2:length(years)]
 refcodes = sort(unique(samples$ref_2016))
 colnames(area_prop) = refcodes
-#Not all the rows in area_prop add to 1, check! Maybe there is some sort of double counting in the labels??
 
-## 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
-# add function to iterate over each class, then call the fnc for each year until 2015
-# get filtered sample size from filtered_ss for each year (only needed if problem with 2002 and 2010 is fixed)
+### 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
 # Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
 se_prop = data.frame()
@@ -187,7 +181,6 @@ for (y in 1:length(ref_var_list)){
 # Reassign names...
 rownames(se_prop) = years[2:length(years)]
 colnames(se_prop) = refcodes
-## Years 2002 and 2010 have NA's because stratum 8 and 13 (respectively) only have 1 value and thus no variance
 
 # Total area in ha
 N_ha = N * 30^2 / 100^2
@@ -205,12 +198,11 @@ write.csv(area_lower, file="area_lower.csv")
 write.csv(area_upper, file="area_upper.csv")
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
-# Get unique classes through all the reference years
-unique_classes = sort(unique(unlist(samples@data[field_names])))
+
 # Initialize zero matrix with year * class dimensions and proper row and column names
 m = matrix(0, nrow=length(years), ncol=length(unique_classes), dimnames=list(years, unique_classes))
 
-# Why did I do this block?
+# Calculate the sample count
 for (f in 1:(length(field_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
   a = table(samples[[field_names[f]]])
@@ -231,26 +223,26 @@ lines(area_lower[,2], col="red")
 # Create vector with name of classes, doesn't include class 13
 
 strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                 "Stable pasture/cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
+                 "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
                  "Forest to regrowth", "Pasture to all others", "Loss of regrowth")
 
-# Scientific of "general" number formatting?
+# Create each plot and save it to png
 for(i in 1:length(area_ha)){
   # Define data and variables to use
   tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper")
   
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
+  # Other custom settings for number of breaks, label formatting and title.
   a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16]) + scale_y_continuous(labels=function(n){format(n, scientific = FALSE)}) +
+    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
     ylab("Area in ha") + ggtitle(strata_names[[i]]) + 
-    theme(plot.title = element_text(size=18), axis.title=element_text(size=12))
-  
+    theme(plot.title = element_text(size=18), axis.title=element_text(size=13), axis.text=element_text(size=11))
+  filename = paste0(strata_names[[i]], ".png")
   print(a)
+  ggsave(filename, plot=a, device="png") 
+  
 }
 
-#TODO
-#- Refactor function above to use matrices? Make temporal fix permanent
-#- Create a function to make the plots. Use ggplot or something nice.
-#- Organize sections better, especially the last one.
