@@ -9,6 +9,7 @@ require(raster)
 require(reshape2)
 require(ggplot2)
 
+
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
 # on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
@@ -98,7 +99,7 @@ calc_area_prop = function(strata, reference){
 
   # Generate numbered sequence from the unique classes 
   class_codes = unique_classes
-  class_ind=seq_along(ref_codes)
+  class_ind=seq_along(class_codes)
   
   # Initialize empty df for proportions per strata, and for sample variance per strata
   ref_prop = data.frame()
@@ -211,6 +212,54 @@ for (f in 1:(length(field_names))){
   
 }
 
+# Calculate yearly area change and rate change
+# Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
+chg_area = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
+chg_rate = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
+
+for(i in 1:length(area_ha)){
+  chg_area[,i] = diff(area_ha[,i])
+  chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100
+}
+
+
+# Calculate when break occurred in maps and compare to break in reference samples
+# (trying to get rid of loops now...)
+
+break_calc = function(dataset){
+  unq = unique(as.numeric(dataset))
+  if (length(unq) == 1){
+    return(0)
+  }  
+  else{
+    # Find last column with the first code
+    break_col = tail(which(dataset == unq[1]), n=1)
+    # Calculate year of change (e.g if break was 12, break year was 2013) and format accordingly
+    break_year = as.numeric(paste0("20",sprintf("%02d",break_col+1)))
+    #print(sprintf("Break happened in %s", break_year))
+    return(break_year)
+  }
+}
+
+# Apply functions over rows on strata columns only
+strata_breaks = apply(samples@data[, 39:53], MARGIN = 1, FUN = break_calc)
+
+# Split CHGDATE to get year, then replace NA with 0 and substract, or convert to date and compare.
+# Get YEAR of change from reference samples
+ref_breaks = strsplit(samples$CHGDATE, "-")
+# Get the first element of each list (i.e the year), unlist the output, pass as numeric
+ref_breaks = as.numeric(unlist(lapply(ref_breaks, '[[', 1)))
+# Replace NA's with zeros
+ref_breaks[is.na(ref_breaks)] = 0
+# Create table with the two datasets and add totals
+change_cm = table(strata_breaks, ref_breaks)
+change_cm = cbind(change_cm, total=rowSums(change_cm))
+change_cm = rbind(change_cm, total=colSums(change_cm)) 
+# Compare total breaks detected per year
+total_ref = change_cm["total",]
+total_ref = total_ref[-2]
+total_breaks = cbind(total_ref, change_cm[,"total"])
+colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 ## 5) Plots
 
 # Basic, ugly plot
@@ -228,6 +277,7 @@ strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable 
 
 # Create each plot and save it to png
 for(i in 1:length(area_ha)){
+  
   # Define data and variables to use
   tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper")
