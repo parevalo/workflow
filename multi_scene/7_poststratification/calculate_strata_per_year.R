@@ -8,6 +8,8 @@ require(rgdal)
 require(raster)
 require(reshape2)
 require(ggplot2)
+require(gtable)
+require(grid)
 
 
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
@@ -92,7 +94,7 @@ strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$fin
 # Returns a vector with length equal to the number of reference classes
 # Reorganize to make more legible
 
-# Get unique classes through all the reference years
+# Get unique classes through all the reference years (This won't have class 13 for that reason)
 unique_classes = sort(unique(unlist(samples@data[field_names])))
 
 calc_area_prop = function(strata, reference){
@@ -170,10 +172,13 @@ colnames(area_prop) = refcodes
 # Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
 se_prop = data.frame()
 #Iterate over years
+
 for (y in 1:length(ref_var_list)){
   # Iterate over classes
   for (c in 1:length(refcodes)){
   N=sum(ss$pixels)
+  # This is giving warnings of strata_pixels not being of same lenght of ref_var_list (refvar is shorter)!! CHECK!!
+  # Probably means that class 14 is being incorrectly calculated?
   v = 1/N^2 * (sum(ss$pixels^2 * (1 - strata_pixels$x/ss$pixels) * (ref_var_list[[y]][,c] / strata_pixels$x)))
   se_prop[y,c] = sqrt(v)
   }
@@ -212,7 +217,7 @@ for (f in 1:(length(field_names))){
   
 }
 
-# Calculate yearly area change and rate change
+# Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
 chg_area = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
 chg_rate = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
@@ -260,6 +265,7 @@ total_ref = change_cm["total",]
 total_ref = total_ref[-2]
 total_breaks = cbind(total_ref, change_cm[,"total"])
 colnames(total_breaks) = c("ref_breaks", "strata_breaks")
+
 ## 5) Plots
 
 # Basic, ugly plot
@@ -275,7 +281,11 @@ strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable 
                  "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
                  "Forest to regrowth", "Pasture to all others", "Loss of regrowth")
 
-# Create each plot and save it to png
+# Calculate margin of error, plot along with the areas with CI (right below), use righ axis
+margin_error = area_ci / area_ha
+
+# Create each plot and save it to png, make y axis start at 0, break the axis for stable forest
+
 for(i in 1:length(area_ha)){
   
   # Define data and variables to use
@@ -288,11 +298,59 @@ for(i in 1:length(area_ha)){
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area in ha") + ggtitle(strata_names[[i]]) + 
+    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
     theme(plot.title = element_text(size=18), axis.title=element_text(size=13), axis.text=element_text(size=11))
-  filename = paste0(strata_names[[i]], ".png")
+  filename = paste0(strata_names[[i]], "_areasCI", ".png")
   print(a)
   ggsave(filename, plot=a, device="png") 
   
 }
 
+# Same plot but with two panels, one including the margin error. Plots weren't created with ggplot facets bc
+# I couldn't find/figure out how to modify properties of individual facets
+
+for(i in 1:length(area_ha)){
+  
+  # Define data and variables to use
+  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
+  
+  # Plot areas with CI
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
+  # Other custom settings for number of breaks, label formatting and title.
+  
+  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
+    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
+  theme(plot.title = element_text(size=18), axis.title=element_text(size=14), axis.text=element_text(size=12))
+  
+  
+  # Plot margin of error
+  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error)) + geom_line(size=1.2) + 
+    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0)
+  
+  # Use gtable to stack plots together with matching extent and save  
+  g1 <- ggplotGrob(a)
+  g2 <- ggplotGrob(b)
+  g <- rbind(g1, g2, size="first") # stack the two plots
+  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
+  
+  grid.newpage()
+  grid.draw(g)
+  filename = paste0(strata_names[[i]], "_areas_me", ".png")
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+
+}
+
+# Net regrowth change
+
+net_rg = area_ha[,6] + area_ha[,10] - area_ha[,11]
+
+#TODO
+# - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
+# total sample size in that path-row
+# - For the paper, remove plot titles and add to the y label (e.g. forest to pasture converstion [ha])
+# - Make plot of net change in secondary forest
+# - Plot of primary forest loss disagregated by class (requires operating over original mosaics!)
