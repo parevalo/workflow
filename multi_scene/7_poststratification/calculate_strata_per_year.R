@@ -95,29 +95,31 @@ strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$fin
 # Reorganize to make more legible
 
 # Get unique classes through all the reference years (This won't have class 13 for that reason)
-unique_classes = sort(unique(unlist(samples@data[field_names])))
+# and get numbered sequence
+ref_codes = sort(unique(unlist(samples@data[field_names])))
+ref_ind = seq_along(ref_codes)
 
 calc_area_prop = function(strata, reference){
 
-  # Generate numbered sequence from the unique classes 
-  class_codes = unique_classes
-  class_ind=seq_along(class_codes)
+  # Obtain unique values in the STRATA field
+  str_codes = sort(unique(strata))
+  str_ind=seq_along(str_codes)
   
   # Initialize empty df for proportions per strata, and for sample variance per strata
   ref_prop = data.frame()
   ref_var = data.frame()
   
   # Compare the fields, iterate over "strata" and "reference" classes
-  for (s in class_ind){
-    for (r in class_ind){
+  for (s in str_ind){
+    for (r in ref_ind){
       # Compared fields and get TRUE or FALSE on each row
-      cond_bool = strata == class_codes[s] & reference == class_codes[r]
+      cond_bool = strata == str_codes[s] & reference == ref_codes[r]
       # Get row numbers that meet that condition
       ind = which(cond_bool)
       # Get location of rows for the current strata
-      str_ref = which(strata == class_codes[s])
+      str_ref = which(strata == str_codes[s])
       # Get proportion on reference class present on that strata
-      ref_prop[s, r] = length(ind)/strata_pixels$x[strata_pixels$Group.1 == class_codes[s]]
+      ref_prop[s, r] = length(ind)/strata_pixels$x[strata_pixels$Group.1 == str_codes[s]]
       # Calculate variance of current reference code in current strata (needed later)
       # THIS IS PRODUCING NA'S IN 01-02, REF-2002 IN STRATA 8 BC THERE IS ONLY ONE OBSERVATION, HOW TO DEAL
       # WITH THIS?
@@ -126,15 +128,15 @@ calc_area_prop = function(strata, reference){
   }
   
   # Assign column and row names for easier reference
-  rownames(ref_prop) = paste0("strat_",class_codes)
-  colnames(ref_prop) = paste0("ref_", class_codes)
-  rownames(ref_var) = paste0("strat_",class_codes)
-  colnames(ref_var) = paste0("ref_", class_codes)
+  rownames(ref_prop) = paste0("strat_",str_codes)
+  colnames(ref_prop) = paste0("ref_", ref_codes)
+  rownames(ref_var) = paste0("strat_",str_codes)
+  colnames(ref_var) = paste0("ref_", ref_codes)
   
   # Calculate reference class proportions (i.e. by columns) using total, original strata areas.
   class_prop = vector()
   # Filter only total sample sizes that are present in the strata for that year
-  fss = ss[ss$stratum %in% class_codes,]
+  fss = ss[ss$stratum %in% str_codes,]
   for (r in 1:ncol(ref_prop)){
     # LEAVE THE SUM OF THE ENTIRE STRATA?
     class_prop[r] = sum(fss$pixels * ref_prop[,r])/sum(ss$pixels)
@@ -206,21 +208,21 @@ write.csv(area_upper, file="area_upper.csv")
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
 # Initialize zero matrix with year * class dimensions and proper row and column names
-m = matrix(0, nrow=length(years), ncol=length(unique_classes), dimnames=list(years, unique_classes))
+m = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
 
 # Calculate the sample count
 for (f in 1:(length(field_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
   a = table(samples[[field_names[f]]])
-  class_check = unique_classes %in% names(a)
+  class_check = ref_codes %in% names(a)
   m[f,class_check] = a
   
 }
 
 # Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
-chg_area = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
-chg_rate = matrix(0, nrow=length(years)-2, ncol=length(unique_classes), dimnames=list(years[3:16], unique_classes))
+chg_area = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
+chg_rate = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
 
 for(i in 1:length(area_ha)){
   chg_area[,i] = diff(area_ha[,i])
