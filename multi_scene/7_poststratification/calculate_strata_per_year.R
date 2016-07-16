@@ -330,7 +330,7 @@ for(i in 1:length(area_ha)){
   
   
   # Plot margin of error
-  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error)) + geom_line(size=1.2) + 
+  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error)) + geom_line(size=1.1) + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0)
   
   # Use gtable to stack plots together with matching extent and save  
@@ -346,13 +346,52 @@ for(i in 1:length(area_ha)){
 
 }
 
-# Net regrowth change
+# Forest change. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
+# Get only classes we're interested in
+for_change = chg_area[,c(2, 8, 9)]
+# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
+for_to_other = rowSums(for_change[,1:3])
+for_change = cbind(for_change, for_to_other)
+for_change = abs(for_change[,2:4])
+colnames(for_change) = c("To pasture", "To regrowth", "To other")
 
-net_rg = area_ha[,6] + area_ha[,10] - area_ha[,11]
+# Melt and plot. Fix palette
+for_change_melt = melt(for_change)
+forest_plot <- ggplot(for_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
+  geom_area(position="stack", alpha=0.8) +
+  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
+  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
+  scale_fill_brewer(palette="Greens", breaks=levels(for_change_melt$Var2)) + theme(legend.title=element_blank())
+
+print(forest_plot)
+
+# Net regrowth. Yearly loss in 5 equals yearly gain in 14
+
+net_rg = area_ha[,6] + area_ha[,10] + area_ha[,9] - area_ha[,11]
+
+plot(years[2:16], area_ha[,6])
+lines(years[2:16], net_rg)
+
+# Get only classes we're interested in
+regr_area = area_ha[,c(6,9,10,11)]
+names(regr_area) = c("Stable regrowth", "Forest to regrowth", "Other to regrowth", "Loss of regrowth")
+# Melt and plot
+regr_area_melt = melt(as.matrix(regr_area))
+# Substract loss of regrowth from the total, and then plot that but not stacked, maybe as a single line
+
+regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
+  geom_area(position="stack", alpha=0.8) + 
+  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
+  ylab("Total annual area in regrowth [ha]") + xlab("Years")+
+  scale_fill_brewer(palette="Greens", breaks=levels(regr_area_melt$Var2)) + theme(legend.title=element_blank())
+
+print(regr_plot)
 
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
 # total sample size in that path-row
 # - For the paper, remove plot titles and add to the y label (e.g. forest to pasture converstion [ha])
 # - Make plot of net change in secondary forest
-# - Plot of primary forest loss disagregated by class (requires operating over original mosaics!)
+# - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
