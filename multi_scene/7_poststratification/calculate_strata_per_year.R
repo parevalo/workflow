@@ -10,7 +10,7 @@ require(reshape2)
 require(ggplot2)
 require(gtable)
 require(grid)
-
+require(gridExtra)
 
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
@@ -229,6 +229,10 @@ for(i in 1:length(area_ha)){
   chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100
 }
 
+#Format and save table?
+tt =  ttheme_default(base_zise=14)
+grid.table(round(chg_rate, digits=2), theme=tt)
+
 
 # Calculate when break occurred in maps and compare to break in reference samples
 # (trying to get rid of loops now...)
@@ -268,6 +272,12 @@ total_ref = total_ref[-2]
 total_breaks = cbind(total_ref, change_cm[,"total"])
 colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 
+# Format table and save
+tt= ttheme_default(base_size=18)
+grid.newpage()
+png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
+
+
 ## 5) Plots
 
 # Basic, ugly plot
@@ -281,7 +291,7 @@ lines(area_lower[,2], col="red")
 
 strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
                  "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
-                 "Forest to regrowth", "Pasture to all others", "Loss of regrowth")
+                 "Forest to regrowth", "All others to regrowth", "Loss of regrowth")
 
 # Calculate margin of error, plot along with the areas with CI (right below), use righ axis
 margin_error = area_ci / area_ha
@@ -301,7 +311,7 @@ for(i in 1:length(area_ha)){
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
     ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
-    theme(plot.title = element_text(size=18), axis.title=element_text(size=13), axis.text=element_text(size=11))
+    theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
   filename = paste0(strata_names[[i]], "_areasCI", ".png")
   print(a)
   ggsave(filename, plot=a, device="png") 
@@ -325,13 +335,14 @@ for(i in 1:length(area_ha)){
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
-  theme(plot.title = element_text(size=18), axis.title=element_text(size=14), axis.text=element_text(size=12))
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   
   # Plot margin of error
   b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0)
+    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   # Use gtable to stack plots together with matching extent and save  
   g1 <- ggplotGrob(a)
@@ -346,25 +357,32 @@ for(i in 1:length(area_ha)){
 
 }
 
+
+
 # Forest change. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
 # Get only classes we're interested in
 for_change = chg_area[,c(2, 8, 9)]
 # Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
+# Positive values (and also small values) in the "to other" column are attributed to rounding errors
+# While larger ones are attributed to changes from forest to other land cover type (class 0)
 for_to_other = rowSums(for_change[,1:3])
 for_change = cbind(for_change, for_to_other)
 for_change = abs(for_change[,2:4])
 colnames(for_change) = c("To pasture", "To regrowth", "To other")
 
-# Melt and plot. Fix palette
+# Melt and plot. 
 for_change_melt = melt(for_change)
 forest_plot <- ggplot(for_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack", alpha=0.8) +
+  geom_area(position="stack") + 
   scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="Greens", breaks=levels(for_change_melt$Var2)) + theme(legend.title=element_blank())
+  scale_fill_brewer(palette="GnBu", breaks=levels(for_change_melt$Var2), guide = guide_legend(reverse=T)) + 
+  theme(legend.title=element_blank()) +
+  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
 
 print(forest_plot)
+ggsave("forest_change.png", plot=forest_plot, device="png") 
 
 # Net regrowth. Yearly loss in 5 equals yearly gain in 14
 
@@ -373,25 +391,48 @@ net_rg = area_ha[,6] + area_ha[,10] + area_ha[,9] - area_ha[,11]
 plot(years[2:16], area_ha[,6])
 lines(years[2:16], net_rg)
 
-# Get only classes we're interested in
-regr_area = area_ha[,c(6,9,10,11)]
-names(regr_area) = c("Stable regrowth", "Forest to regrowth", "Other to regrowth", "Loss of regrowth")
+# Get only gain classes 
+regr_area = area_ha[,c(6,9,10)]
+names(regr_area) = c("Stable regrowth", "Forest to regrowth", "Other to regrowth") #, "Loss of regrowth")
+
 # Melt and plot
 regr_area_melt = melt(as.matrix(regr_area))
-# Substract loss of regrowth from the total, and then plot that but not stacked, maybe as a single line
 
 regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack", alpha=0.8) + 
+  geom_area(position="stack", alpha=0.8) + geom_line(aes(x=Var1, y=732031.3), linetype=2) + 
   scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Total annual area in regrowth [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="Greens", breaks=levels(regr_area_melt$Var2)) + theme(legend.title=element_blank())
+  scale_fill_brewer(palette="GnBu",  breaks=levels(regr_area_melt$Var2), guide = guide_legend(reverse=T)) + 
+  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13),
+  legend.title=element_blank()) + 
+  annotate("segment", x = 2016, xend=2016, y = 732031.3, yend = 416495.7, colour = "black", linetype=2) +
+  annotate("text", x = 2014,  y = 600000, label="Loss of regrowth")  
 
 print(regr_plot)
+ggsave("net_regrowth.png", plot=regr_plot, device="png") 
+
+
+# Forest loss = total area of classs 8 + 9 + whatever is left
+for_loss = area_ha[,c(8,9)]
+names(for_loss) = c("Forest to pasture", "Forest to regrowth")
+
+# Melt and plot. 
+for_loss_melt = melt(as.matrix(for_loss))
+forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
+  geom_area(position="stack", alpha=0.8) + 
+  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
+  ylab("Total area per year [ha]") + xlab("Years") +
+  scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
+  theme(legend.title=element_blank()) +
+  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
+
+print(forest_loss_plot)
+ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
 
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
 # total sample size in that path-row
 # - For the paper, remove plot titles and add to the y label (e.g. forest to pasture converstion [ha])
-# - Make plot of net change in secondary forest
 # - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
