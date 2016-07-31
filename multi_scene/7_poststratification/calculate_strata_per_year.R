@@ -90,6 +90,19 @@ ss = ss[!(ss$stratum %in% cr),]
 # Calculate total number of samples per ORIGINAL stratum
 strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$final_strata_01_16_UTM18N), length)
 
+# Calculate original strata weights and area proportions
+tot_area_pix = sum(ss$pixels)
+str_weight = ss$pixels / tot_area_pix
+# Add column for class 13 with zeroes to obtain a square matrix and make everything easier
+cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
+# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
+aprop = apply(cmatr, 2, function(x) x * str_weight / strata_pixels$x)
+
+# Calculate accuracies
+tot_acc = sum(diag(aprop)) * 100
+usr_acc = diag(aprop) / rowSums(aprop)
+prod_acc = diag(aprop) / colSums(aprop)
+
 ## 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA
 # Returns a vector with length equal to the number of reference classes
 # Reorganize to make more legible
@@ -139,7 +152,7 @@ calc_area_prop = function(strata, reference){
   fss = ss[ss$stratum %in% str_codes,]
   for (r in 1:ncol(ref_prop)){
     # LEAVE THE SUM OF THE ENTIRE STRATA?
-    class_prop[r] = sum(fss$pixels * ref_prop[,r])/sum(ss$pixels)
+    class_prop[r] = sum(fss$pixels * ref_prop[,r])/tot_area_pix
   }
   return(list(class_prop, ref_var, fss, ref_prop)) 
 }
@@ -178,10 +191,7 @@ se_prop = data.frame()
 for (y in 1:length(ref_var_list)){
   # Iterate over classes
   for (c in 1:length(refcodes)){
-  N=sum(ss$pixels)
-  # This is giving warnings of strata_pixels not being of same lenght of ref_var_list (refvar is shorter)!! CHECK!!
-  # Probably means that class 14 is being incorrectly calculated?
-  v = 1/N^2 * (sum(ss$pixels^2 * (1 - strata_pixels$x/ss$pixels) * (ref_var_list[[y]][,c] / strata_pixels$x)))
+  v = 1/tot_area_pix^2 * (sum(ss$pixels^2 * (1 - strata_pixels$x/ss$pixels) * (ref_var_list[[y]][,c] / strata_pixels$x)))
   se_prop[y,c] = sqrt(v)
   }
 }
@@ -278,7 +288,7 @@ grid.newpage()
 png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
 
 
-## 5) Plots
+## 5) PLOTS
 
 # Basic, ugly plot
 plot(area_ha[,2], type="l", xlab="Years", ylab="Area in ha")
@@ -294,7 +304,7 @@ strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable 
                  "Forest to regrowth", "All others to regrowth", "Loss of regrowth")
 
 # Calculate margin of error, plot along with the areas with CI (right below), use righ axis
-margin_error = area_ci / area_ha
+margin_error = area_ci / area_ha 
 
 # Create each plot and save it to png, make y axis start at 0, break the axis for stable forest
 
@@ -335,12 +345,12 @@ for(i in 1:length(area_ha)){
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + #expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   
   # Plot margin of error
-  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error)) + geom_line(size=1.1) + 
+  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
@@ -352,7 +362,7 @@ for(i in 1:length(area_ha)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me", ".png")
+  filename = paste0(strata_names[[i]], "_areas_me_short_axis", ".png")
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
@@ -436,3 +446,4 @@ ggsave("forest_loss.png", plot=forest_loss_plot, device="png")
 # total sample size in that path-row
 # - For the paper, remove plot titles and add to the y label (e.g. forest to pasture converstion [ha])
 # - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
+#- Plot number of images per year to see if that' correspon's why the annucal forest converstion to other classes look like that
