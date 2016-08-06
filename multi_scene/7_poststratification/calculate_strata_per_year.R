@@ -107,51 +107,49 @@ prod_acc = diag(aprop) / colSums(aprop)
 # Returns a vector with length equal to the number of reference classes
 # Reorganize to make more legible
 
-# Get unique classes through all the reference years (This won't have class 13 for that reason)
-# and get numbered sequence
-ref_codes = sort(unique(unlist(samples@data[field_names])))
-ref_ind = seq_along(ref_codes)
+calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
 
-calc_area_prop = function(strata, reference){
-
-  # Obtain unique values in the STRATA field
-  str_codes = sort(unique(strata))
-  str_ind=seq_along(str_codes)
+  # Obtain unique values in the samp_strata field
+  str_codes = sort(unique(samp_strata))
+  str_ind = seq_along(str_codes)
   
-  # Initialize empty df for proportions per strata, and for sample variance per strata
+  # Get a sequence for the reference codes
+  ref_ind = seq_along(rfcodes)
+  
+  # Initialize empty df for proportions per samp_strata, and for sample variance per samp_strata
   ref_prop = data.frame()
   ref_var = data.frame()
   
-  # Compare the fields, iterate over "strata" and "reference" classes
+  # Compare the fields, iterate over "samp_strata" and "samp_reference" classes
   for (s in str_ind){
     for (r in ref_ind){
       # Compared fields and get TRUE or FALSE on each row
-      cond_bool = strata == str_codes[s] & reference == ref_codes[r]
+      cond_bool = samp_strata == str_codes[s] & samp_reference == rfcodes[r]
       # Get row numbers that meet that condition
       ind = which(cond_bool)
-      # Get location of rows for the current strata
-      str_ref = which(strata == str_codes[s])
-      # Get proportion on reference class present on that strata
-      ref_prop[s, r] = length(ind)/strata_pixels$x[strata_pixels$Group.1 == str_codes[s]]
-      # Calculate variance of current reference code in current strata (needed later)
-      # THIS IS PRODUCING NA'S IN 01-02, REF-2002 IN STRATA 8 BC THERE IS ONLY ONE OBSERVATION, HOW TO DEAL
+      # Get location of rows for the current samp_strata
+      str_ref = which(samp_strata == str_codes[s])
+      # Get proportion on samp_reference class present on that samp_strata
+      ref_prop[s, r] = length(ind)/sample_totals$x[sample_totals$Group.1 == str_codes[s]]
+      # Calculate variance of current samp_reference code in current samp_strata (needed later)
+      # THIS IS PRODUCING NA'S IN 01-02, REF-2002 IN samp_strata 8 BC THERE IS ONLY ONE OBSERVATION, HOW TO DEAL
       # WITH THIS?
       ref_var[s, r] = var(cond_bool[str_ref])
     }
   }
   
-  # Assign column and row names for easier reference
+  # Assign column and row names for easier samp_reference
   rownames(ref_prop) = paste0("strat_",str_codes)
-  colnames(ref_prop) = paste0("ref_", ref_codes)
+  colnames(ref_prop) = paste0("ref_", rfcodes)
   rownames(ref_var) = paste0("strat_",str_codes)
-  colnames(ref_var) = paste0("ref_", ref_codes)
+  colnames(ref_var) = paste0("ref_", rfcodes)
   
-  # Calculate reference class proportions (i.e. by columns) using total, original strata areas.
+  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
   class_prop = vector()
-  # Filter only total sample sizes that are present in the strata for that year
-  fss = ss[ss$stratum %in% str_codes,]
+  # Filter only total sample sizes that are present in the samp_strata for that year
+  fss = strata_totals[strata_totals$stratum %in% str_codes,]
   for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE STRATA?
+    # LEAVE THE SUM OF THE ENTIRE samp_strata?
     class_prop[r] = sum(fss$pixels * ref_prop[,r])/tot_area_pix
   }
   return(list(class_prop, ref_var, fss, ref_prop)) 
@@ -161,14 +159,49 @@ calc_area_prop = function(strata, reference){
 # NOTE the double square brackets to allow for substitution
 # THE SCRIPT REQUIRES THE STRATA TO BE THE ORIGINAL STRATA, SO NO NEED TO ITERATE OVER RASTERS!! 
 # THOSE RASTERS ARE ONLY NEEDED IF WE WANT TO CALCULATE THE ACCURACIES
-ca = calc_area_prop(samples$final_strata_01_16_UTM18N, samples$ref_2003)
+
+# To calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
+defor_str = samples$final_strata_01_16_UTM18N
+defor_str[defor_str == 8 | defor_str == 9] = 17
+
+# Find reference samples = 8 or 9 for each year and change value to 17
+samples_defor = samples
+for (f in 1:(length(field_names))){
+  defor_ind = samples_defor[[field_names[f]]] == 8 | samples_defor[[field_names[f]]] == 9
+  samples_defor@data[defor_ind,field_names[f]] = 17
+}
+
+# Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
+defor_str_totals = ss 
+class17a = defor_str_totals[defor_str_totals$stratum == 8,] + defor_str_totals[defor_str_totals$stratum == 9,]
+defor_str_totals = rbind(defor_str_totals, class17)
+defor_str_totals = defor_str_totals[!(defor_str_totals$stratum == 8 | defor_str_totals$stratum == 9),]
+
+defor_samp_totals = strata_pixels 
+class17b = defor_samp_totals[defor_samp_totals$Group.1 == 8,] + defor_samp_totals[defor_samp_totals$Group.1 == 9,]
+defor_samp_totals = rbind(defor_samp_totals, class17b)
+defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
+
+# CONDITION THAT MODIFIES THE OUTPUT FROM HERE! Temporary fix to make it easier to run both cases if necessary
+deformode = TRUE
+
+# Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
+if (deformode == TRUE){
+  ref_codes = sort(unique(unlist(samples_defor@data[field_names])))
+}else { 
+  ref_codes = sort(unique(unlist(samples@data[field_names])))
+}
 
 area_prop = data.frame()
 ref_var_list = list()
 filtered_ss = list()
 for (i in (1:length(rast_names))){
   # Compare year strata with year reference. Field names must start at 2002, hence i+1
-  out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]]) 
+  if (deformode == FALSE){
+    out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
+  } else {
+    out = calc_area_prop(defor_str, samples_defor[[field_names[i+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
+  }
   ap = out[[1]]
   rv = out[[2]]
   fs = out[[3]]
@@ -179,29 +212,40 @@ for (i in (1:length(rast_names))){
 
 # Assign names to make it easier to interprete
 rownames(area_prop) = years[2:length(years)]
-refcodes = sort(unique(samples$ref_2016))
-colnames(area_prop) = refcodes
+colnames(area_prop) = ref_codes
 
 ### 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-# Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
-se_prop = data.frame()
-#Iterate over years
+calc_se_prop = function(strata_totals, sample_totals){
 
-for (y in 1:length(ref_var_list)){
-  # Iterate over classes
-  for (c in 1:length(refcodes)){
-  v = 1/tot_area_pix^2 * (sum(ss$pixels^2 * (1 - strata_pixels$x/ss$pixels) * (ref_var_list[[y]][,c] / strata_pixels$x)))
-  se_prop[y,c] = sqrt(v)
+  # Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
+  se_pr = data.frame()
+  
+  #Iterate over years
+  for (y in 1:length(ref_var_list)){
+    # Iterate over classes
+    for (c in 1:length(ref_codes)){
+    v = 1/tot_area_pix^2 * (sum(strata_totals$pixels^2 * (1 - sample_totals$x/strata_totals$pixels) * (ref_var_list[[y]][,c] / sample_totals$x)))
+    se_pr[y,c] = sqrt(v)
+    }
   }
+  return(se_pr)
 }
 
+# Check deforestation mode and get calculation accordingly
+if (deformode == FALSE){
+  se_prop = calc_se_prop(ss, strata_pixels)
+  }else{
+  se_prop = calc_se_prop(defor_str_totals, defor_samp_totals)
+}
+  
+  
 # Reassign names...
 rownames(se_prop) = years[2:length(years)]
-colnames(se_prop) = refcodes
+colnames(se_prop) = ref_codes
 
 # Total area in ha
-N_ha = N * 30^2 / 100^2
+N_ha = tot_area_pix * 30^2 / 100^2
 # Calculate area in ha from area proportions
 area_ha = area_prop * N_ha
 # Calculate confidence interval in ha
@@ -220,13 +264,17 @@ write.csv(area_upper, file="area_upper.csv")
 # Initialize zero matrix with year * class dimensions and proper row and column names
 m = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
 
-# Calculate the sample count
+# Calculate the sample count, not sure why I did this, not used yet!
 for (f in 1:(length(field_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
-  a = table(samples[[field_names[f]]])
+  if (deformode == FALSE){
+    a = table(samples[[field_names[f]]])
+  }else{
+    a = table(samples_defor[[field_names[f]]])
+  }
+  
   class_check = ref_codes %in% names(a)
   m[f,class_check] = a
-  
 }
 
 # Calculate yearly area change and rate change (percentage of total area that is changing)
@@ -234,9 +282,10 @@ for (f in 1:(length(field_names))){
 chg_area = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
 chg_rate = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
 
+# Iterate over strata labels
 for(i in 1:length(area_ha)){
   chg_area[,i] = diff(area_ha[,i])
-  chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100
+  chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100 #14 years
 }
 
 #Format and save table?
@@ -290,18 +339,19 @@ png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.t
 
 ## 5) PLOTS
 
-# Basic, ugly plot
-plot(area_ha[,2], type="l", xlab="Years", ylab="Area in ha")
-lines(area_upper[,2], col="red")
-lines(area_lower[,2], col="red")
-
 # Nice, good looking plots
 
 # Create vector with name of classes, doesn't include class 13
-
-strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+if (deformode == FALSE){
+  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
                  "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
                  "Forest to regrowth", "All others to regrowth", "Loss of regrowth")
+  }else{
+  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                   "Stable pasture-cropland", "Stable regrowth", "Stable water", "All others to regrowth", 
+                   "Loss of regrowth", "Deforestation")
+  
+}
 
 # Calculate margin of error, plot along with the areas with CI (right below), use righ axis
 margin_error = area_ci / area_ha 
@@ -345,7 +395,7 @@ for(i in 1:length(area_ha)){
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + #expand_limits(y=0) +
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   
@@ -362,11 +412,10 @@ for(i in 1:length(area_ha)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me_short_axis", ".png")
+  filename = paste0(strata_names[[i]], "_areas_me", ".png")
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
-
 
 
 # Forest change. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
