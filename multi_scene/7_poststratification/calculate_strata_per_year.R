@@ -195,6 +195,7 @@ if (deformode == TRUE){
 area_prop = data.frame()
 ref_var_list = list()
 filtered_ss = list()
+ref_prop_list = list()
 for (i in (1:length(rast_names))){
   # Compare year strata with year reference. Field names must start at 2002, hence i+1
   if (deformode == FALSE){
@@ -205,9 +206,11 @@ for (i in (1:length(rast_names))){
   ap = out[[1]]
   rv = out[[2]]
   fs = out[[3]]
+  rp = out[[4]]
   area_prop = rbind(area_prop, ap)
   ref_var_list[[i]] = rv
   filtered_ss[[i]] = fs
+  ref_prop_list[[i]] = rp
 }
 
 # Assign names to make it easier to interprete
@@ -489,6 +492,92 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
 
 print(forest_loss_plot)
 ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
+
+# Load and plot MAPPED rates to compare with estimated rates
+
+setwd("C:/test")
+mapped_areas_list = list()
+filenames = dir("C:/test/", pattern="*_pixcount.csv")
+for(i in 1:length(filenames)){
+  mapped_areas_list[[i]] = read.csv(filenames[i], header=TRUE, col.names=c("stratum", "pixels"))
+  
+}
+
+# Create empty matrix to store values and fill
+
+
+mapped_areas = matrix(0, nrow=length(years[2:16]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:16], mapped_areas_list[[1]][,1]))
+
+for (i in 1:length(mapped_areas_list)){
+  mapped_areas[i,] = mapped_areas_list[[i]][,2]  
+}
+
+# Convert to ha
+mapped_areas = mapped_areas * 30^2 / 100^2
+
+# Calculate yearly area change and rate change (percentage of total area that is changing)
+# Initialize zero matrix with year (03 to 16) * class (16) dimensions and proper row and column names
+mapped_chg = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
+mapped_rate = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
+
+# Iterate over strata labels
+for(i in 1:ncol(mapped_areas)){
+  mapped_chg[,i] = diff(mapped_areas[,i])
+  mapped_rate[,i] = mapped_chg[,i] / mapped_areas[1:14,i] * 100 #14 years
+}
+
+
+mapped_for_change = mapped_chg[,c(2, 9, 10)] # This matrix has extra cols
+# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
+mfor_to_other = rowSums(mapped_for_change[,1:3])
+mapped_for_change = cbind(mapped_for_change, mfor_to_other)
+mapped_for_change = abs(mapped_for_change[,2:4])
+colnames(mapped_for_change) = c("To pasture", "To regrowth", "To other")
+mapped_for_chg = mapped_chg[,c(8,9)] 
+
+# Melt and plot. 
+mfor_change_melt = melt(mapped_for_change)
+mforest_plot <- ggplot(mfor_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
+  geom_area(position="stack") + 
+  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
+  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
+  scale_fill_brewer(palette="GnBu", breaks=levels(mfor_change_melt$Var2), guide = guide_legend(reverse=T)) + 
+  theme(legend.title=element_blank()) +
+  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
+
+print(mforest_plot)
+ggsave("mapped_forest_change.png", plot=mforest_plot, device="png") 
+
+# Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
+mapped_plots = as.data.frame(mapped_areas[,c(9, 10)])
+mapped_plots = cbind(years[2:16], mapped_plots)
+colnames(mapped_plots) = c("Years", "Forest_to_pasture",  "Forest_to_regrowth")
+
+mfp <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture)) + geom_line(size=1.1) + 
+  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+
+mfr <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_regrowth)) + geom_line(size=1.1) + 
+  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+
+mdefor <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture + Forest_to_regrowth)) + geom_line(size=1.1) + 
+  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+
+
+print(mdefor)
+ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
+ggsave("mapped_forest_to_regrowth.png", plot=mfr, device="png") 
+ggsave("mapped_deforestation.png", plot=mdefor, device="png") 
+
+
+print(mfp)
+ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
 
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
