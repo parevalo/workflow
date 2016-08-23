@@ -21,8 +21,6 @@ strata_names = ("Other to other", "Stable forest", "Stable grassland", "Stable U
 margin_error = (area_upper - area)/area *100
 
 
-# In[24]:
-
 # Fnc to change the ticks to the desired color
 def axiscolors(axis, color):
     for tl in axis.get_yticklabels():
@@ -34,6 +32,7 @@ for i in range(len(area.columns)):
     fig, ax1 = plt.subplots(1)
     
     ax1.plot(years, area.iloc[:,i], '-o', color='b')
+	ax1.grid(None) # Had to be added bc grids didn't match
     ax1.fill_between(years,area_lower.iloc[:,i], area_upper.iloc[:,i], alpha=0.5)
     ax1.set_ylim(ymin=min(area_lower.min()), ymax=area_upper.iloc[:,i].max()*1.1)
     ax1.set_xlabel('Years')
@@ -42,6 +41,7 @@ for i in range(len(area.columns)):
     axiscolors(ax1, 'b')    
 
     ax2 = ax1.twinx()
+	ax2.grid(None) # Had to be added bc grids didn't match
     ax2.plot(years, margin_error.iloc[:,i], 'r-')
     ax2.set_ylabel('Margin of error [%]', color='r')
     ax2.set_ylim(ymin=0, ymax=margin_error.iloc[:,i].max()*1.1)
