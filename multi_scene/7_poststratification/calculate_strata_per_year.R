@@ -269,9 +269,15 @@ area_upper = area_ha + area_ci
 area_lower = area_ha - area_ci
 
 # Write results to csv
-write.csv(area_ha, file="area_ha.csv")
-write.csv(area_lower, file="area_lower.csv")
-write.csv(area_upper, file="area_upper.csv")
+if (deformode == TRUE){
+  suffix = "_defor.csv"  
+}else { 
+  suffix = "_regular.csv"
+}
+
+write.csv(area_ha, file=paste0("area_ha", suffix))
+write.csv(area_lower, file=paste0("area_lower", suffix))
+write.csv(area_upper, file=paste0("area_upper", suffix))
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
