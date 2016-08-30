@@ -103,7 +103,7 @@ tot_acc = sum(diag(aprop)) * 100
 usr_acc = diag(aprop) / rowSums(aprop)
 prod_acc = diag(aprop) / colSums(aprop)
 
-# Export table of  sample counts and areas
+# Export table of  sample count, areas, percentages
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
   "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
   "Forest to regrowth", "All others to regrowth", "All to unclassified", "Loss of regrowth")
@@ -111,8 +111,13 @@ strata_table = cbind(strata_pixels, ss$pixels *30^2 / 100^2)
 colnames(strata_table) = c("Stratum", "Count", "Total stratum area (ha)")
 strata_table$`Total stratum area (ha)` = format(strata_table$`Total stratum area (ha)`, scientific = FALSE, big.mark = ",")
 rownames(strata_table) = orig_strata_names
-tt =  ttheme_default(base_zise=14)
-grid.table(strata_table, theme=tt)
+strata_table$`Area percentage` = round(ss$pixels / tot_area_pix * 100, digits=3) 
+windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
+tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=12)),
+                colhead=list(fg_params=list(font="Times", fontsize=12)),
+                rowhead=list(fg_params=list(font="Times", fontsize=12)))
+
+grid.table(strata_table[,-1:-2], theme=tt)  # Remove indices for full table
 
 ## 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA
 # Returns a vector with length equal to the number of reference classes
@@ -309,7 +314,7 @@ for(i in 1:length(area_ha)){
 }
 
 #Format and save table?
-tt =  ttheme_default(base_zise=14)
+tt =  ttheme_default(base_size=14)
 grid.table(round(chg_rate, digits=2), theme=tt)
 
 
