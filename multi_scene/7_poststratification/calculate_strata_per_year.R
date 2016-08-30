@@ -108,8 +108,8 @@ orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "St
   "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
   "Forest to regrowth", "All others to regrowth", "All to unclassified", "Loss of regrowth")
 strata_table = cbind(strata_pixels, ss$pixels *30^2 / 100^2)
-strata_table$`Total stratum area (ha)` = format(strata_table$`Total stratum area (ha)`, scientific = FALSE, big.mark = ",")
 colnames(strata_table) = c("Stratum", "Count", "Total stratum area (ha)")
+strata_table$`Total stratum area (ha)` = format(strata_table$`Total stratum area (ha)`, scientific = FALSE, big.mark = ",")
 rownames(strata_table) = orig_strata_names
 tt =  ttheme_default(base_zise=14)
 grid.table(strata_table, theme=tt)
