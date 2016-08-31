@@ -81,7 +81,7 @@ for (r in rast_names){
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # LOAD the total strata sample size produced from CountValues.py, bc calculating it here with hist() takes forever...
-ss = read.csv("C:/test/strata_count.csv", header=TRUE, col.names=c("stratum", "pixels"))
+ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
 # Classes to be removed/ignored
 cr = c(7, 10, 12, 15)
 # Filter classes NOT in that list
@@ -113,9 +113,9 @@ strata_table$`Total stratum area (ha)` = format(strata_table$`Total stratum area
 rownames(strata_table) = orig_strata_names
 strata_table$`Area percentage` = round(ss$pixels / tot_area_pix * 100, digits=3) 
 windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
-tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=12)),
-                colhead=list(fg_params=list(font="Times", fontsize=12)),
-                rowhead=list(fg_params=list(font="Times", fontsize=12)))
+tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
+                colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14)),
+                rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
 
 grid.table(strata_table[,-1:-2], theme=tt)  # Remove indices for full table
 
