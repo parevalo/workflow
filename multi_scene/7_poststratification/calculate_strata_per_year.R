@@ -147,10 +147,10 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
       str_ref = which(samp_strata == str_codes[s])
       # Get proportion on samp_reference class present on that samp_strata
       ref_prop[s, r] = length(ind)/sample_totals$x[sample_totals$Group.1 == str_codes[s]]
-      # Calculate variance of current samp_reference code in current samp_strata (needed later)
-      # THIS IS PRODUCING NA'S IN 01-02, REF-2002 IN samp_strata 8 BC THERE IS ONLY ONE OBSERVATION, HOW TO DEAL
-      # WITH THIS?
-      ref_var[s, r] = var(cond_bool[str_ref])
+      # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
+      # which is the same formula specified in the paper
+      ref_var[s, r] = var(cond_bool[str_ref]) 
+      
     }
   }
   
@@ -199,7 +199,8 @@ defor_samp_totals = rbind(defor_samp_totals, class17b)
 defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
 
 # CONDITION THAT MODIFIES THE OUTPUT FROM HERE! Temporary fix to make it easier to run both cases if necessary
-deformode = TRUE
+# If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
+deformode = FALSE
 
 # Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
 if (deformode == TRUE){
