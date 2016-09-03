@@ -1,6 +1,12 @@
 # Requires specifying PYTHONPATH to be that of qgis, in this case
 # export PYTHONPATH=/share/pkg/qgis/2.6.1/install/share/qgis/python
 # and loading qgis and python/2.7.5 modules
+# Input layers must have a projected system in m
+
+#TODO
+# Allow passing arguments from terminal
+# Properly check if field exists
+# Check if output file exists
 
 import sys
 from qgis.core import *
@@ -46,7 +52,7 @@ for field in layer.fields():
 # Create field and populate it
 #dp.addAttributes([QgsField("area_ha", QVariant.Double)])
 
-#TODO Add geometry check to avoid failures due to bad geoms
+# Check geometry and break if there are errors
 for feat in layer.getFeatures():
     geom = feat.geometry()
     if geom:
@@ -58,34 +64,50 @@ for feat in layer.getFeatures():
             print '%d geometry errors detected (feature %d)' % (len(err), feature.id()) 
             break
 
-# Calculate areas, currently calculating them but not saving them
+# Calculate areas and save them in the area_ha column
 area = 0
 with edit(layer):
     for gFeat in layer.getFeatures():
         calculator = QgsDistanceArea()
         calculator.setEllipsoid('WGS84')
         calculator.setEllipsoidalMode(True)
-        # here you need to put the code
         calculator.computeAreaInit()
         geom = gFeat.geometry()
         #landArea = gFeat['area_ha']
+        
         #Check if polygon is multipart 
         if geom.isMultipart() is False: 
             polyg = geom.asPolygon() #transform to list of points
             if len(polyg) > 0:
                 area = calculator.measurePolygon(polyg[0])
                 # Convert sq km to ha
-                gFeat['area_ha'] = area / 100000000
-                #landArea = area /1000000
+                gFeat['area_ha'] = area *0.0001
+                #landArea = area *0.0001
                 layer.updateFeature(gFeat)
         else: 
             multi = geom.asMultiPolygon()
             for polyg in multi:
                 area = area + calculator.measurePolygon(polyg[0])
-                l#andArea = area * 100
+                gFeat['area_ha'] = area *0.0001
+                #landArea = area * 0.0001
                 print "Calculated on a multipart polygon"
 
+# This is how to do selection but it's not required because the tool includes it
+# Set expression and select based on it
+#expr = QgsExpression( 'area_ha <= 14450754076.222845077514648' )
+#it = layer.getFeatures( QgsFeatureRequest( expr ) )
+# Build list of features
+#ids = [i.id() for i in it]
+# Select features with the ids
+#layer.setSelectedFeatures( ids )
+# Remove selection
+#layer.setSelectedFeatures([])
+
+# Check if output layer exists and warn 
+
+
+# Run the eliminate sliver polygons
+minarea = '15000' #15K ha in this example
+processing.runalg("qgis:eliminatesliverpolygons", layer, 'False', 'area_ha', 5,minarea, 0, 'overlap_merged.shp')
+
 print "Done!"
-
-
-
