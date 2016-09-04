@@ -1,3 +1,4 @@
+
 # Requires specifying PYTHONPATH to be that of qgis, in this case
 # export PYTHONPATH=/share/pkg/qgis/2.6.1/install/share/qgis/python
 # and loading qgis and python/2.7.5 modules
@@ -17,13 +18,14 @@ import urllib
 import zipfile
 import tempfile
 
+
 # Initialize QGIS Application
-#QgsApplication.setPrefixPath("/share/pkg/qgis/2.6.1/install/bin/qgis", True)
-#app = QgsApplication([], True)
-#QgsApplication.initQgis()
+QgsApplication.setPrefixPath("/share/pkg/qgis/2.6.1/install/bin/qgis", True)
+qgs =QgsApplication([], False)
+qgs.initQgis()
 
 # Add the path to Processing framework
-#sys.path.append('/share/pkg/qgis/2.6.1/install/share/qgis/python/plugins')
+sys.path.append('/share/pkg/qgis/2.6.1/install/share/qgis/python/plugins')
 
 # Import and initialize Processing framework
 from processing.core.Processing import Processing
@@ -32,12 +34,13 @@ import processing
 
 # Load vector
 layerpath="C:\OneDrive\Lab\Base layers\scene_overlap.shp"
+layerpath=" /projectnb/landsat/projects/Colombia/vector/scene_overlap.shp"
 
-# To extract basename from the path if needed
+# To extract basename from the path if needed (THIS IS NOR WORKING CORRECTLY)
 path = os.path.splitext(layerpath)[0]
 filename=os.path.basename(path)
 
-layer = QgsVectorLayer(layerpath, filename, "ogr")
+layer = QgsVectorLayer(layerpath, 'scene_overlap', "ogr")
 if not layer.isValid():
   print "Layer failed to load!"
 
@@ -50,9 +53,9 @@ for field in layer.fields():
         print "There's an existing field with the name area_ha, overwritting"
 
 # Create field and populate it
-#dp.addAttributes([QgsField("area_ha", QVariant.Double)])
+dp.addAttributes([QgsField("area_ha", QVariant.Double)])
 
-# Check geometry and break if there are errors
+ Check geometry and break if there are errors
 for feat in layer.getFeatures():
     geom = feat.geometry()
     if geom:
@@ -111,3 +114,5 @@ minarea = '15000' #15K ha in this example
 processing.runalg("qgis:eliminatesliverpolygons", layer, 'False', 'area_ha', 5,minarea, 0, 'overlap_merged.shp')
 
 print "Done!"
+qgs.exitQgis()
+
