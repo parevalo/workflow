@@ -18,6 +18,7 @@ import urllib
 import zipfile
 import tempfile
 
+os.chdir('/projectnb/landsat/projects/Colombia/vector/')
 
 # Initialize QGIS Application
 QgsApplication.setPrefixPath("/share/pkg/qgis/2.6.1/install/bin/qgis", True)
@@ -34,7 +35,7 @@ import processing
 
 # Load vector
 layerpath="C:\OneDrive\Lab\Base layers\scene_overlap.shp"
-layerpath=" /projectnb/landsat/projects/Colombia/vector/scene_overlap.shp"
+layerpath="/projectnb/landsat/projects/Colombia/vector/scene_overlap.shp"
 
 # To extract basename from the path if needed (THIS IS NOR WORKING CORRECTLY)
 path = os.path.splitext(layerpath)[0]
@@ -55,7 +56,7 @@ for field in layer.fields():
 # Create field and populate it
 dp.addAttributes([QgsField("area_ha", QVariant.Double)])
 
- Check geometry and break if there are errors
+#  Check geometry and break if there are errors
 for feat in layer.getFeatures():
     geom = feat.geometry()
     if geom:
