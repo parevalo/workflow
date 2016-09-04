@@ -4,7 +4,7 @@
 #$ -N create_sample
 #$ -V
 
-# Submit sample creation. Not working yet with zsh.
+# Submit sample creation. 
 
 fpath=/projectnb/landsat/projects/Colombia/Mosaics/M3
 
