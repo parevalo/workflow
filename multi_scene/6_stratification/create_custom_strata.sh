@@ -22,7 +22,7 @@ for p in $period_list; do
     y2=${p:3:2}
     qsub -j y -V -N strata_$p -b y \
      gdal_calc.py -A ../20$y1"_final_crop.tif" -B ../20$y2"_final_crop.tif" \
-      --outfile="custom__strata_"$p"_UTM18N.tif" \
+      --outfile="custom_strata_"$p"_UTM18N.tif" \
       --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*2+' \
               'logical_and(A == 3, B==3)*2 + logical_and(A == 4, B==4)*2 +' \
               'logical_and(A == 5, B==5)*2 + logical_and(A == 5, B==1)*1+' \
