@@ -2,6 +2,7 @@
 
 # Script to create custom strata with only forest/non forest classes
 # from mosaics in order to compare with IDEAM maps
+# IMPORTANT: All "other" changes will still be labeled as zero
 
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3/IDEAM
 
