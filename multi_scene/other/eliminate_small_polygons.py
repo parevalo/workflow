@@ -1,3 +1,6 @@
+# Never got this code to work in the cluster (it does work in my computer)
+# In addition, this is much easier to do just using gdal sieve
+
 
 # Requires specifying PYTHONPATH to be that of qgis, in this case
 # export PYTHONPATH=/share/pkg/qgis/2.6.1/install/share/qgis/python
