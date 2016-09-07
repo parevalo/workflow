@@ -603,7 +603,16 @@ ggsave("mapped_deforestation.png", plot=mdefor, device="png")
 print(mfp)
 ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
 
+# MISCELANEOUS
+# Plot number of forest to pasture reference samples over time.
+fpc = vector()
+for (f in field_names){
+  a = samples@data[,f] == 8
+  fpc = cbind(fpc, sum(a))
+}
 
+dtf = as.data.frame(cbind(years, t(fpc)))
+colnames(dtf) = c("Years", "Count")
 
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
