@@ -17,7 +17,8 @@ require(gridExtra)
 # on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
 
 # Read shapefile with reference strata and change info
-setwd("C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016")
+setwd("/home/paulo/sample_may2016/interpreted_w_strata_23062016")
+#setwd("C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016")
 full_samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # Subset to only use records with one or no change
@@ -72,7 +73,8 @@ rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
 
 # Iterate over names and extract to shapefile
 for (r in rast_names){
-  map = raster(paste0("C:/test/", r, ".tif"))
+  #map = raster(paste0("C:/test/", r, ".tif"))
+  map = raster(paste0("/home/paulo/test/", r, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
 
@@ -81,7 +83,8 @@ for (r in rast_names){
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # LOAD the total strata sample size produced from CountValues.py, bc calculating it here with hist() takes forever...
-ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
+ss = read.csv("/home/paulo/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
+#ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
 # Classes to be removed/ignored
 cr = c(7, 10, 12, 15)
 # Filter classes NOT in that list
@@ -613,6 +616,25 @@ for (f in field_names){
 
 dtf = as.data.frame(cbind(years, t(fpc)))
 colnames(dtf) = c("Years", "Count")
+
+
+# Analyze strata breaks vs ref breaks per path/row
+break_compare = as.data.frame(cbind(ref_breaks, strata_breaks, samples@data$PTRW))
+colnames(break_compare) = c("ref_breaks", "strata_breaks", "ptrw")
+break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
+
+# Function to calculate frequency of break differences. Sum gives total of pts
+calc_break_time <- function(freqlist){
+  pos = sum(freqlist > 2000)
+  neg = sum(freqlist < 0)
+  sm = sum(freqlist > 0 & freqlist< 2000)
+  zr = sum(freqlist == 0)
+  return(rbind(pos, neg, sm, zr))
+}
+
+breakdif_count = by(break_compare$breakdif, break_compare$ptrw, calc_break_time, simplify = FALSE) 
+total_ptrw_pts = unlist(lapply(breakdif_count, sum))
+lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
 
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
