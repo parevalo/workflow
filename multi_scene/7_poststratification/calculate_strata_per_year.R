@@ -625,8 +625,8 @@ break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
 
 # Function to calculate frequency of break differences. Sum gives total of pts
 calc_break_time <- function(freqlist){
-  pos = sum(freqlist > 2000)
-  neg = sum(freqlist < 0)
+  pos = sum(freqlist > 2000) # Map didn't detect break but reference did (omission)
+  neg = sum(freqlist < 0) # Reference didn't detect break but map did (commission)
   sm = sum(freqlist > 0 & freqlist< 2000)
   zr = sum(freqlist == 0)
   return(rbind(pos, neg, sm, zr))
@@ -634,8 +634,12 @@ calc_break_time <- function(freqlist){
 
 breakdif_count = by(break_compare$breakdif, break_compare$ptrw, calc_break_time, simplify = FALSE) 
 total_ptrw_pts = unlist(lapply(breakdif_count, sum))
-lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
-
+bd_ratios = lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
+bd_ratios_melt =melt(bd_ratios) # Get that out of the ugly list
+bd_ratios_df = dcast(ccc, L1~Var1) # Reshape to get an easier to manage df
+bd_ratios_df = cbind(bd_ratios_df, total_ptrw_pts)
+write.csv(bd_ratios_df, "break_ratios.csv")
+        
 #TODO
 # - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
 # total sample size in that path-row
