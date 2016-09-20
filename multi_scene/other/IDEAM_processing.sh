@@ -80,13 +80,20 @@ for p in $period_list; do
     y2p=`expr $y2 - 1`
     printf -v yr1 '%02d' $y1p 
     printf -v yr2 '%02d' $y2p
-        
+
+    #IDEAM labels: 1 forest, 2 defor, 3 no info, 4 regrowth, 5 stable non-forest        
     qsub -j y -V -N compare_$p -hold_jid sieve_$p -b y \
      gdal_calc.py -A "cambio_20"$yr1"_20"$yr2"_v6_amazonia.tif" \
       -B $(basename $f .tif)"_MAGNA_sieved.tif" \
       --outfile=comparison_$p \
        --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*2+' \
+               'logical_and(A == 4, logical_or(B==3, B==4 )*4 +' \
+               'logical_and(A == 4, logical_or(B==6, B==7 )*4 +' \
+               'logical_and(A == 4, B==9 )*4 +' \
+               'logical_and(A == 5, B==5 )*5"' \
        --type=Byte --co="COMPRESS=PACKBITS" --overwrite
+
+#1 forest agreem, 2 defor agreem, 4 regrowth agreem, 5 nonforest agreem, 
 
 done
 
