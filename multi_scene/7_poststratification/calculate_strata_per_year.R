@@ -106,21 +106,6 @@ tot_acc = sum(diag(aprop)) * 100
 usr_acc = diag(aprop) / rowSums(aprop)
 prod_acc = diag(aprop) / colSums(aprop)
 
-# Export table of  sample count, areas, percentages
-orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-  "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
-  "Forest to regrowth", "All others to regrowth", "All to unclassified", "Loss of regrowth")
-strata_table = cbind(strata_pixels, ss$pixels *30^2 / 100^2)
-colnames(strata_table) = c("Stratum", "Count", "Total stratum area (ha)")
-strata_table$`Total stratum area (ha)` = format(strata_table$`Total stratum area (ha)`, scientific = FALSE, big.mark = ",")
-rownames(strata_table) = orig_strata_names
-strata_table$`Area percentage` = round(ss$pixels / tot_area_pix * 100, digits=3) 
-windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
-tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
-                colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14)),
-                rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
-
-grid.table(strata_table[,-1:-2], theme=tt)  # Remove indices for full table
 
 ## 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA
 # Returns a vector with length equal to the number of reference classes
@@ -287,6 +272,26 @@ if (deformode == TRUE){
 write.csv(area_ha, file=paste0("area_ha", suffix))
 write.csv(area_lower, file=paste0("area_lower", suffix))
 write.csv(area_upper, file=paste0("area_upper", suffix))
+
+# Export table of  sample count, areas, percentages
+orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                      "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
+                      "Forest to regrowth", "All others to regrowth", "All to unclassified", "Loss of regrowth")
+stratum_areas= ss$pixels *30^2 / 100^2
+stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
+strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
+strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
+colnames(strata_table) = c("Area (ha)", "Area/stratum weight W[h] [%]", "Sample size (nh)") #how to get proper superscript?
+rownames(strata_table) = orig_strata_names
+windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
+tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
+                  colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14)),
+                  rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
+
+grid.table(strata_table, theme=tt)  # Remove indices for full table
+
+#calculate map bias
+map_bias = stratum_areas - area_ha['2016',]
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
@@ -513,7 +518,7 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
   geom_area(position="stack", alpha=0.8) + 
   scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Total area per year [ha]") + xlab("Years") +
+  ylab("Loss of primary forest [ha]") + xlab("Years") +
   scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
   theme(legend.title=element_blank()) +
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
