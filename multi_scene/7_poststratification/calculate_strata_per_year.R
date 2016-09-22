@@ -288,10 +288,16 @@ tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fonts
                   colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14)),
                   rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
 
-grid.table(strata_table, theme=tt)  # Remove indices for full table
+grid.table(strata_table, theme=tt)  
 
-#calculate map bias
+#calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
 map_bias = stratum_areas - area_ha['2016',]
+accuracies = as.data.frame(cbind(usr_acc, prod_acc))
+accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
+colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
+rownames(accuracy_table) = orig_strata_names[-11]
+accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
+grid.table(accuracy_table, theme=tt)  
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
