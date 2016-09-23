@@ -55,11 +55,6 @@ for p in $period_list; do
 #      --type=Byte --co="COMPRESS=PACKBITS" --overwrite
 #
 #    # 2) Reproject to MAGNA-SIRGAS and grid
-#    # This section works fine except because the output file has a 2 meter 
-#    # offset in the lower left Y coordinate for an unknown reason. Also, the 
-#    # annual IDEAM files have a sligtly different origin than the others
-#
-#
 #    # Use 15 as input and output nodata, because the "other to other" class is 
 #    # still labeled as zero. User -ts instead of -tr because that was creating
      # a displacement in the grid for some reason. IDEAM annual maps have a height
