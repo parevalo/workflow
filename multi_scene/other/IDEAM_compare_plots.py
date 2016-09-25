@@ -5,7 +5,7 @@ import glob
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tkr
 
-os.chdir("/home/paulo/Downloads")
+os.chdir("/projectnb/landsat/projects/Colombia/Mosaics/M3/IDEAM")
 plt.style.use('ggplot')
 
 # Store tables in a dictionary
@@ -23,7 +23,6 @@ classes = ["Other changes", 'Forest agreement', "Deforestation agreement", "Regr
            "Deforestation (IDEAM) - Forest (BU)", "Deforestation (IDEAM) - Forest to secondary/secondary to others",
            "Stable non-forest (IDEAM) - Forest (BU)", "Stable non-forest (IDEAM) - Stable secondary (BU"]
 
-areas_merged = **2 / 100**2
 # Plot the areas! Keep in mind that there are still some disagreements in the total data area (0 to 14) that are
 # probably caused by the inconsistent NoData areas in the IDEAM files.
 for i in range(len(areas_merged-1)): # We don't want to plot column 14
@@ -36,7 +35,7 @@ for i in range(len(areas_merged-1)): # We don't want to plot column 14
     # Format axis as hectares
     ax1.get_yaxis().set_major_formatter(tkr.FuncFormatter(lambda x, p: format(int(x*30**2 / 100**2), ',')))
     plt.title(classes[i])
-    fig.savefig(classes[i], dpi=300, bbox_inches='tight')
+    fig.savefig("/usr3/graduate/parevalo/Lab/Slides/09262016/"+classes[i], dpi=300, bbox_inches='tight')
 
 #for k in areas:
 #    print k, areas[k][0:14].sum()
