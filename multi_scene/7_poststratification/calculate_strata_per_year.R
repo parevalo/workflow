@@ -17,8 +17,8 @@ require(gridExtra)
 # on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
 
 # Read shapefile with reference strata and change info
-setwd("/home/paulo/sample_may2016/interpreted_w_strata_23062016")
-#setwd("C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016")
+#setwd("/home/paulo/sample_may2016/interpreted_w_strata_23062016")
+setwd("C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016")
 full_samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # Subset to only use records with one or no change
@@ -73,8 +73,8 @@ rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
 
 # Iterate over names and extract to shapefile
 for (r in rast_names){
-  #map = raster(paste0("C:/test/", r, ".tif"))
-  map = raster(paste0("/home/paulo/test/", r, ".tif"))
+  map = raster(paste0("C:/test/", r, ".tif"))
+  #map = raster(paste0("/home/paulo/test/", r, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
 
@@ -83,8 +83,8 @@ for (r in rast_names){
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # LOAD the total strata sample size produced from CountValues.py, bc calculating it here with hist() takes forever...
-ss = read.csv("/home/paulo/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
-#ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
+#ss = read.csv("/home/paulo/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
+ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
 # Classes to be removed/ignored
 cr = c(7, 10, 12, 15)
 # Filter classes NOT in that list
@@ -281,16 +281,20 @@ stratum_areas= ss$pixels *30^2 / 100^2
 stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
 strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
 strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
-colnames(strata_table) = c("Area (ha)", "Area/stratum weight W[h] [%]", "Sample size (nh)") #how to get proper superscript?
+#Math notation in column name can only be displayed if it's on its own, and not with mixed text...
+colnames(strata_table) = c("Area (ha)", "Area / W[h]", "Sample size (nh)") 
 rownames(strata_table) = orig_strata_names
 windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
+# Parse = TRUE required to display math notation
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
-                  colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14)),
+                  colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14, parse=TRUE)),
                   rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
-
+grid.newpage()
 grid.table(strata_table, theme=tt)  
 
+
 #calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
+margin_error = area_ci / area_ha 
 map_bias = stratum_areas - area_ha['2016',]
 accuracies = as.data.frame(cbind(usr_acc, prod_acc))
 accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
@@ -298,6 +302,7 @@ colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias
 rownames(accuracy_table) = orig_strata_names[-11]
 accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
 grid.table(accuracy_table, theme=tt)  
+grid.newpage()
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
@@ -392,9 +397,6 @@ if (deformode == FALSE){
                    "Loss of regrowth", "Deforestation")
   
 }
-
-# Calculate margin of error, plot along with the areas with CI (right below), use righ axis
-margin_error = area_ci / area_ha 
 
 # Create each plot and save it to png, make y axis start at 0, break the axis for stable forest
 # MODIFIED TO INCLUDE MAPPED DEFORESTATION, FIX TO INCLUDE EACH OF THE MAPPED CLASSES!
