@@ -15,7 +15,7 @@ export GDAL_CACHEMAX=2048
 # Create a list of years we want to get strata from, omitting 00-02
 # Periods have +1 year to make them more comparable to my maps (which correspond
 # to the first day of the year
-period_list="03-05 05-07 07-09 09-10 11-13 13-14 14-15"
+period_list="03-05 05-07 07-09 09-11 11-13 13-14 14-15"
 
 # Calculate strata for each year we might want to check
 
@@ -24,7 +24,7 @@ period_list="03-05 05-07 07-09 09-10 11-13 13-14 14-15"
 # 6 Stable regrowth, 7 Anything to regrowth (regrowth), 8 Regrowth to others 
 # 9 others to forest (regrowth)
 for p in $period_list; do
-    f="custom_strata__"$p"_UTM18N.tif"
+    f="custom__strata_"$p"_UTM18N.tif"
     
     # 1) Create custom strata 
     y1=${p:0:2}
@@ -69,7 +69,7 @@ for p in $period_list; do
     qsub -V -b y -j y -N reproj_$p -hold_jid strata_$p \
      gdalwarp -co COMPRESS=PACKBITS -co NBITS=4 -wt Byte \
       -te $(gdal_extent $refextent) -te_srs EPSG:3116 \
-       -t_srs EPSG:3116 -ts 45206 $heigth -srcnodata 15 -dstnodata 15 \
+       -t_srs EPSG:3116 -ts 45206 $height -srcnodata 15 -dstnodata 15 \
         -overwrite $f $(basename $f .tif)"_MAGNA.tif"
 
     # 3) Sieve "polygons" of less than 1 ha (around 11.11 pixels)
