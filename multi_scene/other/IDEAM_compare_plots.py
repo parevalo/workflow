@@ -20,13 +20,12 @@ areas_merged.drop(areas_merged.columns[[3,10,11,12,13]], axis=1, inplace=True) #
 areas_merged.index = areas_merged.index.droplevel(1) # Drop unnecessary index, could be prevented from input file
 periods = ['03-05', '05-07', '07-09', '09-11', '11-13', '13-14', '14-15']
 classes = ["Other changes", 'Forest agreement', "Deforestation agreement", "Regrowth agreement", "Stable non-forest agreement",
-           "Deforestation (IDEAM) - Forest (BU)", "Deforestation (IDEAM) - Forest to secondary/secondary to others",
+           "Deforestation (IDEAM) - Forest (BU)", "Deforestation (IDEAM) - Forest to secondary or secondary to others",
            "Stable non-forest (IDEAM) - Forest (BU)", "Stable non-forest (IDEAM) - Stable secondary (BU"]
 
-areas_merged = **2 / 100**2
 # Plot the areas! Keep in mind that there are still some disagreements in the total data area (0 to 14) that are
 # probably caused by the inconsistent NoData areas in the IDEAM files.
-for i in range(len(areas_merged-1)): # We don't want to plot column 14
+for i in range(areas_merged.shape[1]-1): # We don't want to plot column 14
     fig, ax1 = plt.subplots(1)
     ax1.plot(areas_merged.iloc[:,i], '-o') # We need to index it by location and not by name
     ax1.grid(True)
