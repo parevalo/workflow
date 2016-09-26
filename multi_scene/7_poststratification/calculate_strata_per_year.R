@@ -649,13 +649,10 @@ breakdif_count = by(break_compare$breakdif, break_compare$ptrw, calc_break_time,
 total_ptrw_pts = unlist(lapply(breakdif_count, sum))
 bd_ratios = lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
 bd_ratios_melt =melt(bd_ratios) # Get that out of the ugly list
-bd_ratios_df = dcast(ccc, L1~Var1) # Reshape to get an easier to manage df
+bd_ratios_df = dcast(bd_ratios_melt, L1~Var1) # Reshape to get an easier to manage df
 bd_ratios_df = cbind(bd_ratios_df, total_ptrw_pts)
 write.csv(bd_ratios_df, "break_ratios.csv")
         
 #TODO
-# - Find out WHERE the biggest omission and comission errors are happening, and their percentage with respect to the
-# total sample size in that path-row
-# - For the paper, remove plot titles and add to the y label (e.g. forest to pasture converstion [ha])
+
 # - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
-#- Plot number of images per year to see if that' correspon's why the annucal forest converstion to other classes look like that
