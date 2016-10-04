@@ -11,6 +11,7 @@ require(ggplot2)
 require(gtable)
 require(grid)
 require(gridExtra)
+library(xtable)
 
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
@@ -275,8 +276,8 @@ write.csv(area_upper, file=paste0("area_upper", suffix))
 
 # Export table of  sample count, areas, percentages
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                      "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
-                      "Forest to regrowth", "All others to regrowth", "All to unclassified", "Loss of regrowth")
+                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
+                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
 stratum_areas= ss$pixels *30^2 / 100^2
 stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
 strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
@@ -292,6 +293,10 @@ tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fonts
 grid.newpage()
 grid.table(strata_table, theme=tt)  
 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
+print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
 
 #calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
 margin_error = area_ci / area_ha 
@@ -301,8 +306,10 @@ accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100)
 colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
 rownames(accuracy_table) = orig_strata_names[-11]
 accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
-grid.table(accuracy_table, theme=tt)  
 grid.newpage()
+grid.table(accuracy_table, theme=tt)  
+
+
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
@@ -448,6 +455,9 @@ for(i in 1:length(area_ha)){
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
+  # To remove grid and background add this:
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
+  
   # Use gtable to stack plots together with matching extent and save  
   g1 <- ggplotGrob(a)
   g2 <- ggplotGrob(b)
@@ -496,7 +506,7 @@ lines(years[2:16], net_rg)
 
 # Get only gain classes 
 regr_area = area_ha[,c(6,9,10)]
-names(regr_area) = c("Stable regrowth", "Forest to regrowth", "Other to regrowth") #, "Loss of regrowth")
+names(regr_area) = c("Stable secondary forest", "Forest to secondary forest", "Other gains of secondary forest") #, "Loss of regrowth")
 
 # Melt and plot
 regr_area_melt = melt(as.matrix(regr_area))
@@ -505,7 +515,7 @@ regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) +
   geom_area(position="stack", alpha=0.8) + #geom_line(aes(x=Var1, y=732031.3), linetype=2) + 
   scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Total annual area in regrowth [ha]") + xlab("Years")+
+  ylab("Area [ha]") + xlab("Years")+
   scale_fill_brewer(palette="GnBu",  breaks=levels(regr_area_melt$Var2), guide = guide_legend(reverse=T)) + 
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13),
   legend.title=element_blank()) #+ 
@@ -513,12 +523,12 @@ regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) +
   #annotate("text", x = 2014,  y = 600000, label="Loss of regrowth")  
 
 print(regr_plot)
-ggsave("net_regrowth.png", plot=regr_plot, device="png") 
+ggsave("net_regrowth_secondaryforest.png", plot=regr_plot, device="png") 
 
 
 # Forest loss = total area of classs 8 + 9 + whatever is left
 for_loss = area_ha[,c(8,9)]
-names(for_loss) = c("Forest to pasture", "Forest to regrowth")
+names(for_loss) = c("Forest to pasture", "Forest to secondary forest")
 
 # Melt and plot. 
 for_loss_melt = melt(as.matrix(for_loss))
@@ -530,7 +540,7 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
   scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
   theme(legend.title=element_blank()) +
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
-
+  + geom.line
 print(forest_loss_plot)
 ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
 
