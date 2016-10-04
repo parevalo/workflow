@@ -24,35 +24,35 @@ period_list="03-05 05-07 07-09 09-11 11-13 13-14 14-15"
 # 6 Stable regrowth, 7 Anything to regrowth (regrowth), 8 Regrowth to others 
 # 9 others to forest (regrowth)
 for p in $period_list; do
-    f="custom__strata_"$p"_UTM18N.tif"
+    f="custom_strata_"$p"_UTM18N.tif"
     
     # 1) Create custom strata 
     y1=${p:0:2}
     y2=${p:3:2}
-#    qsub -j y -V -N strata_$p -b y \
-#     gdal_calc.py -A ../20$y1"_final_crop.tif" -B ../20$y2"_final_crop.tif" \
-#      --outfile=$f \
-#      --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*5+' \
-#              'logical_and(A == 3, B==3)*5 + logical_and(A == 4, B==4)*5 +' \
-#              'logical_and(A == 5, B==5)*6 + logical_and(A == 5, B==1)*4+' \
-#              'logical_and(A == 6, B==6)*5 +' \
-#              'logical_and(A == 7, B==7)*5 + logical_and(A == 1, B==4)*2 +' \
-#              'logical_and(A == 1, B==5)*3 +' \
-#              'logical_and(A == 1, logical_or(B==2, B==3))*2 +' \
-#              'logical_and(A == 1, logical_or(B==6, B==7))*2 +' \
-#              'logical_and(A == 1, B == 0)*2 +' \
-#              'logical_and(A == 4, B==5)*7 +' \
-#              'logical_and(logical_or(A == 2, A==3), B==5)*7 +' \
-#              'logical_and(logical_or(A == 6, A==7), B==5)*7 +' \
-#              'logical_and(logical_and(logical_and(A!=0,A!=1), A!=5), B==0)*5 +' \
-#              'logical_and(A == 5, logical_and(B != 5, B!= 1))*8 +' \
-#              'logical_and(logical_or(A == 2, A==3), B==1)*9 +' \
-#              'logical_and(logical_or(A == 4, A==6), B==1)*9 +' \
-#              'logical_and(A == 7, B==1)*9 +' \
-#              'logical_and(A == 0, B==0)*15"' \
-#      --type=Byte --co="COMPRESS=PACKBITS" --overwrite
-#
-    # 2) Reproject to MAGNA-SIRGAS and grid
+    qsub -j y -V -N strata_$p -b y \
+     gdal_calc.py -A ../20$y1"_final_crop.tif" -B ../20$y2"_final_crop.tif" \
+      --outfile=$f \
+      --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*5+' \
+              'logical_and(A == 3, B==3)*5 + logical_and(A == 4, B==4)*5 +' \
+              'logical_and(A == 5, B==5)*6 + logical_and(A == 5, B==1)*4+' \
+              'logical_and(A == 6, B==6)*5 +' \
+              'logical_and(A == 7, B==7)*5 + logical_and(A == 1, B==4)*2 +' \
+              'logical_and(A == 1, B==5)*3 +' \
+              'logical_and(A == 1, logical_or(B==2, B==3))*2 +' \
+              'logical_and(A == 1, logical_or(B==6, B==7))*2 +' \
+              'logical_and(A == 1, B == 0)*2 +' \
+              'logical_and(A == 4, B==5)*7 +' \
+              'logical_and(logical_or(A == 2, A==3), B==5)*7 +' \
+              'logical_and(logical_or(A == 6, A==7), B==5)*7 +' \
+              'logical_and(logical_and(logical_and(A!=0,A!=1), A!=5), B==0)*5 +' \
+              'logical_and(A == 5, logical_and(B != 5, B!= 1))*8 +' \
+              'logical_and(logical_or(A == 2, A==3), B==1)*9 +' \
+              'logical_and(logical_or(A == 4, A==6), B==1)*9 +' \
+              'logical_and(A == 7, B==1)*9 +' \
+              'logical_and(A == 0, B==0)*15"' \
+      --type=Byte --co="COMPRESS=PACKBITS" --overwrite
+
+   # 2) Reproject to MAGNA-SIRGAS and grid
     # Use 15 as input and output nodata, because the "other to other" class is 
     # still labeled as zero. User -ts instead of -tr because that was creating
     # a displacement in the grid for some reason. IDEAM annual maps have a 
@@ -104,6 +104,6 @@ for p in $period_list; do
     #1 forest agreem, 2 defor agreem, 4 regrowth agreem, 5 nonforest agreem, 
     #6 IDEAM defor - strata forest, 7 IDEAM-defor - strata- 3 and 8 ("loss" of forest)
     #8 IDEAM NF - strata forest, 9 IDEAM NF -strata stable regrowth.
-    #15 total nodata areas from both layers
+    #14 total nodata areas from both layers
 done
 
