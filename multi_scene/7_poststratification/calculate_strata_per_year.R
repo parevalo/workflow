@@ -308,8 +308,7 @@ rownames(accuracy_table) = orig_strata_names[-11]
 accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
 grid.newpage()
 grid.table(accuracy_table, theme=tt)  
-
-
+print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.function=function(x){x})
 
 # Reference sample count per year. Use something like this above to deal with varying number of classes per year
 
