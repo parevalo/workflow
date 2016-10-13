@@ -13,13 +13,22 @@ require(grid)
 require(gridExtra)
 library(xtable)
 
+## 0) SET VARIABLES/FOLDERS
+# Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
+wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
+auxpath = "C:/test"
+
+if( .Platform$OS.type == "unix" )
+    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
+    auxpath = "/media/paulo/785044BD504483BA/test/"
+
+setwd(wd)
+
 ## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
 # on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
 
-# Read shapefile with reference strata and change info
-#setwd("/home/paulo/sample_may2016/interpreted_w_strata_23062016")
-setwd("C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016")
+# Read shapefile with reference strata and change info. Test if working from ubuntu or windows
 full_samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # Subset to only use records with one or no change
@@ -74,8 +83,7 @@ rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
 
 # Iterate over names and extract to shapefile
 for (r in rast_names){
-  map = raster(paste0("C:/test/", r, ".tif"))
-  #map = raster(paste0("/home/paulo/test/", r, ".tif"))
+  map = raster(paste0(auxpath, r, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
 
@@ -83,9 +91,15 @@ for (r in rast_names){
 # If run with original, confusion matrices are the same)
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
-# LOAD the total strata sample size produced from CountValues.py, bc calculating it here with hist() takes forever...
-#ss = read.csv("/home/paulo/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
-ss = read.csv("C:/test/strata_01_16_pixcount.csv", header=TRUE, col.names=c("stratum", "pixels"))
+# Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
+mapped_areas_list = list()
+filenames = dir(path, pattern="*_pixcount.csv")
+for(i in 1:length(filenames)){
+  mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
+}
+
+# Get only the total area for the original strata (eg 01-16)
+ss = mapped_areas_list[[15]]
 # Classes to be removed/ignored
 cr = c(7, 10, 12, 15)
 # Filter classes NOT in that list
@@ -543,18 +557,8 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
 print(forest_loss_plot)
 ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
 
-# Load and plot MAPPED rates to compare with estimated rates
-
-setwd("C:/test")
-mapped_areas_list = list()
-filenames = dir("C:/test/", pattern="*_pixcount.csv")
-for(i in 1:length(filenames)){
-  mapped_areas_list[[i]] = read.csv(filenames[i], header=TRUE, col.names=c("stratum", "pixels"))
-  
-}
-
-# Create empty matrix to store values and fill
-
+# COMPARE MAPPED AREAS WITH ESTIMATES
+# Create empty matrix to store mapped values and fill
 mapped_areas = matrix(0, nrow=length(years[2:16]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:16], mapped_areas_list[[1]][,1]))
 
 for (i in 1:length(mapped_areas_list)){
