@@ -1,8 +1,9 @@
-### This script has three main sections:
+### This script has five main sections:
 ### 1) Read reference strata shapefile and calculate labels per year
 ### 2) Read yearly strata raster and extract values to the SpatialPoints object (i.e. shapefile) 
 ### 3) Calculate reference class area proportions and variance of ref samples per strata
 ### 4) Calculate unbiased standard error for proportion of reference class areas 
+### 5) Create plots
 
 require(rgdal)
 require(raster)
@@ -97,13 +98,12 @@ for (r in rast_names){
   samples = extract(map, samples, sp = TRUE) 
 }
 
-# Crosstab reference sample vs final strata (DOESN'T MATCH EXCEL FILE BC THE RECORDS WERE FILTERED ABOVE. 
-# If run with original, confusion matrices are the same)
+# Crosstab reference sample vs final strata 
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
 mapped_areas_list = list()
-filenames = dir(path, pattern="*_pixcount.csv")
+filenames = dir(auxpath, pattern="*_pixcount.csv")
 for(i in 1:length(filenames)){
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
 }
@@ -135,7 +135,9 @@ prod_acc = diag(aprop) / colSums(aprop)
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 
 # Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
-# Returns a vector with length equal to the number of reference classes
+# Returns a list of vectors with length equal to the number of reference classes. The list contains: 
+# Area proportions per class, sample variance per sample strata, total strata size present in that year, 
+# proportion of sample ref class present on each samp strata
 calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
 
   # Obtain unique values in the samp_strata field
@@ -158,7 +160,7 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
       ind = which(cond_bool)
       # Get location of rows for the current samp_strata
       str_ref = which(samp_strata == str_codes[s])
-      # Get proportion on samp_reference class present on that samp_strata
+      # Get proportion of samp_reference class present on that samp_strata
       ref_prop[s, r] = length(ind)/sample_totals$x[sample_totals$Group.1 == str_codes[s]]
       # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
       # which is the same formula specified in the paper
@@ -178,29 +180,25 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
   # Filter only total sample sizes that are present in the samp_strata for that year
   fss = strata_totals[strata_totals$stratum %in% str_codes,]
   for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE samp_strata?
+    # LEAVE THE SUM OF THE ENTIRE samp_strata
     class_prop[r] = sum(fss$pixels * ref_prop[,r])/tot_area_pix
   }
   return(list(class_prop, ref_var, fss, ref_prop)) 
 }
 
-# Call the function for every reference year we want and get area proportions and sample variance
-# NOTE the double square brackets to allow for substitution
-# THE SCRIPT REQUIRES THE STRATA TO BE THE ORIGINAL STRATA, SO NO NEED TO ITERATE OVER RASTERS!! 
-# THOSE RASTERS ARE ONLY NEEDED IF WE WANT TO CALCULATE THE ACCURACIES
-
-# To calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
+# IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
+# a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
 defor_str = samples$final_strata_01_16_UTM18N
 defor_str[defor_str == 8 | defor_str == 9] = 17
 
-# Find reference samples = 8 or 9 for each year and change value to 17
+# b) Find reference samples = 8 or 9 for each year and change value to 17
 samples_defor = samples
 for (f in 1:(length(field_names))){
   defor_ind = samples_defor[[field_names[f]]] == 8 | samples_defor[[field_names[f]]] == 9
   samples_defor@data[defor_ind,field_names[f]] = 17
 }
 
-# Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
+# c) Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
 defor_str_totals = ss 
 class17a = defor_str_totals[defor_str_totals$stratum == 8,] + defor_str_totals[defor_str_totals$stratum == 9,]
 defor_str_totals = rbind(defor_str_totals, class17)
@@ -211,7 +209,7 @@ class17b = defor_samp_totals[defor_samp_totals$Group.1 == 8,] + defor_samp_total
 defor_samp_totals = rbind(defor_samp_totals, class17b)
 defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
 
-# Deformode modifies output from here
+# Deformode modifies output from HERE
 
 # Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
 if (deformode == TRUE){
@@ -219,6 +217,11 @@ if (deformode == TRUE){
 }else { 
   ref_codes = sort(unique(unlist(samples@data[field_names])))
 }
+
+
+# Call the function for every reference year we want and get area proportions and sample variance
+# NOTE the double square brackets to allow for substitution. Only requires the original strata, so no need to 
+# iterate over yearly rasters, that's only needed for accuracies. 
 
 area_prop = data.frame()
 ref_var_list = list()
