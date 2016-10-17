@@ -13,7 +13,9 @@ require(grid)
 require(gridExtra)
 library(xtable)
 
-## 0) SET VARIABLES/FOLDERS
+##############################################################################################################
+#0) SET VARIABLES/FOLDERS
+
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
 wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
 auxpath = "C:/test"
@@ -24,7 +26,12 @@ if( .Platform$OS.type == "unix" )
 
 setwd(wd)
 
-## 1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
+# If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
+deformode = FALSE
+
+
+#############################################################################################################
+#1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
 # on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
 
@@ -76,7 +83,10 @@ names(df) = field_names
 samples@data[,field_names] <- df
 #writeOGR(samples, "sample_yearly_strata", "sample_yearly_strata", driver="ESRI Shapefile", overwrite_layer = T)
 
-## 2) READ YEARLY STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
+#############################################################################################################
+# 2) READ YEARLY STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
+# Also calculate original strata size, weights, area proportions, and accuracies
+
 # Create a list with the raster names
 years_short = seq(02,16)
 rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
@@ -121,11 +131,11 @@ tot_acc = sum(diag(aprop)) * 100
 usr_acc = diag(aprop) / rowSums(aprop)
 prod_acc = diag(aprop) / colSums(aprop)
 
+##############################################################################################################
+# 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 
-## 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA
+# Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
 # Returns a vector with length equal to the number of reference classes
-# Reorganize to make more legible
-
 calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
 
   # Obtain unique values in the samp_strata field
@@ -201,9 +211,7 @@ class17b = defor_samp_totals[defor_samp_totals$Group.1 == 8,] + defor_samp_total
 defor_samp_totals = rbind(defor_samp_totals, class17b)
 defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
 
-# CONDITION THAT MODIFIES THE OUTPUT FROM HERE! Temporary fix to make it easier to run both cases if necessary
-# If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
-deformode = FALSE
+# Deformode modifies output from here
 
 # Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
 if (deformode == TRUE){
@@ -237,7 +245,8 @@ for (i in (1:length(rast_names))){
 rownames(area_prop) = years[2:length(years)]
 colnames(area_prop) = ref_codes
 
-### 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
+##############################################################################################################
+# 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
 calc_se_prop = function(strata_totals, sample_totals){
 
@@ -402,7 +411,8 @@ grid.newpage()
 png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
 
 
-## 5) PLOTS
+##############################################################################################################
+# 5) PLOTS
 
 # Nice, good looking plots
 
@@ -632,6 +642,7 @@ ggsave("mapped_deforestation.png", plot=mdefor, device="png")
 print(mfp)
 ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
 
+##############################################################################################################
 # MISCELANEOUS
 # Plot number of forest to pasture reference samples over time.
 fpc = vector()
