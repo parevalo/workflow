@@ -1,9 +1,11 @@
-### This script has five main sections:
+### This script has seven main sections:
+### 0) Set global variables
 ### 1) Read reference strata shapefile and calculate labels per year
 ### 2) Read yearly strata raster and extract values to the SpatialPoints object (i.e. shapefile) 
 ### 3) Calculate reference class area proportions and variance of ref samples per strata
 ### 4) Calculate unbiased standard error for proportion of reference class areas 
-### 5) Create plots
+### 5) Create some useful tables
+### 6) Create some useful plots
 
 require(rgdal)
 require(raster)
@@ -30,6 +32,27 @@ setwd(wd)
 # If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
 
+# List of original strata names
+orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
+                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
+
+
+# Strata names depending on deformode. They DON'T have the "all to unclass." class bc it disappears when the ref. samples are collected.
+if (deformode == FALSE){
+  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                   "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
+                   "Forest to secondary forest", "Gain of secondary forest", "Loss of secondary forest")
+}else{
+  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                   "Stable pasture-cropland", "Stable regrowth", "Stable water", "All others to regrowth", 
+                   "Loss of regrowth", "Deforestation")
+}
+
+# Grid table theme, only used to display some ancillary tables
+tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
+                  colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14, parse=TRUE)),
+                  rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
 
 #############################################################################################################
 #1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
@@ -201,7 +224,7 @@ for (f in 1:(length(field_names))){
 # c) Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
 defor_str_totals = ss 
 class17a = defor_str_totals[defor_str_totals$stratum == 8,] + defor_str_totals[defor_str_totals$stratum == 9,]
-defor_str_totals = rbind(defor_str_totals, class17)
+defor_str_totals = rbind(defor_str_totals, class17a)
 defor_str_totals = defor_str_totals[!(defor_str_totals$stratum == 8 | defor_str_totals$stratum == 9),]
 
 defor_samp_totals = strata_pixels 
@@ -251,9 +274,10 @@ colnames(area_prop) = ref_codes
 ##############################################################################################################
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
+# Function to calculate standard error of area proportion of reference classes
 calc_se_prop = function(strata_totals, sample_totals){
 
-  # Formula works correctly, tested with unfiltered sample (i.e 1048 records) and it gives roughly the same CI
+  # Formula works correctly, tested
   se_pr = data.frame()
   
   #Iterate over years
@@ -300,31 +324,23 @@ write.csv(area_ha, file=paste0("area_ha", suffix))
 write.csv(area_lower, file=paste0("area_lower", suffix))
 write.csv(area_upper, file=paste0("area_upper", suffix))
 
+##############################################################################################################
+# 5) CREATE SOME USEFUL TABLES
+
 # Export table of  sample count, areas, percentages
-orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
-                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
 stratum_areas= ss$pixels *30^2 / 100^2
 stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
 strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
 strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
-#Math notation in column name can only be displayed if it's on its own, and not with mixed text...
-colnames(strata_table) = c("Area (ha)", "Area / W[h]", "Sample size (nh)") 
-rownames(strata_table) = orig_strata_names
-windowsFonts(Times=windowsFont("TT Times New Roman"))  #clearly, only required for windows machines
-# Parse = TRUE required to display math notation
-tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
-                  colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14, parse=TRUE)),
-                  rowhead=list(fg_params=list(font="Times", fontface="plain", fontsize=14)))
-grid.newpage()
-grid.table(strata_table, theme=tt)  
 
 # Create table in Latex instead, and produce the pdf there, much easier than grid.table
 # Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+rownames(strata_table) = orig_strata_names
 colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
 print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
 
-#calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
+# Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
+# Also print to latex to be converted to pdf
 margin_error = area_ci / area_ha 
 map_bias = stratum_areas - area_ha['2016',]
 accuracies = as.data.frame(cbind(usr_acc, prod_acc))
@@ -332,16 +348,11 @@ accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100)
 colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
 rownames(accuracy_table) = orig_strata_names[-11]
 accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
-grid.newpage()
-grid.table(accuracy_table, theme=tt)  
 print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.function=function(x){x})
 
-# Reference sample count per year. Use something like this above to deal with varying number of classes per year
+# Calculate reference sample count per year. Initialize zero matrix with year * class dims and proper row and column names
+ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
 
-# Initialize zero matrix with year * class dimensions and proper row and column names
-m = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
-
-# Calculate the sample count, not sure why I did this, not used yet!
 for (f in 1:(length(field_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
   if (deformode == FALSE){
@@ -351,8 +362,13 @@ for (f in 1:(length(field_names))){
   }
   
   class_check = ref_codes %in% names(a)
-  m[f,class_check] = a
+  ref_sample_count[f,class_check] = a
 }
+
+# Format and show
+grid.newpage()
+tt =  ttheme_default(base_size=14)
+grid.table(round(ref_sample_count), theme=tt)
 
 # Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
@@ -365,13 +381,13 @@ for(i in 1:length(area_ha)){
   chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100 #14 years
 }
 
-#Format and save table?
+#Format and show
+grid.newpage()
 tt =  ttheme_default(base_size=14)
 grid.table(round(chg_rate, digits=2), theme=tt)
 
 
-# Calculate when break occurred in maps and compare to break in reference samples
-# (trying to get rid of loops now...)
+## Calculate when break occurred in maps and compare to break in reference samples
 
 break_calc = function(dataset){
   unq = unique(as.numeric(dataset))
@@ -408,55 +424,20 @@ total_ref = total_ref[-2]
 total_breaks = cbind(total_ref, change_cm[,"total"])
 colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 
-# Format table and save
+# Format table and display
 tt= ttheme_default(base_size=18)
 grid.newpage()
-png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
+grid.table(round(change_cm, digits=2), theme=tt)
+#png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
 
 
 ##############################################################################################################
-# 5) PLOTS
+# 6) CREATE SOME USEFUL PLOTS
+# Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
+# reference.
 
-# Nice, good looking plots
-
-# Create vector with name of classes, doesn't include class 13
-if (deformode == FALSE){
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                 "Stable pasture-cropland", "Stable regrowth", "Stable water", "Forest to pasture", 
-                 "Forest to regrowth", "All others to regrowth", "Loss of regrowth")
-  }else{
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                   "Stable pasture-cropland", "Stable regrowth", "Stable water", "All others to regrowth", 
-                   "Loss of regrowth", "Deforestation")
-  
-}
-
-# Create each plot and save it to png, make y axis start at 0, break the axis for stable forest
-# MODIFIED TO INCLUDE MAPPED DEFORESTATION, FIX TO INCLUDE EACH OF THE MAPPED CLASSES!
-
-for(i in 1:length(area_ha)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8'] + mapped_areas[,'9']))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped")
-  
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
-  a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha))+ geom_line(aes(x=Years, y=Mapped),linetype=4 )+
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
-    theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
-  filename = paste0(strata_names[[i]], "_areasCI", ".png")
-  
-  print(a)
-  #ggsave(filename, plot=a, device="png") 
-  
-}
-
-# Same plot but with two panels, one including the margin error. Plots weren't created with ggplot facets bc
-# I couldn't find/figure out how to modify properties of individual facets
+## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
+# so I did it with grids. 
 
 for(i in 1:length(area_ha)){
   
@@ -493,12 +474,12 @@ for(i in 1:length(area_ha)){
   grid.newpage()
   grid.draw(g)
   filename = paste0(strata_names[[i]], "_areas_me", ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
 
-# Forest change. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
+## Plot forest change per year. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
 # Get only classes we're interested in
 for_change = chg_area[,c(2, 8, 9)]
 # Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
@@ -507,7 +488,7 @@ for_change = chg_area[,c(2, 8, 9)]
 for_to_other = rowSums(for_change[,1:3])
 for_change = cbind(for_change, for_to_other)
 for_change = abs(for_change[,2:4])
-colnames(for_change) = c("To pasture", "To regrowth", "To other")
+colnames(for_change) = c("To pasture", "To secondary forest", "To other")
 
 # Melt and plot. 
 for_change_melt = melt(for_change)
@@ -521,14 +502,12 @@ forest_plot <- ggplot(for_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2))
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
 
 print(forest_plot)
-ggsave("forest_change.png", plot=forest_plot, device="png") 
+#ggsave("forest_change.png", plot=forest_plot, device="png") 
 
-# Net regrowth. Yearly loss in 5 equals yearly gain in 14
+
+## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
 
 net_rg = area_ha[,6] + area_ha[,10] + area_ha[,9] - area_ha[,11]
-
-plot(years[2:16], area_ha[,6])
-lines(years[2:16], net_rg)
 
 # Get only gain classes 
 regr_area = area_ha[,c(6,9,10)]
@@ -549,9 +528,10 @@ regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) +
   #annotate("text", x = 2014,  y = 600000, label="Loss of regrowth")  
 
 print(regr_plot)
-ggsave("net_regrowth_secondaryforest.png", plot=regr_plot, device="png") 
+#ggsave("net_regrowth_secondaryforest.png", plot=regr_plot, device="png") 
 
 
+## Plot forest converstion to pasture and secondary forest 
 # Forest loss = total area of classs 8 + 9 + whatever is left
 for_loss = area_ha[,c(8,9)]
 names(for_loss) = c("Forest to pasture", "Forest to secondary forest")
@@ -566,17 +546,20 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
   scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
   theme(legend.title=element_blank()) +
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
-  + geom.line
+  
 print(forest_loss_plot)
-ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
+#ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
+
 
 # COMPARE MAPPED AREAS WITH ESTIMATES
+
 # Create empty matrix to store mapped values and fill
 mapped_areas = matrix(0, nrow=length(years[2:16]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:16], mapped_areas_list[[1]][,1]))
 
 for (i in 1:length(mapped_areas_list)){
   mapped_areas[i,] = mapped_areas_list[[i]][,2]  
 }
+
 
 # Convert to ha
 mapped_areas = mapped_areas * 30^2 / 100^2
@@ -594,6 +577,7 @@ for(i in 1:ncol(mapped_areas)){
 
 
 mapped_for_change = mapped_chg[,c(2, 9, 10)] # This matrix has extra cols
+
 # Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
 mfor_to_other = rowSums(mapped_for_change[,1:3])
 mapped_for_change = cbind(mapped_for_change, mfor_to_other)
@@ -601,7 +585,7 @@ mapped_for_change = abs(mapped_for_change[,2:4])
 colnames(mapped_for_change) = c("To pasture", "To regrowth", "To other")
 mapped_for_chg = mapped_chg[,c(8,9)] 
 
-# Melt and plot. 
+## Melt and plot annual areas of change per year 
 mfor_change_melt = melt(mapped_for_change)
 mforest_plot <- ggplot(mfor_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
   geom_area(position="stack") + 
@@ -613,9 +597,9 @@ mforest_plot <- ggplot(mfor_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
 
 print(mforest_plot)
-ggsave("mapped_forest_change.png", plot=mforest_plot, device="png") 
+#ggsave("mapped_forest_change.png", plot=mforest_plot, device="png") 
 
-# Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
+## Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
 mapped_plots = as.data.frame(mapped_areas[,c(9, 10)])
 mapped_plots = cbind(years[2:16], mapped_plots)
 colnames(mapped_plots) = c("Years", "Forest_to_pasture",  "Forest_to_regrowth")
@@ -637,13 +621,34 @@ mdefor <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture + Forest_to
 
 
 print(mdefor)
-ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
-ggsave("mapped_forest_to_regrowth.png", plot=mfr, device="png") 
-ggsave("mapped_deforestation.png", plot=mdefor, device="png") 
+#ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
+#ggsave("mapped_forest_to_secondary_forest.png", plot=mfr, device="png") 
+#ggsave("mapped_deforestation.png", plot=mdefor, device="png") 
 
 
-print(mfp)
-ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
+## Plot estimated areas with CI along with mapped areas. The way it is right now is only taking the mapped area of forest to pasture,
+# so the rest of the plots are not correct. I need to fix that.
+
+for(i in 1:length(area_ha)){
+  
+  # Define data and variables to use
+  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8']))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped")
+  
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
+  # Other custom settings for number of breaks, label formatting and title.
+  a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha))+ geom_line(aes(x=Years, y=Mapped),linetype=4 )+
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
+    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
+  theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
+  filename = paste0(strata_names[[i]], "_areasCI", ".png")
+  
+  print(a)
+  #ggsave(filename, plot=a, device="png") 
+  
+}
 
 ##############################################################################################################
 # MISCELANEOUS
