@@ -1,5 +1,5 @@
-# workflow
-Repository to include all the basic scripts needed to run all steps of yatsm for each of the scenes
+# Continuous unbiased area estimation
+Repository that shows all the steps followed to calculate annual unbiased area estimates for stable and change land cover classes in the Colombian amazon between 2001 and 2016. It does not include preprocessing steps, but the data requirements are described in the workflow_steps.md file.
 
 ### Definitive stratification 
 
