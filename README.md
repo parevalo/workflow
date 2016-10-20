@@ -1,5 +1,5 @@
 # Continuous unbiased area estimation
-Repository that shows all the steps followed to calculate annual unbiased area estimates for stable and change land cover classes in the Colombian amazon between 2001 and 2016. It does not include preprocessing steps, but the data requirements are described in the workflow_steps.md file.
+Repository that shows all the steps followed to calculate annual unbiased area estimates for stable and change land cover classes in the Colombian amazon between 2001 and 2016. The scripts are found in the multi_scene folder, while the single_scene contains only a few (old) examples on how to run some of these procedures for a single Landsat scene. It does not include preprocessing steps, but the data requirements are described in the workflow_steps.md file.
 
 ### Definitive stratification 
 
