@@ -121,15 +121,104 @@ for (r in rast_names){
   samples = extract(map, samples, sp = TRUE) 
 }
 
+## Artificially modify reference data
+# Create 16 ref columns and 16 map columns, with a given number of rows. Determine proportion of samples that will be
+# right or wrong, and with which classes.
+#samples@data = rbind(samples@data, samples@data)
+
+# create backup
+#samples_backup = samples
+samples = samples_backup
+
+# Add many correct forest samples
+df <- data.frame(matrix(1,ncol = 31, nrow = 2000))
+colnames(df) = colnames(samples@data)[23:53]
+
+# Add many correct defor samples 
+# df1 <- data.frame(matrix(1,ncol = 8, nrow = 100))
+# df2 <- data.frame(matrix(8,ncol = 8, nrow = 100))
+# df3 <- data.frame(matrix(8,ncol = 7, nrow = 100))
+# df4 = cbind(df1, df2, df1, df3)
+# colnames(df4) = colnames(samples@data)[23:53]
+
+# Create matrix with lower triangle =1 and upper = 8
+mat = matrix(1,  ncol=16, nrow=16)
+mat[upper.tri(mat)] = 8
+mat = matrix(rep(t(mat), 10) , ncol=ncol(mat) , byrow=TRUE)
+df5 = cbind(mat, mat[,2:16])
+colnames(df5) = colnames(samples@data)[23:53]
+
+# Same with 9
+mat = matrix(1,  ncol=16, nrow=16)
+mat[upper.tri(mat)] = 9
+mat = matrix(rep(t(mat), 10) , ncol=ncol(mat) , byrow=TRUE)
+df6 = cbind(mat, mat[,2:16])
+colnames(df6) = colnames(samples@data)[23:53]
+
+samples@data = rbind(samples@data[,23:53], df)
+samples@data = rbind(samples@data[,23:53], df, df5, df6)
+
+# Create artificial sample with perfect reference/map matching and same number of total samples as the real data
+
+sample_size = strata_pixels$x # Relies on original strata pixels, fix!
+sample_size[2] = 1000
+sample_size[8] = 240
+sample_size[9] = 240
+ref_matrix = matrix(, ncol=16, nrow=0)
+for (i in 1:dim(strata_pixels)[1]){
+  code = strata_pixels$Group.1[i]
+  repet = ceiling(sample_size[i]/16)
+  #repet = ceiling(strata_pixels$x[i] / 16)
+  if (code <= 6){
+    mat = matrix(code, ncol=16, nrow=16)
+  } else if (code == 8 | code == 9) {
+    mat = matrix(1, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = code
+  } else if (code == 11) {
+    mat = matrix(2, ncol=16, nrow=)
+    mat[upper.tri(mat)] = code
+  } else if (code == 14) {
+    mat = matrix(5, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = code
+  }
+  mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
+  ref_matrix = rbind(ref_matrix, mat)
+}
+
+full_matrix = cbind(ref_matrix, ref_matrix[,2:16])
+colnames(full_matrix) = names(samples_backup[23:53])
+samples@data = as.data.frame(full_matrix)
+
+## Adding more pairs of correct reference/map samples of forest and forest to pasture does improve the CI and consequently
+# the margin of error. However, the general trends in the mean are the same, so when the annual forest conversion is mapped, the 
+# same old spikes are present. Maybe the whole calculation should be done with a moving annual window instead of comparing each year with
+# 2001?
+# Adding more pairs of correct reference/map samples of forest makes the CI of forest to secondary forest shrink a lot, but the
+# margin of error doesn't change drastically. It does reduce the CI of stable forest of course. Adding those AND more correct forest
+# to secondary have a similar effect on the CI, but they DO reduce the margin of error, particularly at the beginning.
+# The addition of many more stable forest samples has the biggest effect but the resulting margin of error is still not as good as
+# expected.
+# Adding 2000 samples of correct forest dramatically shrinks the CI of forest to pasture and forest to secondary forest,
+# but the margin of error remains almost unchanged. Adding those plus 160 of forest to pasture shrinks the CI in a similar 
+# proportion, increases the total estimated area (compared to the 2000 samples alone), and drastically reduces the margin of error. 
+# The same is true if done in the same way for forest to secondary forest only. When this is done simultaneously for both
+# transitions, the stacked annual conversion looks much better although it still preserved the peaks.
+
+# Creating an artificial set with all perfect matches and same number of samples, forest to pasture and forest to secondary
+# show a linear growth, as expected, and their CI's are relatively narrow. However, the MoE, especially in the first three to 
+# four years are still large (although smaller than with real data). Increasing the samples in each of those classes 
+# (attempted with 240 samples on forest to pasture) makes it better, but MoE is still relatively large in the first years. 
+
+
 # Crosstab reference sample vs final strata 
-ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
+#ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
-mapped_areas_list = list()
-filenames = dir(auxpath, pattern="*_pixcount.csv")
-for(i in 1:length(filenames)){
-  mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
-}
+# mapped_areas_list = list()
+# filenames = dir(auxpath, pattern="*_pixcount.csv")
+# for(i in 1:length(filenames)){
+#   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
+# }
 
 # Get only the total area for the original strata (eg 01-16)
 ss = mapped_areas_list[[15]]
@@ -142,17 +231,17 @@ ss = ss[!(ss$stratum %in% cr),]
 strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$final_strata_01_16_UTM18N), length)
 
 # Calculate original strata weights and area proportions
-tot_area_pix = sum(ss$pixels)
-str_weight = ss$pixels / tot_area_pix
-# Add column for class 13 with zeroes to obtain a square matrix and make everything easier
-cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
-# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
-aprop = apply(cmatr, 2, function(x) x * str_weight / strata_pixels$x)
-
-# Calculate accuracies
-tot_acc = sum(diag(aprop)) * 100
-usr_acc = diag(aprop) / rowSums(aprop)
-prod_acc = diag(aprop) / colSums(aprop)
+# tot_area_pix = sum(ss$pixels)
+# str_weight = ss$pixels / tot_area_pix
+# # Add column for class 13 with zeroes to obtain a square matrix and make everything easier
+# cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
+# # Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
+# aprop = apply(cmatr, 2, function(x) x * str_weight / strata_pixels$x)
+# 
+# # Calculate accuracies
+# tot_acc = sum(diag(aprop)) * 100
+# usr_acc = diag(aprop) / rowSums(aprop)
+# prod_acc = diag(aprop) / colSums(aprop)
 
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
@@ -320,9 +409,9 @@ if (deformode == TRUE){
   suffix = "_regular.csv"
 }
 
-write.csv(area_ha, file=paste0("area_ha", suffix))
-write.csv(area_lower, file=paste0("area_lower", suffix))
-write.csv(area_upper, file=paste0("area_upper", suffix))
+#write.csv(area_ha, file=paste0("area_ha", suffix))
+#write.csv(area_lower, file=paste0("area_lower", suffix))
+#write.csv(area_upper, file=paste0("area_upper", suffix))
 
 ##############################################################################################################
 # 5) CREATE SOME USEFUL TABLES
@@ -370,6 +459,12 @@ grid.newpage()
 tt =  ttheme_default(base_size=14)
 grid.table(round(ref_sample_count), theme=tt)
 
+# Plot number of samples vs areas, TEMPORARY
+#plot(as.vector(ref_sample_count[2:16,2]), area_ha[,2])
+#plot(as.vector(ref_sample_count[2:16,8]), area_ha[,8])
+#plot(years[2:16], area_ha[,8])
+#plot(years[2:16], as.vector(ref_sample_count[2:16,8])) 
+
 # Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
 chg_area = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
@@ -385,7 +480,6 @@ for(i in 1:length(area_ha)){
 grid.newpage()
 tt =  ttheme_default(base_size=14)
 grid.table(round(chg_rate, digits=2), theme=tt)
-
 
 ## Calculate when break occurred in maps and compare to break in reference samples
 
@@ -444,7 +538,7 @@ for(i in 1:length(area_ha)){
   # Define data and variables to use
   tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
-  
+  titletext = paste0(strata_names[[i]], " - Artificial perfect sample - Same original sample sizes but 240 of forest to secondary")
   # Plot areas with CI
   # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
   # Other custom settings for number of breaks, label formatting and title.
@@ -453,7 +547,7 @@ for(i in 1:length(area_ha)){
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
     scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    ylab("Area and 95% CI [ha]") + ggtitle(titletext) + expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   
@@ -473,8 +567,8 @@ for(i in 1:length(area_ha)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me", ".png")
-  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  filename = paste0("./sample_size_experiment/", titletext, ".png")
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
