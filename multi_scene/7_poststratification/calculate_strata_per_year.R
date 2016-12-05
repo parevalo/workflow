@@ -15,6 +15,7 @@ require(gtable)
 require(grid)
 require(gridExtra)
 library(xtable)
+require(matrixcalc)
 
 ##############################################################################################################
 #0) SET VARIABLES/FOLDERS
@@ -121,7 +122,7 @@ for (r in rast_names){
   samples = extract(map, samples, sp = TRUE) 
 }
 
-## Artificially modify reference data
+## Artificially modify reference data. THIS SECTION IS EXPERIMENTAL
 # Create 16 ref columns and 16 map columns, with a given number of rows. Determine proportion of samples that will be
 # right or wrong, and with which classes.
 #samples@data = rbind(samples@data, samples@data)
@@ -148,6 +149,11 @@ mat = matrix(rep(t(mat), 10) , ncol=ncol(mat) , byrow=TRUE)
 df5 = cbind(mat, mat[,2:16])
 colnames(df5) = colnames(samples@data)[23:53]
 
+# Same but shifting map data 1 year to see what happens
+mat_shift = shift.right(mat, 1, 1)
+df5 = cbind(mat, mat_shift[,1:15])
+colnames(df5) = colnames(samples@data)[23:53]
+
 # Same with 9
 mat = matrix(1,  ncol=16, nrow=16)
 mat[upper.tri(mat)] = 9
@@ -155,15 +161,15 @@ mat = matrix(rep(t(mat), 10) , ncol=ncol(mat) , byrow=TRUE)
 df6 = cbind(mat, mat[,2:16])
 colnames(df6) = colnames(samples@data)[23:53]
 
-samples@data = rbind(samples@data[,23:53], df)
+samples@data = rbind(samples@data[,23:53], df5)
 samples@data = rbind(samples@data[,23:53], df, df5, df6)
 
 # Create artificial sample with perfect reference/map matching and same number of total samples as the real data
 
 sample_size = strata_pixels$x # Relies on original strata pixels, fix!
-sample_size[2] = 1000
-sample_size[8] = 240
-sample_size[9] = 240
+sample_size[2] = 400
+sample_size[8] = 50
+sample_size[9] = 50
 ref_matrix = matrix(, ncol=16, nrow=0)
 for (i in 1:dim(strata_pixels)[1]){
   code = strata_pixels$Group.1[i]
@@ -184,6 +190,8 @@ for (i in 1:dim(strata_pixels)[1]){
   mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
   ref_matrix = rbind(ref_matrix, mat)
 }
+map_shifted = shift.right(ref_matrix, 1, 1)
+full_matrix = cbind(ref_matrix, map_shifted[,1:15])
 
 full_matrix = cbind(ref_matrix, ref_matrix[,2:16])
 colnames(full_matrix) = names(samples_backup[23:53])
@@ -231,8 +239,8 @@ ss = ss[!(ss$stratum %in% cr),]
 strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$final_strata_01_16_UTM18N), length)
 
 # Calculate original strata weights and area proportions
-# tot_area_pix = sum(ss$pixels)
-# str_weight = ss$pixels / tot_area_pix
+tot_area_pix = sum(ss$pixels)
+str_weight = ss$pixels / tot_area_pix
 # # Add column for class 13 with zeroes to obtain a square matrix and make everything easier
 # cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
 # # Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
@@ -568,7 +576,7 @@ for(i in 1:length(area_ha)){
   grid.newpage()
   grid.draw(g)
   filename = paste0("./sample_size_experiment/", titletext, ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
