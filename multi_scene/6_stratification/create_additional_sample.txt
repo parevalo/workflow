@@ -1,0 +1,57 @@
+10:20:27 DEBUG: Using map image /projectnb/landsat/projects/Colombia/Mosaics/M3/strata_01_16_UTM18N.tif
+10:20:27 DEBUG: Sampling method is stratified
+10:20:27 DEBUG: Sample size is 200
+10:20:27 DEBUG: Allocation is [  0 200   0   0   0   0   0   0   0   0   0   0   0]
+10:20:27 DEBUG: Mask values are [ 15 255]
+10:20:27 DEBUG: Writing output raster to sample.gtif (GTiff)
+10:20:27 DEBUG: Writing output vector to /projectnb/landsat/projects/Colombia/Mosaics/M3/additional_forest_sample_UTM18N.shp (ESRI Shapefile)
+10:20:27 DEBUG: Setting NumPy seed to 10001
+10:20:30 DEBUG: Read in map image to be sampled
+10:21:09 DEBUG: Found 13 classes
+10:21:13 DEBUG:     class 0 - 1779332px (0.12%)
+10:21:17 DEBUG:     class 1 - 452933973px (29.63%)
+10:21:21 DEBUG:     class 2 - 14596905px (0.95%)
+10:21:25 DEBUG:     class 3 - 418217px (0.03%)
+10:21:28 DEBUG:     class 4 - 25520000px (1.67%)
+10:21:32 DEBUG:     class 5 - 5494025px (0.36%)
+10:21:36 DEBUG:     class 6 - 6730354px (0.44%)
+10:21:40 DEBUG:     class 8 - 4514362px (0.3%)
+10:21:43 DEBUG:     class 9 - 1342309px (0.09%)
+10:21:47 DEBUG:     class 10 - 3318582px (0.22%)
+10:21:51 DEBUG:     class 11 - 582675px (0.04%)
+10:21:55 DEBUG:     class 13 - 1814562px (0.12%)
+10:21:58 DEBUG:     class 14 - 1194388px (0.08%)
+10:21:58 DEBUG: Performing sampling
+10:21:58 DEBUG: Sampling class 0
+10:22:06 DEBUG:     collected samples
+10:22:06 DEBUG: Sampling class 1
+10:22:54 DEBUG:     collected samples
+10:22:54 DEBUG: Sampling class 2
+10:23:03 DEBUG:     collected samples
+10:23:03 DEBUG: Sampling class 3
+10:23:10 DEBUG:     collected samples
+10:23:10 DEBUG: Sampling class 4
+10:23:20 DEBUG:     collected samples
+10:23:20 DEBUG: Sampling class 5
+10:23:27 DEBUG:     collected samples
+10:23:27 DEBUG: Sampling class 6
+10:23:35 DEBUG:     collected samples
+10:23:35 DEBUG: Sampling class 8
+10:23:43 DEBUG:     collected samples
+10:23:43 DEBUG: Sampling class 9
+10:23:50 DEBUG:     collected samples
+10:23:50 DEBUG: Sampling class 10
+10:23:58 DEBUG:     collected samples
+10:23:58 DEBUG: Sampling class 11
+10:24:05 DEBUG:     collected samples
+10:24:05 DEBUG: Sampling class 13
+10:24:12 DEBUG:     collected samples
+10:24:12 DEBUG: Sampling class 14
+10:24:20 DEBUG:     collected samples
+10:24:20 DEBUG: Randomizing order of samples
+10:24:20 DEBUG: Finished collecting samples
+10:24:20 DEBUG: Writing raster output to sample.gtif
+sample_map.py:277: VisibleDeprecationWarning: using a non-integer number instead of an integer will result in an error in the future
+  raster[r, c] = s
+10:24:28 DEBUG: Writing vector output to /projectnb/landsat/projects/Colombia/Mosaics/M3/additional_forest_sample_UTM18N.shp
+10:24:28 DEBUG: Sampling complet
