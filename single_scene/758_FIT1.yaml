@@ -8,11 +8,11 @@ version: "0.6.0"
 
 dataset:
     # Text file containing dates and images
-    input_file: "/projectnb/landsat/projects/Colombia/images/007058/Results/FIT1/758_input.csv" 
+    input_file: "/projectnb/landsat/projects/Colombia/images/007059/759_input.csv" 
     # Input date format
     date_format: "%Y%j"
     # Output location
-    output: "/projectnb/landsat/projects/Colombia/images/007058/Results/FIT1/TSR" 
+    output: "/projectnb/landsat/projects/Colombia/images/007059/Results/M2/TSR" 
     # Output file prefix (e.g., [prefix]_[line].npz)
     output_prefix: "yatsm_r"
     # Total number of bands
@@ -31,27 +31,27 @@ dataset:
     # Use BIP image reader? If not, use GDAL to read in
     use_bip_reader: False
     # Directory location for caching dataset lines
-    cache_line_dir: "/projectnb/landsat/projects/Colombia/images/007058/images/.cache"
+    cache_line_dir: "/projectnb/landsat/projects/Colombia/images/007059/images/.cache"
 
 # Parameters common to all timeseries analysis models within YATSM package
 YATSM:
     algorithm: "CCDCesque"
-    prediction: "GLMNET_Lasso20"
+    prediction: "glmnet_Lasso20"
     design_matrix: "1 + x + harm(x, 1)"
     reverse: False
-    commission_alpha:
+    commission_alpha: 0.1
     # Re-fit each segment, adding new coefficients & RMSE info to record
     refit:
         prefix: [robust]
-        prediction: [RLM]
+        prediction: [rlm_maxiter10]
         stay_regularized: [True]
 
 # Parameters for CCDCesque algorithm -- referenced by "algorithm" key in YATSM
 CCDCesque:
     init:  # hyperparameters
         consecutive: 5
-        threshold: 3.5
-        min_obs: 14
+        threshold: 3.7
+        min_obs: 9
         min_rmse: 170
         test_indices: [2, 3, 4, 5]
         retrain_time: 365.25
@@ -75,10 +75,10 @@ OLS:
 GLMNET_LassoCV:
     pickle: "/projectnb/landsat/users/parevalo/yatsm/yatsm/regression/pickles/glmnet_LassoCV_n50.pkl"
 
-GLMNET_Lasso20:
-    pickle: "/projectnb/landsat/users/parevalo/yatsm/yatsm/regression/pickles/glmnet_Lasso20.pkl"
+glmnet_Lasso20:
+    #pickle: "/projectnb/landsat/users/parevalo/yatsm/yatsm/regression/pickles/glmnet_Lasso20.pkl"
     fit:
-        penalties: [1, 0, 1, 1, 1, 1]
+        penalties: [1, 0, 1, 1]
 
 RLM:
     pickle: "/projectnb/landsat/users/parevalo/yatsm/yatsm/regression/pickles/rlm_maxiter10.pkl"
@@ -115,7 +115,7 @@ segment:
 # Section for training and classification
 classification:
     # Training data file
-    training_image: "/projectnb/landsat/projects/Colombia/images/007058/images/Training1.tif" 
+    training_image: "/projectnb/landsat/projects/Colombia/images/007059/images/Training1.tif" 
     # Training data masked values
     roi_mask_values: [0, 255]
     # Date range
@@ -123,4 +123,4 @@ classification:
     training_end: "2001-01-04"
     training_date_format: "%Y-%m-%d"
     # Cache X feature input and y labels for training data image into file?
-    cache_training: "/projectnb/landsat/projects/Colombia/images/007058/images/.traincache" 
+    cache_training: "/projectnb/landsat/projects/Colombia/images/007059/images/.traincache" 
