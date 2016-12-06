@@ -4,8 +4,9 @@
 
 
 # This script performs post sieving operations: re assigning the nodata value
-# to 0 for all the sieved rasters, and deleted all the temporary masks created
-# in the process
+# to 0 for all the sieved rasters (no longer necessary because we're not using
+# the file that comes straight out of the sieving), and deleting all the 
+# temporary masks created in the process
 
 module load python/2.7.5_nopath
 module load gdal/1.11.1
@@ -23,10 +24,10 @@ rootdir=/projectnb/landsat/projects/Colombia/images
 for s in $scn_list; do
     cd $rootdir/$s/Results/M2/Class
     
-    # Re-assign nodata values
-    for yr in $(seq -w 01 01); do    
-        gdal_edit.py -a_nodata 0 ClassM2B_$yr"_sieved".tif
-    done
+    # Re-assign nodata values (no longer necessary)
+    #for yr in $(seq -w 01 01); do    
+    #    gdal_edit.py -a_nodata 0 ClassM2B_$yr"_sieved".tif
+    #done
 
     # Delete masks and log files
     rm -f -v mask*
