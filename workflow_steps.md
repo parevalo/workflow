@@ -44,5 +44,23 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
 
 ## 7_poststratification
 
+- area_estimation.py: Calculation of estimated areas with standard errors only. This is also done in the
+calculate_strata_per_year.R along with other things.
+- area_plot.py: Alternative script to the one written in R to create the figures of areas and confidence
+interval in one axis and the margin of error in the other (not possible to do in ggplot). As of Dec 14 2016 
+this version is incomplete, and the full version is in a jupyter notebook that I need to include in this 
+repository.
+- CountValues.py: Script to count the number of pixels per class in a given raster file.
+- calc_comparison_areas: Submit the CountValues.py script to calculate all the rasters product of 
+comparing my maps to those from IDEAM.
+- reprohect_samples.sh: Reprojects the sample in the east zone to UTM18.
+- submit_crostab.sh: Submits the crosstabulation script created bhy Christ Holden to get a confusion
+matrix.
+- calculate_strata_per_year.R: This script can be run from start to end, specifying the correct paths where 
+the required files are found. The main purpose is to calculate the unbiased areas, standard errors and margins
+of error per year and create the plots, but it also creates other useful tables and perform other calculations explained directly in the file. 
+
 TODO
 
+- Number the scripts or explain their possible ordering 
+- Explain better what the R script does. 
