@@ -168,7 +168,7 @@ samples@data = rbind(samples@data[,23:53], df, df5, df6)
 
 sample_size = strata_pixels$x # Relies on original strata pixels, fix!
 sample_size[2] = 400
-sample_size[8] = 50
+sample_size[8] = 80
 sample_size[9] = 50
 ref_matrix = matrix(, ncol=16, nrow=0)
 for (i in 1:dim(strata_pixels)[1]){
@@ -193,7 +193,7 @@ for (i in 1:dim(strata_pixels)[1]){
 map_shifted = shift.right(ref_matrix, 1, 1)
 full_matrix = cbind(ref_matrix, map_shifted[,1:15])
 
-full_matrix = cbind(ref_matrix, ref_matrix[,2:16])
+#full_matrix = cbind(ref_matrix, ref_matrix[,2:16])
 colnames(full_matrix) = names(samples_backup[23:53])
 samples@data = as.data.frame(full_matrix)
 
