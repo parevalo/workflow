@@ -10,7 +10,7 @@ suffix="_final_crop.tif"
 
 # Define the start and end year we want calculate the strata on
 
-first_yr=1
+first_yr=15
 last_yr=16
 
 # Define if we want the strata to be annual or cumulative (e.g. 2001 to 2005)
@@ -29,6 +29,7 @@ fi
 # problem with unclassified areas for the annual strata calculation, where
 # two consecutive years with unclassified after forest remain as unclassified, 
 # while in the cumulative version those years would be forest to pastures.
+# Here we will assume stable unclassified (class 0) is stable pasture.
 
 for yr in $(seq -w $fy $ly); do
     if [ $annual = true ]; then
@@ -43,8 +44,7 @@ for yr in $(seq -w $fy $ly); do
     fi
     
     qsub -j y -V -N strata_$yr -b y \
-     gdal_calc.py -A $first -B $second \
-      --outfile=$outfile \
+     gdal_calc.py -A $first -B $second --outfile=$outfile \
       --calc='"logical_and(A == 1, B==1)*1 + logical_and(A == 2, B==2)*2 +' \
               'logical_and(A == 3, B==3)*3 + logical_and(A == 4, B==4)*4 +' \
               'logical_and(A == 5, B==5)*5 + logical_and(A == 5, B==1)*5 +' \
@@ -59,7 +59,8 @@ for yr in $(seq -w $fy $ly); do
               'logical_and(logical_or(A == 6, A==7), B==5)*11 +' \
               'logical_and(logical_and(logical_and(A!=0,A!=1), A!=5), B==0)*13 +' \
               'logical_and(A == 5, logical_and(B != 5, B!= 1))*14 +' \
-              'logical_and(A == 0, B==0)*15"' \
+              'logical_and(A == 15, B==15)*15 +' \
+              'logical_and(A == 0, B==0)*4"' \
       --type=Byte --co="COMPRESS=PACKBITS" --overwrite
 done
 
