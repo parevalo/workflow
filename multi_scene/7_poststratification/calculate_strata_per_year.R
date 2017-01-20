@@ -26,8 +26,10 @@ auxpath = "C:/test"
 if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
+    funcpath = "/home/paulo/workflow/multi_scene/7_poststratification/strata_calculation.R"
 
 setwd(wd)
+source(funcpath)
 
 # If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
@@ -57,13 +59,13 @@ tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fonts
 #############################################################################################################
 #1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
-# on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
+# on when the model break happened. In this version we use all of the points because when done 
+# annually, it does not matter how many changes we found in the TS. However, given that in the shapefile
+# the strata was calculated only betwen first and last label, we need to create as many strata as
+# NUMCHANGES. For this reason a new R function will be introduced to do this. 
 
 # Read shapefile with reference strata and change info. Test if working from ubuntu or windows
-full_samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
-
-# Subset to only use records with one or no change
-samples <- full_samples[full_samples@data$NUMCHANGES <= 1, ]
+samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # We need to convert the dates to characters bc they are factors right now
 samples$CHGDATE <- as.character(samples$CHGDATE)
@@ -75,30 +77,56 @@ end = 2016
 years = seq(start, end)
 field_names = paste("ref_", years, sep="")
 
-# Initialize empty vectors to store the data
+# Initialize empty vectors to store the data, current change and class code (start with the first!) 
+# and name of the fields that store the class codes.
+
 df = vector()
 field = vector()
+codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
+current_change = 1
+current_code=1
 
-# Iterate over years ("columns")
-for (y in years){
-  # Iterate over rows
-  for (row in 1:rows){
+# Iterate over rows (easier to do calculations by row)
+for (row in 1:rows){
+  current_change = 1
+  current_code=1
+  # Iterate over years
+  for (i in 1:length(years)){
+    
+      # If there are no changes, just use the only class code for both years
       if (is.na(samples$CHGDATE[row]) == TRUE) {
-          field[row] = samples$strata[row]
-      } else {
-        # Find FIRST date and make the comparison. 
-        chgdate = na.omit(as.numeric(unlist(strsplit(samples$CHGDATE[row], "[^0-9]"))))
-        if (y <= chgdate[1]){
-          field[row] = samples$CODE1[row]
-        } else {
-          field[row] = samples$strata[row]
-        }
+        field[i] = calculate_strata(samples$CODE1[row], samples$CODE1[row])
       }
+    
+      # If there is a change, compare each year to the current change year and update that one accordingly
+      else {
+        # Get the current date of change (initialized as the first change available)
+        chg_date = unlist(strsplit(as.vector(samples$CHGDATE[row]), ','))[current_change] #742
+        # Extract the YEAR from the date of change
+        chg_year = na.omit(as.numeric(unlist(strsplit(chg_date, "[^0-9]"))))[1]
+        # If we haven't reached change year yet
+        if (years[i] < chg_year) {
+          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,]) 
+          print(paste0(row, " cond1 ", years[i], " ", chg_year," ", field[i]))
+        } 
+        # If we JUST reached a change year
+        else if (years[i] == chg_year) {
+          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,]) 
+          # Check if we haven't reached the max number of recorded changes
+          if (current_change < samples$NUMCHANGES[row]) {
+            current_change = current_change + 1 
+          }
+          current_code = current_code + 1
+          print(paste0(row, " cond2 ",years[i], " ", chg_year," ", field[i]))
+        }
+        # If we went past the last change date
+        else if (years[i] > chg_year) {
+          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,])  #LAST CODE 
+          print(paste0(row, " cond3 ",years[i], " ", chg_year," ", field[i]))
+        }
+      } 
   }
-  # Find and replace values of 7 with 3, because that's how this strata was defined
-  field[which(field == 7)] = 3
-  # Paste vectors iteratively
-  df <- as.data.frame(cbind(df, field))
+  df <- as.data.frame(rbind(df, field))
 }
 
 names(df) = field_names
@@ -111,7 +139,7 @@ samples@data[,field_names] <- df
 # 2) READ YEARLY STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Create a list with the raster names
+# Create a list with the raster names # MODIFY TO REFLECT NEW NAMING
 years_short = seq(02,16)
 rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
 
@@ -121,7 +149,7 @@ for (r in rast_names){
   samples = extract(map, samples, sp = TRUE) 
 }
 
-# Crosstab reference sample vs final strata 
+# Crosstab reference sample vs final strata # CHANGE TO BE DONE WITH THE PROPER STRATA AFTER THE CHANGES ABOVE ARE DONE
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
