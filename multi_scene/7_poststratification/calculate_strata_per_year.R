@@ -31,7 +31,7 @@ if( .Platform$OS.type == "unix" )
 setwd(wd)
 source(funcpath)
 
-# If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
+# If TRUE, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
 
 # List of original strata names
@@ -104,11 +104,13 @@ for (row in 1:rows){
         chg_date = unlist(strsplit(as.vector(samples$CHGDATE[row]), ','))[current_change] #742
         # Extract the YEAR from the date of change
         chg_year = na.omit(as.numeric(unlist(strsplit(chg_date, "[^0-9]"))))[1]
+        
         # If we haven't reached change year yet
         if (years[i] < chg_year) {
           field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,]) 
-          print(paste0(row, " cond1 ", years[i], " ", chg_year," ", field[i]))
+          #print(paste0(row, " cond1 ", years[i], " ", chg_year," ", field[i]))
         } 
+        
         # If we JUST reached a change year
         else if (years[i] == chg_year) {
           field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,]) 
@@ -117,12 +119,13 @@ for (row in 1:rows){
             current_change = current_change + 1 
           }
           current_code = current_code + 1
-          print(paste0(row, " cond2 ",years[i], " ", chg_year," ", field[i]))
+          #print(paste0(row, " cond2 ",years[i], " ", chg_year," ", field[i]))
         }
-        # If we went past the last change date
+        
+        # If we went past the last change date, use the last code 
         else if (years[i] > chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,])  #LAST CODE 
-          print(paste0(row, " cond3 ",years[i], " ", chg_year," ", field[i]))
+          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,])
+          #print(paste0(row, " cond3 ",years[i], " ", chg_year," ", field[i]))
         }
       } 
   }
@@ -136,30 +139,34 @@ samples@data[,field_names] <- df
 #writeOGR(samples, "sample_yearly_strata", "sample_yearly_strata", driver="ESRI Shapefile", overwrite_layer = T)
 
 #############################################################################################################
-# 2) READ YEARLY STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
+# 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Create a list with the raster names # MODIFY TO REFLECT NEW NAMING
-years_short = seq(02,16)
-rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
+# Read original stratification
+samples = extract(raster(paste0(auxpath, "/final_strata_01_16_UTM18N.tif")), samples, sp=TRUE)
 
-# Iterate over names and extract to shapefile
-for (r in rast_names){
-  map = raster(paste0(auxpath, r, ".tif"))
+# Create a list with the annual raster names
+years_short = seq(02,16)
+
+# Iterate over names and extract to shapefile. We only need these to calculate accuracies per year.
+for (y in years_short){
+  rast_name = paste0("final_strata_annual_", sprintf("%02d",y-1), "_", sprintf("%02d",y), "_UTM18N")
+  map = raster(paste0(auxpath, rast_name, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
 
-# Crosstab reference sample vs final strata # CHANGE TO BE DONE WITH THE PROPER STRATA AFTER THE CHANGES ABOVE ARE DONE
+# Crosstab final strata and reference strata (for the same period 01-16) 
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
+# CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
 mapped_areas_list = list()
 filenames = dir(auxpath, pattern="*_pixcount.csv")
 for(i in 1:length(filenames)){
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
 }
 
-# Get only the total area for the original strata (eg 01-16)
+# Get only the total area for the original strata (i.e 01-16)
 ss = mapped_areas_list[[15]]
 # Classes to be removed/ignored
 cr = c(7, 10, 12, 15)
@@ -341,16 +348,23 @@ area_ci = se_prop * 1.96 * N_ha
 area_upper = area_ha + area_ci
 area_lower = area_ha - area_ci
 
-# Write results to csv
+# TODO
+# Write results to csv 
 if (deformode == TRUE){
-  suffix = "_defor.csv"  
+  suffix = "annual_defor.csv"  
 }else { 
-  suffix = "_regular.csv"
+  suffix = "annual_regular.csv"
 }
 
 write.csv(area_ha, file=paste0("area_ha", suffix))
 write.csv(area_lower, file=paste0("area_lower", suffix))
 write.csv(area_upper, file=paste0("area_upper", suffix))
+
+# testing with cummulative results to compare to master branch. Can this even be done??. CI is very very small.
+cum_area = cumsum(area_ha*1.96*N_ha)
+cum_upper = cum_area + cumsum(se_prop*1.96*N_ha)
+cum_lower = cum_area - cumsum(se_prop*1.96*N_ha)
+
 
 ##############################################################################################################
 # 5) CREATE SOME USEFUL TABLES
@@ -396,7 +410,7 @@ for (f in 1:(length(field_names))){
 # Format and show
 grid.newpage()
 tt =  ttheme_default(base_size=14)
-grid.table(round(ref_sample_count), theme=tt)
+grid.table(round(ref_sample_count), theme=tt) # TODO REFORMAT AND SHOW! THIS IS PROBABLY THE KEY TO WIDE CI'S
 
 # Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
