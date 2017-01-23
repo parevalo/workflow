@@ -14,7 +14,8 @@ require(ggplot2)
 require(gtable)
 require(grid)
 require(gridExtra)
-library(xtable)
+require(xtable)
+require(matrixcalc)
 
 ##############################################################################################################
 #0) SET VARIABLES/FOLDERS
@@ -142,9 +143,6 @@ samples@data[,field_names] <- df
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Read original stratification
-samples = extract(raster(paste0(auxpath, "/final_strata_01_16_UTM18N.tif")), samples, sp=TRUE)
-
 # Create a list with the annual raster names
 years_short = seq(02,16)
 
@@ -154,6 +152,105 @@ for (y in years_short){
   map = raster(paste0(auxpath, rast_name, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
+
+# Read original stratification. Done last so that the reference and map fields are contiguous
+samples = extract(raster(paste0(auxpath, "/final_strata_01_16_UTM18N.tif")), samples, sp=TRUE)
+
+
+#################
+# Artificially modify reference data. THIS SECTION IS EXPERIMENTAL. 
+# Results follow the same behavior found in the cumulative version of this script (e.g. a much higher number of correct samples
+# of stable forest and forest to pasture decrease the widht of CI and make it bigger than zero, reduces the spikes and the margin of
+# error, but that one is still higher than one might expect). Higher number of stable forest reduces CI, higher number of correct
+# change samples reduces margin of error. For example, 1000 more stable forest sample and only 48 more samples of correct forest to
+# pastures make the CI get above zero and its total width around 200K. Increasing that forest sample to 2000 reduces the total CI
+# to about 125K.
+
+# Create 16 ref columns and 16 map columns, with a given number of rows. Determine proportion of samples that will be
+# right or wrong, and with which classes.
+#samples@data = rbind(samples@data, samples@data)
+
+# create backup
+#samples_backup = samples
+samples = samples_backup
+
+# Add many correct forest samples. EXTENDED bc we need to include original stratification!
+df <- data.frame(matrix(1,ncol = 32, nrow = 2000))
+colnames(df) = colnames(samples@data)[23:54]
+
+# Create matrix with 1, 4 and diag = 8
+repet = 1
+mat = matrix(1,  ncol=16, nrow=16)
+mat[upper.tri(mat)] = 4
+diag(mat) = 8
+mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
+df5 = cbind(mat, mat[,2:16], rep(8, 16*repet)) # We need to fill the original strata column
+colnames(df5) = colnames(samples@data)[23:54]
+
+# Same but shifting map data 1 year. DOESNT HAVE ANY EFFECT SINCE INDIVIDUAL MAPS ARE NOT USED IN CALCULATIONS
+# EXCEPT IF WE WANT TO CALCULATE ANNUAL ACCURACIES....
+#mat_shift = shift.right(mat, 1, 1)
+#df5 = cbind(mat, mat_shift[,1:15], rep(8, 16*repet)) # We need to fill the original strata column
+#colnames(df5) = colnames(samples@data)[23:54]
+
+# Create matrix with 1, 5 and diag = 9
+mat = matrix(1,  ncol=16, nrow=16)
+mat[upper.tri(mat)] = 5
+diag(mat) = 9
+mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
+df6 = cbind(mat, mat[,2:16], rep(8, 16*repet)) # We need to fill the original strata column
+colnames(df6) = colnames(samples@data)[23:54]
+
+samples@data = rbind(samples@data[,23:54], df)
+samples@data = rbind(samples@data[,23:54], df, df5, df6)
+
+# Create artificial sample with perfect reference/map matching and same number of total samples as the real data
+# Shows same behavior than in cummulative version of this script. Even with perfect sample, a class like secondary
+# forest has a CI that goes below zero. Why?? Maybe too few samples?
+
+sample_size = strata_pixels$x # Relies on original strata pixels, fix!
+sample_size[2] = 400
+sample_size[8] = 80
+sample_size[9] = 50
+ref_matrix = matrix(, ncol=17, nrow=0) # Initialize empty matrix
+for (i in 1:dim(strata_pixels)[1]){
+  code = strata_pixels$Group.1[i]
+  repet = ceiling(sample_size[i]/16)
+  if (code <= 6){
+    mat = matrix(code, ncol=16, nrow=16)
+  } else if (code == 8 ) {
+    mat = matrix(1, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = 4
+    diag(mat) = code
+  } else if (code == 9 ) {
+    mat = matrix(1, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = 5
+    diag(mat) = code
+  } else if (code == 11) {
+    mat = matrix(4, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = 5
+    diag(mat) = code
+  } else if (code == 13) {
+    next
+  } else if (code == 14) {
+    mat = matrix(5, ncol=16, nrow=16)
+    mat[upper.tri(mat)] = 4 # Lets assume it all changes to pastures 
+    diag(mat) = code
+  }
+  mat = cbind(mat, rep(code, 16))
+  print(ncol(mat))
+  mat2 = matrix(rep(t(mat), repet) , ncol=ncol(mat), byrow=TRUE)
+  ref_matrix = rbind(ref_matrix, mat2)
+}
+
+full_matrix = cbind(ref_matrix[,1:16], ref_matrix[,2:16], ref_matrix[,17]) # If we dont want to shift the samples
+colnames(full_matrix) = names(samples_backup[23:54])
+samples@data = as.data.frame(full_matrix)
+
+map_shifted = shift.right(ref_matrix, 1, 1) # If we want to shift the samples
+full_matrix = cbind(ref_matrix, map_shifted[,1:15])
+
+###############
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
@@ -285,8 +382,8 @@ area_prop = data.frame()
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
-for (i in (1:length(rast_names))){
-  # Compare year strata with year reference. Field names must start at 2002, hence i+1
+for (i in (1:length(years_short))){
+  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1.
   if (deformode == FALSE){
     out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
   } else {
@@ -348,17 +445,16 @@ area_ci = se_prop * 1.96 * N_ha
 area_upper = area_ha + area_ci
 area_lower = area_ha - area_ci
 
-# TODO
 # Write results to csv 
 if (deformode == TRUE){
-  suffix = "annual_defor.csv"  
-}else { 
-  suffix = "annual_regular.csv"
+   suffix = "annual_defor.csv"  
+ } else { 
+   suffix = "annual_regular.csv"
 }
 
-write.csv(area_ha, file=paste0("area_ha", suffix))
-write.csv(area_lower, file=paste0("area_lower", suffix))
-write.csv(area_upper, file=paste0("area_upper", suffix))
+#write.csv(area_ha, file=paste0("area_ha", suffix))
+#write.csv(area_lower, file=paste0("area_lower", suffix))
+#write.csv(area_upper, file=paste0("area_upper", suffix))
 
 # testing with cummulative results to compare to master branch. Can this even be done??. CI is very very small.
 cum_area = cumsum(area_ha*1.96*N_ha)
