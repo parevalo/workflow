@@ -29,18 +29,3 @@ calculate_strata <- function(year1, year2){
   return(strata)
 }
 
-#     if lastcode == 2:
-#         year2 = field2
-#     elif lastcode == 3:
-#         year2 = field3
-#     elif lastcode == 4:
-#         year2 = field4
-# 
-#     if lastcode == 1:
-#         if year1 == 7:
-#             strata = 3
-#         else:
-#             strata = year1
-#
-#__esri_field_calculator_splitter__
-#calculatestrata( !CODE1!, !CODE2!, !CODE3!, !CODE4!, !endcodecol!)
