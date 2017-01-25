@@ -179,7 +179,7 @@ df <- data.frame(matrix(1,ncol = 32, nrow = 2000))
 colnames(df) = colnames(samples@data)[23:54]
 
 # Create matrix with 1, 4 and diag = 8
-repet = 1
+repet = 10
 mat = matrix(1,  ncol=16, nrow=16)
 mat[upper.tri(mat)] = 4
 diag(mat) = 8
@@ -256,7 +256,7 @@ full_matrix = cbind(ref_matrix, map_shifted[,1:15])
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
-# CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
+# TODO: CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
 mapped_areas_list = list()
 filenames = dir(auxpath, pattern="*_pixcount.csv")
 for(i in 1:length(filenames)){
@@ -456,11 +456,6 @@ if (deformode == TRUE){
 #write.csv(area_lower, file=paste0("area_lower", suffix))
 #write.csv(area_upper, file=paste0("area_upper", suffix))
 
-# testing with cummulative results to compare to master branch. Can this even be done??. CI is very very small.
-cum_area = cumsum(area_ha*1.96*N_ha)
-cum_upper = cum_area + cumsum(se_prop*1.96*N_ha)
-cum_lower = cum_area - cumsum(se_prop*1.96*N_ha)
-
 
 ##############################################################################################################
 # 5) CREATE SOME USEFUL TABLES
@@ -573,6 +568,12 @@ grid.table(round(change_cm, digits=2), theme=tt)
 # 6) CREATE SOME USEFUL PLOTS
 # Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
 # reference.
+
+area_ha = cum_area
+area_ci = cum_ci
+area_lower = cum_lower
+area_upper = cum_upper
+margin_error = cum_me
 
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
