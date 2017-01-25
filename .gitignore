@@ -1,0 +1,3 @@
+# Ignore shapefile for now
+multi_scene/other/overlap_merged.*
+multi_scene/other/.ropeproject
