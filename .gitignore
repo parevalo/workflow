@@ -2,3 +2,4 @@
 multi_scene/other/overlap_merged.*
 multi_scene/other/.ropeproject
 .Rproj.user
+*.Rproj
