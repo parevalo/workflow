@@ -196,25 +196,22 @@ prod_acc = diag(aprop) / colSums(aprop)
 #' Calculate area proportions of reference classes and variance of reference samples per original strata
 #' for a given year/map.
 #'
-#' samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
-#' Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
-#' Returns a list of vectors with length equal to the number of reference classes. The list contains: 
 #' @param samp_strata Vector with numeric codes representing the original stratification of each sample
 #' @param samp_reference Vector with numeric codes representing the reference stratification for that year/map
 #' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
 #' in the original strata. The first column must have the same codes found in the original stratification 
 #' and the second must have the total number of PIXELS of each class in that original strata map.
 #' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
-#' in hte original strata. The first column must have the same codes found in the original stratification, 
+#' in the original strata. The first column must have the same codes found in the original stratification, 
 #' and the second must have the total number of SAMPLES of each class collected from that original strata map. 
-#' @param ref_codes Vector with all the unique numerical classes present in the REFERENCE data . This is required
+#' @param rfcodes Vector with all the unique numerical classes present in the REFERENCE data . This is required
 #' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
-#' @return Vector of area proportions per class (class_prop), dataframe with sample variance per sample strata (ref_var), 
+#' @return List with: Vector of area proportions per class (class_prop), dataframe with sample variance per sample strata (ref_var), 
 #' dataframe with original strata codes and total area in pixels present in the map/year being evaluated (fss), 
 #' vector with proportion of sample reference class present on each sample strata class (ref_prop)
-#' 
+#' @export
 calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
-
+  #TODO: Test if class codes match when they should?
   
   # Obtain unique values in the samp_strata field
   str_codes = sort(unique(samp_strata))
@@ -245,7 +242,7 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
     }
   }
   
-  # Assign column and row names for easier samp_reference
+  # Assign column and row names
   rownames(ref_prop) = paste0("strat_",str_codes)
   colnames(ref_prop) = paste0("ref_", rfcodes)
   rownames(ref_var) = paste0("strat_",str_codes)
@@ -253,10 +250,10 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
   
   # Calculate total numbre of pixels in original strata map
   totalarea_pix = sum(strata_totals[,2])
-  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
   class_prop = vector()
   # Filter only total sample sizes that are present in the samp_strata for that year
   fss = strata_totals[strata_totals[,1] %in% str_codes,]
+  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
   for (r in 1:ncol(ref_prop)){
     # LEAVE THE SUM OF THE ENTIRE samp_strata. #CHECK!!!!!!
     class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
@@ -330,35 +327,45 @@ colnames(area_prop) = ref_codes
 ##############################################################################################################
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-# Function to calculate standard error of area proportion of reference classes
-calc_se_prop = function(strata_totals, sample_totals){
-
-  # Formula works correctly, tested
-  se_pr = data.frame()
+#' Function to calculate standard error of unbiased area proportions of reference classes for a given year/map
+#' 
+#' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
+#' in the original strata. The first column must have the same codes found in the original stratification 
+#' and the second must have the total number of PIXELS of each class in that original strata map.
+#' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
+#' in the original strata. The first column must have the same codes found in the original stratification, 
+#' and the second must have the total number of SAMPLES of each class collected from that original strata map.
+#' @param ref_var Dataframe with reference class variance for (column) per original strata class (row).
+#' @param rfcodes Vector with all the unique numerical classes present in the REFERENCE data . This is required
+#' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
+#' @param totalarea_pix Integer with the total number of pixels present in the original stratification map
+#' @return Vector with standard error of unbiased area proportions per reference class.
+#' @export
+#' 
+calc_se_prop = function(strata_totals, sample_totals, ref_var, rfcodes, totalarea_pix){
   
-  #Iterate over years
-  for (y in 1:length(ref_var_list)){
-    # Iterate over classes
-    for (c in 1:length(ref_codes)){
-    v = 1/tot_area_pix^2 * (sum(strata_totals$pixels^2 * (1 - sample_totals$x/strata_totals$pixels) * (ref_var_list[[y]][,c] / sample_totals$x)))
-    se_pr[y,c] = sqrt(v)
-    }
+  # Initialize vector to store results
+  se = vector(mode="numeric", length=length(rfcodes))
+  
+  # Iterate over reference classes
+  for (c in 1:length(rfcodes)){
+    v = 1/totalarea_pix^2 * (sum(strata_totals[,2]^2 * (1 - sample_totals[,2]/strata_totals[,2]) * (ref_var[,c] / sample_totals[,2])))
+    se[c] = sqrt(v)
   }
-  return(se_pr)
+return(se)
 }
 
-# Check deforestation mode and get calculation accordingly
-if (deformode == FALSE){
-  se_prop = calc_se_prop(ss, strata_pixels)
-  }else{
-  se_prop = calc_se_prop(defor_str_totals, defor_samp_totals)
+# Initialize empty matrix to store all years
+se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+
+for(y in 1:length(years_short)){
+  if (deformode == FALSE){
+    se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
+    }else{
+    se_prop[y,] = calc_se_prop(defor_str_totals, defor_samp_totals, ref_var_list[[y]], ref_codes, tot_area_pix)
+    }
 }
   
-  
-# Reassign names...
-rownames(se_prop) = years[2:length(years)]
-colnames(se_prop) = ref_codes
-
 # Total area in ha
 N_ha = tot_area_pix * 30^2 / 100^2
 # Calculate area in ha from area proportions
