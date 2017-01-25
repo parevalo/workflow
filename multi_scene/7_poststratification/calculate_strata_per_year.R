@@ -156,102 +156,6 @@ for (y in years_short){
 # Read original stratification. Done last so that the reference and map fields are contiguous
 samples = extract(raster(paste0(auxpath, "/final_strata_01_16_UTM18N.tif")), samples, sp=TRUE)
 
-
-#################
-# Artificially modify reference data. THIS SECTION IS EXPERIMENTAL. 
-# Results follow the same behavior found in the cumulative version of this script (e.g. a much higher number of correct samples
-# of stable forest and forest to pasture decrease the widht of CI and make it bigger than zero, reduces the spikes and the margin of
-# error, but that one is still higher than one might expect). Higher number of stable forest reduces CI, higher number of correct
-# change samples reduces margin of error. For example, 1000 more stable forest sample and only 48 more samples of correct forest to
-# pastures make the CI get above zero and its total width around 200K. Increasing that forest sample to 2000 reduces the total CI
-# to about 125K.
-
-# Create 16 ref columns and 16 map columns, with a given number of rows. Determine proportion of samples that will be
-# right or wrong, and with which classes.
-#samples@data = rbind(samples@data, samples@data)
-
-# create backup
-#samples_backup = samples
-samples = samples_backup
-
-# Add many correct forest samples. EXTENDED bc we need to include original stratification!
-df <- data.frame(matrix(1,ncol = 32, nrow = 2000))
-colnames(df) = colnames(samples@data)[23:54]
-
-# Create matrix with 1, 4 and diag = 8
-repet = 10
-mat = matrix(1,  ncol=16, nrow=16)
-mat[upper.tri(mat)] = 4
-diag(mat) = 8
-mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
-df5 = cbind(mat, mat[,2:16], rep(8, 16*repet)) # We need to fill the original strata column
-colnames(df5) = colnames(samples@data)[23:54]
-
-# Same but shifting map data 1 year. DOESNT HAVE ANY EFFECT SINCE INDIVIDUAL MAPS ARE NOT USED IN CALCULATIONS
-# EXCEPT IF WE WANT TO CALCULATE ANNUAL ACCURACIES....
-#mat_shift = shift.right(mat, 1, 1)
-#df5 = cbind(mat, mat_shift[,1:15], rep(8, 16*repet)) # We need to fill the original strata column
-#colnames(df5) = colnames(samples@data)[23:54]
-
-# Create matrix with 1, 5 and diag = 9
-mat = matrix(1,  ncol=16, nrow=16)
-mat[upper.tri(mat)] = 5
-diag(mat) = 9
-mat = matrix(rep(t(mat), repet) , ncol=ncol(mat) , byrow=TRUE)
-df6 = cbind(mat, mat[,2:16], rep(8, 16*repet)) # We need to fill the original strata column
-colnames(df6) = colnames(samples@data)[23:54]
-
-samples@data = rbind(samples@data[,23:54], df)
-samples@data = rbind(samples@data[,23:54], df, df5, df6)
-
-# Create artificial sample with perfect reference/map matching and same number of total samples as the real data
-# Shows same behavior than in cummulative version of this script. Even with perfect sample, a class like secondary
-# forest has a CI that goes below zero. Why?? Maybe too few samples?
-
-sample_size = strata_pixels$x # Relies on original strata pixels, fix!
-sample_size[2] = 400
-sample_size[8] = 80
-sample_size[9] = 50
-ref_matrix = matrix(, ncol=17, nrow=0) # Initialize empty matrix
-for (i in 1:dim(strata_pixels)[1]){
-  code = strata_pixels$Group.1[i]
-  repet = ceiling(sample_size[i]/16)
-  if (code <= 6){
-    mat = matrix(code, ncol=16, nrow=16)
-  } else if (code == 8 ) {
-    mat = matrix(1, ncol=16, nrow=16)
-    mat[upper.tri(mat)] = 4
-    diag(mat) = code
-  } else if (code == 9 ) {
-    mat = matrix(1, ncol=16, nrow=16)
-    mat[upper.tri(mat)] = 5
-    diag(mat) = code
-  } else if (code == 11) {
-    mat = matrix(4, ncol=16, nrow=16)
-    mat[upper.tri(mat)] = 5
-    diag(mat) = code
-  } else if (code == 13) {
-    next
-  } else if (code == 14) {
-    mat = matrix(5, ncol=16, nrow=16)
-    mat[upper.tri(mat)] = 4 # Lets assume it all changes to pastures 
-    diag(mat) = code
-  }
-  mat = cbind(mat, rep(code, 16))
-  print(ncol(mat))
-  mat2 = matrix(rep(t(mat), repet) , ncol=ncol(mat), byrow=TRUE)
-  ref_matrix = rbind(ref_matrix, mat2)
-}
-
-full_matrix = cbind(ref_matrix[,1:16], ref_matrix[,2:16], ref_matrix[,17]) # If we dont want to shift the samples
-colnames(full_matrix) = names(samples_backup[23:54])
-samples@data = as.data.frame(full_matrix)
-
-map_shifted = shift.right(ref_matrix, 1, 1) # If we want to shift the samples
-full_matrix = cbind(ref_matrix, map_shifted[,1:15])
-
-###############
-
 # Crosstab final strata and reference strata (for the same period 01-16) 
 ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
 
@@ -289,12 +193,29 @@ prod_acc = diag(aprop) / colSums(aprop)
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 
-# Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
-# Returns a list of vectors with length equal to the number of reference classes. The list contains: 
-# Area proportions per class, sample variance per sample strata, total strata size present in that year, 
-# proportion of sample ref class present on each samp strata
+#' Calculate area proportions of reference classes and variance of reference samples per original strata
+#' for a given year/map.
+#'
+#' samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
+#' Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
+#' Returns a list of vectors with length equal to the number of reference classes. The list contains: 
+#' @param samp_strata Vector with numeric codes representing the original stratification of each sample
+#' @param samp_reference Vector with numeric codes representing the reference stratification for that year/map
+#' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
+#' in the original strata. The first column must have the same codes found in the original stratification 
+#' and the second must have the total number of PIXELS of each class in that original strata map.
+#' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
+#' in hte original strata. The first column must have the same codes found in the original stratification, 
+#' and the second must have the total number of SAMPLES of each class collected from that original strata map. 
+#' @param ref_codes Vector with all the unique numerical classes present in the REFERENCE data . This is required
+#' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
+#' @return Vector of area proportions per class (class_prop), dataframe with sample variance per sample strata (ref_var), 
+#' dataframe with original strata codes and total area in pixels present in the map/year being evaluated (fss), 
+#' vector with proportion of sample reference class present on each sample strata class (ref_prop)
+#' 
 calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
 
+  
   # Obtain unique values in the samp_strata field
   str_codes = sort(unique(samp_strata))
   str_ind = seq_along(str_codes)
@@ -316,7 +237,7 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
       # Get location of rows for the current samp_strata
       str_ref = which(samp_strata == str_codes[s])
       # Get proportion of samp_reference class present on that samp_strata
-      ref_prop[s, r] = length(ind)/sample_totals$x[sample_totals$Group.1 == str_codes[s]]
+      ref_prop[s, r] = length(ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
       # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
       # which is the same formula specified in the paper
       ref_var[s, r] = var(cond_bool[str_ref]) 
@@ -330,15 +251,17 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
   rownames(ref_var) = paste0("strat_",str_codes)
   colnames(ref_var) = paste0("ref_", rfcodes)
   
+  # Calculate total numbre of pixels in original strata map
+  totalarea_pix = sum(strata_totals[,2])
   # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
   class_prop = vector()
   # Filter only total sample sizes that are present in the samp_strata for that year
-  fss = strata_totals[strata_totals$stratum %in% str_codes,]
+  fss = strata_totals[strata_totals[,1] %in% str_codes,]
   for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE samp_strata
-    class_prop[r] = sum(fss$pixels * ref_prop[,r])/tot_area_pix
+    # LEAVE THE SUM OF THE ENTIRE samp_strata. #CHECK!!!!!!
+    class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
   }
-  return(list(class_prop, ref_var, fss, ref_prop)) 
+  return(list(class_prop, ref_var, fss, ref_prop, totalarea_pix)) 
 }
 
 # IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
@@ -393,6 +316,7 @@ for (i in (1:length(years_short))){
   rv = out[[2]]
   fs = out[[3]]
   rp = out[[4]]
+  tot_area_pix = out[[5]]
   area_prop = rbind(area_prop, ap)
   ref_var_list[[i]] = rv
   filtered_ss[[i]] = fs
