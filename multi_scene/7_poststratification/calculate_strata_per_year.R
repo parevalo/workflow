@@ -27,7 +27,7 @@ auxpath = "C:/test"
 if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
-    funcpath = "/home/paulo/workflow/multi_scene/7_poststratification/strata_calculation.R"
+    funcpath = "/home/paulo/workflow/multi_scene/7_poststratification/functions.R"
 
 setwd(wd)
 source(funcpath)
@@ -84,8 +84,6 @@ field_names = paste("ref_", years, sep="")
 df = vector()
 field = vector()
 codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
-current_change = 1
-current_code=1
 
 # Iterate over rows (easier to do calculations by row)
 for (row in 1:rows){
@@ -193,73 +191,6 @@ prod_acc = diag(aprop) / colSums(aprop)
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 
-#' Calculate area proportions of reference classes and variance of reference samples per original strata
-#' for a given year/map.
-#'
-#' @param samp_strata Vector with numeric codes representing the original stratification of each sample
-#' @param samp_reference Vector with numeric codes representing the reference stratification for that year/map
-#' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
-#' in the original strata. The first column must have the same codes found in the original stratification 
-#' and the second must have the total number of PIXELS of each class in that original strata map.
-#' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
-#' in the original strata. The first column must have the same codes found in the original stratification, 
-#' and the second must have the total number of SAMPLES of each class collected from that original strata map. 
-#' @param rfcodes Vector with all the unique numerical classes present in the REFERENCE data . This is required
-#' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
-#' @return List with: Vector of area proportions per class (class_prop), dataframe with sample variance per sample strata (ref_var), 
-#' dataframe with original strata codes and total area in pixels present in the map/year being evaluated (fss), 
-#' vector with proportion of sample reference class present on each sample strata class (ref_prop)
-#' @export
-calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
-  #TODO: Test if class codes match when they should?
-  
-  # Obtain unique values in the samp_strata field
-  str_codes = sort(unique(samp_strata))
-  str_ind = seq_along(str_codes)
-  
-  # Get a sequence for the reference codes
-  ref_ind = seq_along(rfcodes)
-  
-  # Initialize empty df for proportions per samp_strata, and for sample variance per samp_strata
-  ref_prop = data.frame()
-  ref_var = data.frame()
-  
-  # Compare the fields, iterate over "samp_strata" and "samp_reference" classes
-  for (s in str_ind){
-    for (r in ref_ind){
-      # Compared fields and get TRUE or FALSE on each row
-      cond_bool = samp_strata == str_codes[s] & samp_reference == rfcodes[r]
-      # Get row numbers that meet that condition
-      ind = which(cond_bool)
-      # Get location of rows for the current samp_strata
-      str_ref = which(samp_strata == str_codes[s])
-      # Get proportion of samp_reference class present on that samp_strata
-      ref_prop[s, r] = length(ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
-      # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
-      # which is the same formula specified in the paper
-      ref_var[s, r] = var(cond_bool[str_ref]) 
-      
-    }
-  }
-  
-  # Assign column and row names
-  rownames(ref_prop) = paste0("strat_",str_codes)
-  colnames(ref_prop) = paste0("ref_", rfcodes)
-  rownames(ref_var) = paste0("strat_",str_codes)
-  colnames(ref_var) = paste0("ref_", rfcodes)
-  
-  # Calculate total number of pixels in original strata map
-  totalarea_pix = sum(strata_totals[,2])
-  class_prop = vector()
-  # Filter only total sample sizes that are present in the samp_strata for that year
-  fss = strata_totals[strata_totals[,1] %in% str_codes,]
-  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
-  for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE samp_strata. #CHECK!!!!!!
-    class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
-  }
-  return(list(class_prop, ref_var, fss, ref_prop, totalarea_pix)) 
-}
 
 # IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
 # a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
@@ -321,33 +252,6 @@ for (y in (1:length(years_short))){
 ##############################################################################################################
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-#' Function to calculate standard error of unbiased area proportions of reference classes for a given year/map
-#' 
-#' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
-#' in the original strata. The first column must have the same codes found in the original stratification 
-#' and the second must have the total number of PIXELS of each class in that original strata map.
-#' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
-#' in the original strata. The first column must have the same codes found in the original stratification, 
-#' and the second must have the total number of SAMPLES of each class collected from that original strata map.
-#' @param ref_var Dataframe with reference class variance for (column) per original strata class (row).
-#' @param rfcodes Vector with all the unique numerical classes present in the REFERENCE data . This is required
-#' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
-#' @param totalarea_pix Integer with the total number of pixels present in the original stratification map
-#' @return Vector with standard error of unbiased area proportions per reference class.
-#' @export
-#' 
-calc_se_prop = function(strata_totals, sample_totals, ref_var, rfcodes, totalarea_pix){
-  
-  # Initialize vector to store results
-  se = vector(mode="numeric", length=length(rfcodes))
-  
-  # Iterate over reference classes
-  for (c in 1:length(rfcodes)){
-    v = 1/totalarea_pix^2 * (sum(strata_totals[,2]^2 * (1 - sample_totals[,2]/strata_totals[,2]) * (ref_var[,c] / sample_totals[,2])))
-    se[c] = sqrt(v)
-  }
-return(se)
-}
 
 # Initialize empty matrix to store all years
 se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
@@ -360,31 +264,6 @@ for(y in 1:length(years_short)){
     }
 }
   
-#' Function to calculate unbiased area, confidence interval and margin of error
-#' 
-#' This function takes the area proportions obtained from the function calc_area_prop and
-#' calculates the areas (in ha) as well as the outputs described below.
-#' @param totalarea_pix Integer with the total number of pixels present in the original stratification map.
-#' Assumed to be Landsat (i.e 30 m x 30 m)
-#' @param class_prop Vector of area proportions per reference class
-#' @param se Vector with standard error of unbiased area proportions per reference class.
-#' @return List with vector of areas in ha (area), vector of HALF the width confidence interval (ci),
-#' vector of higher and lower confidence interval limits (upper_ci, lower_ci) and margin of error (me)
-#' 
-
-calc_unbiased_area = function(totarea_pix, class_prop, se){
-  # Total area in ha
-  N_ha = totarea_pix * 30^2 / 100^2
-  # Calculate area in ha from area proportions
-  area = class_prop * N_ha
-  # Calculate confidence interval in ha
-  ci = se * 1.96 * N_ha
-  #Upper and lower CI
-  upper_ci = area + ci
-  lower_ci = area - ci
-  me = ci / area 
-  return(list(area, ci, upper_ci, lower_ci, me))
-}
 
 # Initialize matrix and do the calculations
 area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
@@ -395,7 +274,7 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 
 # TODO Merge all calculations in a single loop?
 for(y in 1:length(years_short)){
-  areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) #Remve as matrix when it's fixed above
+  areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
   area_ha[y,] = areas_out[[1]]
   area_ci[y,] = areas_out[[2]]
   area_upper[y,] = areas_out[[3]]
