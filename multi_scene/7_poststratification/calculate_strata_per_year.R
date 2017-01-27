@@ -298,7 +298,7 @@ if (deformode == TRUE){
 # NOTE the double square brackets to allow for substitution. Only requires the original strata, so no need to 
 # iterate over yearly rasters, that's only needed for accuracies. 
 
-area_prop = data.frame()
+area_prop = data.frame() #TODO change to matrix instead
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
@@ -366,15 +366,52 @@ for(y in 1:length(years_short)){
     }
 }
   
-# Total area in ha
-N_ha = tot_area_pix * 30^2 / 100^2
-# Calculate area in ha from area proportions
-area_ha = area_prop * N_ha
-# Calculate confidence interval in ha
-area_ci = se_prop * 1.96 * N_ha
-#Upper and lower CI
-area_upper = area_ha + area_ci
-area_lower = area_ha - area_ci
+#' Function to calculate unbiased area, confidence interval and margin of error
+#' 
+#' This function takes the area proportions obtained from the function calc_area_prop and
+#' calculates the areas (in ha) as well as the outputs described below.
+#' @param totalarea_pix Integer with the total number of pixels present in the original stratification map.
+#' Assumed to be Landsat (i.e 30 m x 30 m)
+#' @param class_prop Vector of area proportions per reference class
+#' @param se Vector with standard error of unbiased area proportions per reference class.
+#' @return List with vector of areas in ha (area), vector of HALF the width confidence interval (ci),
+#' vector of higher and lower confidence interval limits (upper_ci, lower_ci) and margin of error (me)
+#' 
+
+calc_unbiased_area = function(totarea_pix, class_prop, se){
+  # Total area in ha
+  N_ha = totarea_pix * 30^2 / 100^2
+  # Calculate area in ha from area proportions
+  area = class_prop * N_ha
+  # Calculate confidence interval in ha
+  ci = se * 1.96 * N_ha
+  #Upper and lower CI
+  upper_ci = area + ci
+  lower_ci = area - ci
+  me = ci / area 
+  return(list(area, ci, upper_ci, lower_ci, me))
+}
+
+# Initialize matrix and do the calculations
+area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+
+# TODO Merge all calculations in a single loop?
+for(y in 1:length(years_short)){
+  print(y)
+  areas_out = calc_unbiased_area(tot_area_pix, as.matrix(area_prop[y,]), se_prop[y,]) #Remve as matrix when it's fixed above
+  area_ha[y,] = areas_out[[1]]
+  area_ci[y,] = areas_out[[2]]
+  area_upper[y,] = areas_out[[3]]
+  area_lower[y,] = areas_out[[4]]
+  margin_error[y,] = areas_out[[5]]
+}
+
+stratum_areas= ss$pixels *30^2 / 100^2
+map_bias = stratum_areas - area_ha['2016',]
 
 # Write results to csv 
 if (deformode == TRUE){
@@ -392,7 +429,7 @@ if (deformode == TRUE){
 # 5) CREATE SOME USEFUL TABLES
 
 # Export table of  sample count, areas, percentages
-stratum_areas= ss$pixels *30^2 / 100^2
+
 stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
 strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
 strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
@@ -405,8 +442,7 @@ print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.funct
 
 # Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
 # Also print to latex to be converted to pdf
-margin_error = area_ci / area_ha 
-map_bias = stratum_areas - area_ha['2016',]
+
 accuracies = as.data.frame(cbind(usr_acc, prod_acc))
 accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
 colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
@@ -509,7 +545,7 @@ margin_error = cum_me
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
 
-for(i in 1:length(area_ha)){
+for(i in 1:length(ref_codes)){
   
   # Define data and variables to use
   tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
