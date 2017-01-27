@@ -248,7 +248,7 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
   rownames(ref_var) = paste0("strat_",str_codes)
   colnames(ref_var) = paste0("ref_", rfcodes)
   
-  # Calculate total numbre of pixels in original strata map
+  # Calculate total number of pixels in original strata map
   totalarea_pix = sum(strata_totals[,2])
   class_prop = vector()
   # Filter only total sample sizes that are present in the samp_strata for that year
@@ -298,31 +298,25 @@ if (deformode == TRUE){
 # NOTE the double square brackets to allow for substitution. Only requires the original strata, so no need to 
 # iterate over yearly rasters, that's only needed for accuracies. 
 
-area_prop = data.frame() #TODO change to matrix instead
+area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
-for (i in (1:length(years_short))){
+
+for (y in (1:length(years_short))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1.
   if (deformode == FALSE){
-    out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
+    out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
   } else {
-    out = calc_area_prop(defor_str, samples_defor[[field_names[i+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
+    out = calc_area_prop(defor_str, samples_defor[[field_names[y+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
   }
-  ap = out[[1]]
-  rv = out[[2]]
-  fs = out[[3]]
-  rp = out[[4]]
-  tot_area_pix = out[[5]]
-  area_prop = rbind(area_prop, ap)
-  ref_var_list[[i]] = rv
-  filtered_ss[[i]] = fs
-  ref_prop_list[[i]] = rp
+  area_prop[y,] = out[[1]]
+  ref_var_list[[y]] = out[[2]]
+  filtered_ss[[y]] = out[[3]]
+  ref_prop_list[[y]] = out[[4]]
+  tot_area_pix = out[[5]] # Will be overwritten with the same value anyway...
 }
 
-# Assign names to make it easier to interprete
-rownames(area_prop) = years[2:length(years)]
-colnames(area_prop) = ref_codes
 
 ##############################################################################################################
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
@@ -401,8 +395,7 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 
 # TODO Merge all calculations in a single loop?
 for(y in 1:length(years_short)){
-  print(y)
-  areas_out = calc_unbiased_area(tot_area_pix, as.matrix(area_prop[y,]), se_prop[y,]) #Remve as matrix when it's fixed above
+  areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) #Remve as matrix when it's fixed above
   area_ha[y,] = areas_out[[1]]
   area_ci[y,] = areas_out[[2]]
   area_upper[y,] = areas_out[[3]]
