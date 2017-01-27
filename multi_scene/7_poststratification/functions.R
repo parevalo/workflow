@@ -1,8 +1,13 @@
-# THIS SCRIPT CONTAINS ALL THE FUNCTIONS REQUIRED FOR THE CALCULATION OF
-# THE UNBIASED AREAS IN THE CALCULATE_STRATA_PER_YEAR.R SCRIPT.
+#' THIS SCRIPT CONTAINS ALL THE FUNCTIONS REQUIRED FOR THE CALCULATION OF
+#' THE UNBIASED AREAS IN THE CALCULATE_STRATA_PER_YEAR.R SCRIPT:
 
-#' Function to calculate the strata for any given pair of years (integers). If an invalid
-#' class code is provided, NA is returned
+#' 1) Function to calculate strata for any given pair of years
+#' 2) Calculate unbiased area proportions and variance of reference classes
+#' 3) Calculate standard error of unbiased area proportion
+#' 4) Calculate unbiased areas, their confidence interval and margin of error
+
+#' Function to calculate the strata for any given pair of years (integers). 
+#' If an invalid class code is provided, NA is returned
 
 calculate_strata <- function(year1, year2){
   strata = 0
