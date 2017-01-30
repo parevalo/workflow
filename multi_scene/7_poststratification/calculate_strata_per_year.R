@@ -190,7 +190,7 @@ prod_acc = diag(aprop) / colSums(aprop)
 
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
-
+# 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
 # IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
 # a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
@@ -225,64 +225,62 @@ if (deformode == TRUE){
 }
 
 
-# Call the function for every reference year we want and get area proportions and sample variance
-# NOTE the double square brackets to allow for substitution. Only requires the original strata, so no need to 
-# iterate over yearly rasters, that's only needed for accuracies. 
-
+# Initialize variables for area proportions, variances, etc (Step 1)
 area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
 
-for (y in (1:length(years_short))){
-  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1.
-  if (deformode == FALSE){
-    out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
-  } else {
-    out = calc_area_prop(defor_str, samples_defor[[field_names[y+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
-  }
-  area_prop[y,] = out[[1]]
-  ref_var_list[[y]] = out[[2]]
-  filtered_ss[[y]] = out[[3]]
-  ref_prop_list[[y]] = out[[4]]
-  tot_area_pix = out[[5]] # Will be overwritten with the same value anyway...
-}
-
-
-##############################################################################################################
-# 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
-
-
-# Initialize empty matrix to store all years
+# Initialize empty matrix to store standard error proportions (Step 2)
 se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 
-for(y in 1:length(years_short)){
-  if (deformode == FALSE){
-    se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
-    }else{
-    se_prop[y,] = calc_se_prop(defor_str_totals, defor_samp_totals, ref_var_list[[y]], ref_codes, tot_area_pix)
-    }
-}
-  
-
-# Initialize matrix and do the calculations
+# Initialize matrices for area calculations (Step 3)
 area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
 
-# TODO Merge all calculations in a single loop?
-for(y in 1:length(years_short)){
+#' Run all the calculations. Call the function for every reference year we want and get area proportions
+#' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
+#' margin of errors. NOTE the double square brackets to allow for substitution. Only requires the original 
+#' strata, so no need to iterate over yearly rasters, that's only needed for accuracies. 
+
+for (y in (1:length(years_short))){
+  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1.
+  if (deformode == FALSE){
+    prop_out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
+  } else {
+    prop_out = calc_area_prop(defor_str, samples_defor[[field_names[y+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
+  }
+  
+  # Assign outputs of Step 1
+  area_prop[y,] = prop_out[[1]]
+  ref_var_list[[y]] = prop_out[[2]]
+  filtered_ss[[y]] = prop_out[[3]]
+  ref_prop_list[[y]] = prop_out[[4]]
+  tot_area_pix = prop_out[[5]] # Will be overwritten with the same value anyway...
+  
+  # Run step two
+  if (deformode == FALSE){
+    se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
+  } else {
+    se_prop[y,] = calc_se_prop(defor_str_totals, defor_samp_totals, ref_var_list[[y]], ref_codes, tot_area_pix)
+  }
+  
+  # Run and assign outputs of Step 3
   areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
   area_ha[y,] = areas_out[[1]]
   area_ci[y,] = areas_out[[2]]
   area_upper[y,] = areas_out[[3]]
   area_lower[y,] = areas_out[[4]]
   margin_error[y,] = areas_out[[5]]
+  
 }
 
-stratum_areas= ss$pixels *30^2 / 100^2
+# Calculate total area per stratum, making sure we only filter the classes
+# present in the reference code list.
+stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
 map_bias = stratum_areas - area_ha['2016',]
 
 # Write results to csv 
