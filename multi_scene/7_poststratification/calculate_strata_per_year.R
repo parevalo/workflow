@@ -75,7 +75,7 @@ samples$CHGDATE <- as.character(samples$CHGDATE)
 rows = nrow(samples)
 start = 2001
 end = 2016
-years = seq(start, end)
+years = seq(start, end,2) 
 field_names = paste("ref_", years, sep="")
 
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
@@ -91,7 +91,7 @@ for (row in 1:rows){
   current_code=1
   # Iterate over years
   for (i in 1:length(years)){
-    
+  
       # If there are no changes, just use the only class code for both years
       if (is.na(samples$CHGDATE[row]) == TRUE) {
         field[i] = calculate_strata(samples$CODE1[row], samples$CODE1[row])
@@ -141,11 +141,8 @@ samples@data[,field_names] <- df
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Create a list with the annual raster names
-years_short = seq(02,16)
-
 # Iterate over names and extract to shapefile. We only need these to calculate accuracies per year.
-for (y in years_short){
+for (y in 2:length(years)){
   rast_name = paste0("final_strata_annual_", sprintf("%02d",y-1), "_", sprintf("%02d",y), "_UTM18N")
   map = raster(paste0(auxpath, rast_name, ".tif"))
   samples = extract(map, samples, sp = TRUE) 
@@ -226,28 +223,29 @@ if (deformode == TRUE){
 
 
 # Initialize variables for area proportions, variances, etc (Step 1)
-area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
 
 # Initialize empty matrix to store standard error proportions (Step 2)
-se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 # Initialize matrices for area calculations (Step 3)
-area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
-area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
-area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
-area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
-margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:16], ref_codes))
+area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 #' Run all the calculations. Call the function for every reference year we want and get area proportions
 #' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
 #' margin of errors. NOTE the double square brackets to allow for substitution. Only requires the original 
 #' strata, so no need to iterate over yearly rasters, that's only needed for accuracies. 
 
-for (y in (1:length(years_short))){
-  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1.
+for (y in (1:(length(years)-1))){
+  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
+  # start at 1 though.
   if (deformode == FALSE){
     prop_out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
   } else {
@@ -281,7 +279,8 @@ for (y in (1:length(years_short))){
 # Calculate total area per stratum, making sure we only filter the classes
 # present in the reference code list.
 stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
-map_bias = stratum_areas - area_ha['2016',]
+map_bias = stratum_areas - area_ha['2016',] # doesn't work in all cases bc
+# 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
 if (deformode == TRUE){
@@ -418,7 +417,7 @@ margin_error = cum_me
 for(i in 1:length(ref_codes)){
   
   # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
   
   # Plot areas with CI
@@ -427,7 +426,7 @@ for(i in 1:length(ref_codes)){
   
   a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
     ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
@@ -435,7 +434,7 @@ for(i in 1:length(ref_codes)){
   
   # Plot margin of error
   b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   # To remove grid and background add this:
@@ -494,7 +493,7 @@ regr_area_melt = melt(as.matrix(regr_area))
 
 regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
   geom_area(position="stack", alpha=0.8) + #geom_line(aes(x=Var1, y=732031.3), linetype=2) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Area [ha]") + xlab("Years")+
   scale_fill_brewer(palette="GnBu",  breaks=levels(regr_area_melt$Var2), guide = guide_legend(reverse=T)) + 
@@ -516,7 +515,7 @@ names(for_loss) = c("Forest to pasture", "Forest to secondary forest")
 for_loss_melt = melt(as.matrix(for_loss))
 forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
   geom_area(position="stack", alpha=0.8) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Loss of primary forest [ha]") + xlab("Years") +
   scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
@@ -530,7 +529,7 @@ print(forest_loss_plot)
 # COMPARE MAPPED AREAS WITH ESTIMATES
 
 # Create empty matrix to store mapped values and fill
-mapped_areas = matrix(0, nrow=length(years[2:16]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:16], mapped_areas_list[[1]][,1]))
+mapped_areas = matrix(0, nrow=length(years[2:length(years)]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:length(years)], mapped_areas_list[[1]][,1]))
 
 for (i in 1:length(mapped_areas_list)){
   mapped_areas[i,] = mapped_areas_list[[i]][,2]  
@@ -577,21 +576,21 @@ print(mforest_plot)
 
 ## Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
 mapped_plots = as.data.frame(mapped_areas[,c(9, 10)])
-mapped_plots = cbind(years[2:16], mapped_plots)
+mapped_plots = cbind(years[2:length(years)], mapped_plots)
 colnames(mapped_plots) = c("Years", "Forest_to_pasture",  "Forest_to_regrowth")
 
 mfp <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
   theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
 
 mfr <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
   theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
 
 mdefor <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture + Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
   theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
 
@@ -608,14 +607,14 @@ print(mdefor)
 for(i in 1:length(area_ha)){
   
   # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8']))
+  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8']))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped")
   
   # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
   # Other custom settings for number of breaks, label formatting and title.
   a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha))+ geom_line(aes(x=Years, y=Mapped),linetype=4 )+
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
     ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
   theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
