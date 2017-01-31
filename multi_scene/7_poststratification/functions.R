@@ -1,10 +1,30 @@
 #' THIS SCRIPT CONTAINS ALL THE FUNCTIONS REQUIRED FOR THE CALCULATION OF
 #' THE UNBIASED AREAS IN THE CALCULATE_STRATA_PER_YEAR.R SCRIPT:
 
-#' 1) Function to calculate strata for any given pair of years
-#' 2) Calculate unbiased area proportions and variance of reference classes
-#' 3) Calculate standard error of unbiased area proportion
-#' 4) Calculate unbiased areas, their confidence interval and margin of error
+#' 1) Function to reclassify values of a vector using a lookup table
+#' 2) Function to calculate strata for any given pair of years
+#' 3) Calculate unbiased area proportions and variance of reference classes
+#' 4) Calculate standard error of unbiased area proportion
+#' 5) Calculate unbiased areas, their confidence interval and margin of error
+
+#' Function to reclassify any given vector using a lookup table. 
+#' 
+#' @param vector Vector with integer values to be reclassified.
+#' @param lut matrix or dataframe with two columns: the first holding the values
+#' to search from, and the second with the replacement values
+#' @return Vector of equal lenght than the original with the replaced values. If
+#' values in the vector are not found in the codes to be searched for, NA is
+#' returned.
+
+reclass_codes <- function(vector, lut){
+  temp = vector(mode = "integer", length = length(vector))
+  temp[!(vector %in% lut[,1])] = NA
+  for(i in 1:dim(lut)[1]){
+    temp[vector == lut[i,1]] = lut[i,2] 
+  }
+  return(temp)
+}
+
 
 #' Function to calculate the strata for any given pair of years (integers). 
 #' If an invalid class code is provided, NA is returned
