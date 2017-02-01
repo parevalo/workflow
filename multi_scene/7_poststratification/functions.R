@@ -26,10 +26,36 @@ reclass_codes <- function(vector, lut){
 }
 
 
+#' Calculate strata between two years using a lookup table
+#'
+#' @param year1 Vector or integer number corresponding to the first year
+#' @param year2 Vector or integer number corresponding to the second year
+#' @param lut matrix or dataframe with three columns: the first two holding the 
+#' first and second land cover values that year1 and year2 will be compared
+#' against, respectively, and the third with the strata code to be assigned.
+#' @return Vector of equal lenght than the original with the strata values. If
+#' values in the vector are not found in the codes to be searched for, NA is
+#' returned.
+#' 
+
+calculate_strata <- function(year1, year2, lut){
+  if (length(year1) != length(year2)){
+    stop("Lengths of the two years are different")
+  } else {
+    temp = vector(mode = "integer", length = length(year1))
+    temp[!(year1 %in% lut[,1]) | !(year2 %in% lut[,2])] = NA
+    for(i in 1:dim(lut)[1]){
+      temp[(year1 == lut[i,1]) & (year2 == lut[i,2])] = lut[i,3] 
+    }
+  }
+  return(temp)
+}
+
+
 #' Function to calculate the strata for any given pair of years (integers). 
 #' If an invalid class code is provided, NA is returned
 
-calculate_strata <- function(year1, year2){
+calculate_strata_old <- function(year1, year2){
   strata = 0
   class_list = c(0,1,2,3,4,5,6,7)
   if (!(year1 %in% class_list) | !(year2 %in% class_list)) {
