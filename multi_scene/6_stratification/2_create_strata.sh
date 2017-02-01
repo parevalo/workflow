@@ -25,11 +25,8 @@ else
     ly=$(printf %02d $last_yr)
 fi
 
-# Create the strata following those parameters. This current version has a 
-# problem with unclassified areas for the annual strata calculation, where
-# two consecutive years with unclassified after forest remain as unclassified, 
-# while in the cumulative version those years would be forest to pastures.
-# Here we will assume stable unclassified (class 0) is stable pasture.
+# Create the strata following those parameters. Here we will assume stable 
+# unclassified (class 0) is stable pasture.
 
 for yr in $(seq -w $fy $ly); do
     if [ $annual = true ]; then
