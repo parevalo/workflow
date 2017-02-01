@@ -1,6 +1,6 @@
 # Steps followed to obtain the maps and the unbiased area estimation
 
-The steps in this workflow were performed in the Shared Computer Cluster at Boston University. The fitting of time series models, classification and map creation was performed using YATSM (https://github.com/ceholden/yatsm). Most of the scripts are loops that submit the same jobs for each of the landsat scenes used in the study.
+The steps in this workflow were performed in the Shared Computer Cluster at Boston University. The fitting of time series models, classification and map creation was performed using YATSM (https://github.com/ceholden/yatsm). Most of the scripts are loops that submit the same jobs for each of the landsat scenes used in the study. Most scripts were written to run under GDAL 2.1.1 using the environment specifications for yatsm v0.6.1.
 
 ## 1_fit 
 
