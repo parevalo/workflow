@@ -27,10 +27,10 @@ auxpath = "C:/test"
 if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
-    funcpath = "/home/paulo/workflow/multi_scene/7_poststratification/functions.R"
+    stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
 
 setwd(wd)
-source(funcpath)
+source(paste0(stratpath, "functions.R"))
 
 # If TRUE, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
@@ -75,15 +75,19 @@ samples$CHGDATE <- as.character(samples$CHGDATE)
 rows = nrow(samples)
 start = 2001
 end = 2016
-years = seq(start, end,2) 
+step = 1
+years = seq(start, end, step) 
 field_names = paste("ref_", years, sep="")
 
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
-# and name of the fields that store the class codes.
+# and name of the fields that store the class codes. Load LUT.
 
 df = vector()
 field = vector()
 codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
+lut = read.table(paste0(stratpath, "original_lut.csv"), header = T, sep = ",")
+lut2 = read.table(paste0(stratpath, "for-nofor_lut_A.csv"), header = T, sep = ",")
+lut3 = read.table(paste0(stratpath, "for-nofor_lut_B.csv"), header = T, sep = ",")
 
 # Iterate over rows (easier to do calculations by row)
 for (row in 1:rows){
@@ -94,7 +98,7 @@ for (row in 1:rows){
   
       # If there are no changes, just use the only class code for both years
       if (is.na(samples$CHGDATE[row]) == TRUE) {
-        field[i] = calculate_strata(samples$CODE1[row], samples$CODE1[row])
+        field[i] = calculate_strata(samples$CODE1[row], samples$CODE1[row], lut)
       }
     
       # If there is a change, compare each year to the current change year and update that one accordingly
@@ -106,13 +110,13 @@ for (row in 1:rows){
         
         # If we haven't reached change year yet
         if (years[i] < chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,]) 
+          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,], lut) 
           #print(paste0(row, " cond1 ", years[i], " ", chg_year," ", field[i]))
         } 
         
         # If we JUST reached a change year
         else if (years[i] == chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,]) 
+          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,], lut) 
           # Check if we haven't reached the max number of recorded changes
           if (current_change < samples$NUMCHANGES[row]) {
             current_change = current_change + 1 
@@ -123,7 +127,7 @@ for (row in 1:rows){
         
         # If we went past the last change date, use the last code 
         else if (years[i] > chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,])
+          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
           #print(paste0(row, " cond3 ",years[i], " ", chg_year," ", field[i]))
         }
       } 
@@ -161,6 +165,13 @@ filenames = dir(auxpath, pattern="*_pixcount.csv")
 for(i in 1:length(filenames)){
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
 }
+
+#' TODO: Once all the data has been extracted, we need to reclassify the codes from the
+#' read rasters and pixcount to match those that we use for the reference data. 
+#' But given that the strata codes are not totally exclusive (e.g multiple transitions
+#' get the same code) we need to recreate the new strata files or read the original
+#' rasters here. Probably better to do stratification in python and use a single LUT
+#' file that can be used there and here.
 
 # Get only the total area for the original strata (i.e 01-16)
 ss = mapped_areas_list[[15]]
