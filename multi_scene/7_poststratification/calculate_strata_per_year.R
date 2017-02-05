@@ -290,7 +290,7 @@ for (y in (1:(length(years)-1))){
 # Calculate total area per stratum, making sure we only filter the classes
 # present in the reference code list.
 stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
-map_bias = stratum_areas - area_ha['2016',] # doesn't work in all cases bc
+# map_bias = stratum_areas - area_ha['2016',] # doesn't work in all cases bc FIX!!
 # 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
@@ -377,9 +377,11 @@ break_calc = function(dataset){
   else{
     # Find last column with the first code
     break_col = tail(which(dataset == unq[1]), n=1)
-    # Calculate year of change (e.g if break was 12, break year was 2013) and format accordingly
-    break_year = as.numeric(paste0("20",sprintf("%02d",break_col+1)))
-    #print(sprintf("Break happened in %s", break_year))
+    # Calculate REAL year of change (e.g. if last column with the first code is 
+    # 12, then change happened in 2013-2014. Given that maps are created at the start of the year
+    # then the actual change date is 2013. This is temporary, a more robust approach
+    # would be better
+    break_year = years[break_col] + 1
     return(break_year)
   }
 }
@@ -400,7 +402,6 @@ change_cm = cbind(change_cm, total=rowSums(change_cm))
 change_cm = rbind(change_cm, total=colSums(change_cm)) 
 # Compare total breaks detected per year
 total_ref = change_cm["total",]
-total_ref = total_ref[-2]
 total_breaks = cbind(total_ref, change_cm[,"total"])
 colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 
@@ -459,8 +460,8 @@ for(i in 1:length(ref_codes)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me", ".png")
-  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  filename = paste0(strata_names[[i]], "_areas_me_step", step, ".png")
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
