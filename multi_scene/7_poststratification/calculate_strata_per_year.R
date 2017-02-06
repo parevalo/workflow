@@ -398,18 +398,22 @@ ref_breaks = as.numeric(unlist(lapply(ref_breaks, '[[', 1)))
 ref_breaks[is.na(ref_breaks)] = 0
 # Create table with the two datasets and add totals
 change_cm = table(strata_breaks, ref_breaks)
+temprow = rep(0, length(years)+1)
+change_cm = rbind(change_cm[1,],temprow, change_cm[2:16,])
+rownames(change_cm)[1:2] = c(0,2001)
 change_cm = cbind(change_cm, total=rowSums(change_cm))
 change_cm = rbind(change_cm, total=colSums(change_cm)) 
-# Compare total breaks detected per year
-total_ref = change_cm["total",]
-total_breaks = cbind(total_ref, change_cm[,"total"])
-colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 
 # Format table and display
 tt= ttheme_default(base_size=18)
 grid.newpage()
 grid.table(round(change_cm, digits=2), theme=tt)
-#png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
+png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
+
+# Compare total breaks detected per year
+total_ref = change_cm["total",]
+total_breaks = cbind(total_ref, change_cm[,"total"])
+colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 
 
 ##############################################################################################################
@@ -656,20 +660,17 @@ colnames(break_compare) = c("ref_breaks", "strata_breaks", "ptrw")
 break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
 
 # Function to calculate frequency of break differences. Sum gives total of pts
-calc_break_time <- function(freqlist){
-  pos = sum(freqlist > 2000) # Map didn't detect break but reference did (omission)
-  neg = sum(freqlist < 0) # Reference didn't detect break but map did (commission)
-  sm = sum(freqlist > 0 & freqlist< 2000)
-  zr = sum(freqlist == 0)
-  return(rbind(pos, neg, sm, zr))
-}
+break_compare$type[break_compare$breakdif > 2000] = "omission"
+break_compare$type[break_compare$breakdif < 0] = "comission"
+break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "small_offset"
+break_compare$type[break_compare$breakdif == 0] = "no_diff"
 
-breakdif_count = by(break_compare$breakdif, break_compare$ptrw, calc_break_time, simplify = FALSE) 
-total_ptrw_pts = unlist(lapply(breakdif_count, sum))
-bd_ratios = lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
-bd_ratios_melt =melt(bd_ratios) # Get that out of the ugly list
-bd_ratios_df = dcast(bd_ratios_melt, L1~Var1) # Reshape to get an easier to manage df
-bd_ratios_df = cbind(bd_ratios_df, total_ptrw_pts)
+breakdif_count = aggregate(break_compare$type, by=list(break_compare$ptrw), FUN="summary")
+total_ptrw_pts = apply(breakdif_count[,2], MARGIN = 1, FUN = "sum")
+
+bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) # Calculate as ratios of the total)
+rownames(bd_ratios) = breakdif_count$Group.1
+bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
 write.csv(bd_ratios_df, "break_ratios.csv")
         
 #TODO
