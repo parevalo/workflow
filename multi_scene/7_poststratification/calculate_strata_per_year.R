@@ -79,6 +79,9 @@ step = 1
 years = seq(start, end, step) 
 field_names = paste("ref_", years, sep="")
 
+
+# Convert reference sample info into vectors containing proper labels per each of
+# the years in our time period.
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
 # and name of the fields that store the class codes. Load LUT.
 
@@ -89,7 +92,7 @@ lut = read.table(paste0(stratpath, "original_lut.csv"), header = T, sep = ",")
 lut2 = read.table(paste0(stratpath, "for-nofor_lut_A.csv"), header = T, sep = ",")
 lut3 = read.table(paste0(stratpath, "for-nofor_lut_B.csv"), header = T, sep = ",")
 
-# Iterate over rows (easier to do calculations by row)
+# Iterate over rows (samples, easier this way)
 for (row in 1:rows){
   current_change = 1
   current_code=1
@@ -111,7 +114,6 @@ for (row in 1:rows){
         # If we haven't reached change year yet
         if (years[i] < chg_year) {
           field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,], lut) 
-          #print(paste0(row, " cond1 ", years[i], " ", chg_year," ", field[i]))
         } 
         
         # If we JUST reached a change year
@@ -122,13 +124,11 @@ for (row in 1:rows){
             current_change = current_change + 1 
           }
           current_code = current_code + 1
-          #print(paste0(row, " cond2 ",years[i], " ", chg_year," ", field[i]))
         }
         
         # If we went past the last change date, use the last code 
         else if (years[i] > chg_year) {
           field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
-          #print(paste0(row, " cond3 ",years[i], " ", chg_year," ", field[i]))
         }
       } 
   }
@@ -368,6 +368,7 @@ grid.table(round(chg_rate, digits=2), theme=tt)
 
 
 ## Calculate when break occurred in maps and compare to break in reference samples
+# THIS APPROACH IS IGNORING THE FACT THAT SOME SAMPLES HAVE MULTIPLE TRANSITONS
 
 break_calc = function(dataset){
   unq = unique(as.numeric(dataset))
@@ -659,20 +660,37 @@ break_compare = as.data.frame(cbind(ref_breaks, strata_breaks, samples@data$PTRW
 colnames(break_compare) = c("ref_breaks", "strata_breaks", "ptrw")
 break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
 
-# Function to calculate frequency of break differences. Sum gives total of pts
-break_compare$type[break_compare$breakdif > 2000] = "omission"
-break_compare$type[break_compare$breakdif < 0] = "comission"
-break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "small_offset"
-break_compare$type[break_compare$breakdif == 0] = "no_diff"
+# Calculate type of break difference per row: ommited change, commited change, 
+# detected change with small ofset in timing (either positive or negative), 
+# exact change match (first change detected in the same year) or stable match
+# (no changes detected in reference or maps)
+# THIS ANALYSIS ONLY COMPARES THE FIRST BREAK FOR SIMPLICITY'S SAKE
+# DOESNT TAKE LABELS INTO ACCOUNT, JUST TIMING OF BREAKS
 
+break_compare$type[break_compare$breakdif > 2000] = "omission"
+break_compare$type[break_compare$breakdif < -2000] = "comission" # small negative numbers ARE ALSO SMALL OFFSET (e.g 2002 - 2004)
+break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "pos_offset" 
+break_compare$type[(break_compare$breakdif < 0) & (break_compare$breakdif > -2000)] = "neg_offset" 
+# Assume rows == 0 are exact change matches, then overwrite those that are stable matches
+break_compare$type[break_compare$breakdif == 0] = "exact_change_match" 
+break_compare$type[(break_compare$ref_breaks == 0) & (break_compare$strata_breaks == 0)] = "stable_match"
+
+# Aggregate results and calculate total points per path-row 
 breakdif_count = aggregate(break_compare$type, by=list(break_compare$ptrw), FUN="summary")
 total_ptrw_pts = apply(breakdif_count[,2], MARGIN = 1, FUN = "sum")
 
-bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) # Calculate as ratios of the total)
+# # Calculate number of each type of change as ratios of the total
+bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) 
 rownames(bd_ratios) = breakdif_count$Group.1
 bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
-write.csv(bd_ratios_df, "break_ratios.csv")
-        
+
+# Write aggregated results to CSV and row results to shapefile
+write.csv(bd_ratios_df, "LC_change_ratios_pathrow.csv")
+samples@data[,names(break_compare)] <- break_compare
+writeOGR(samples, "sample_yearly_strata_break_analysis", "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
+     
+# Re check change_cm and this, just in case
+   
 #TODO
 
 # - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
