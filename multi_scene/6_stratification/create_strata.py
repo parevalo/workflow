@@ -33,7 +33,6 @@ def create_strata(raster1, raster2, csvfile, header, output, delim, quote, forma
 
     # Calculate output dtype based on LUT values
     out_dt = 'byte'
-    click.echo(min(lut_file.values()))
     if min(lut_file.values()) < 0:
         # Must be signed int
         if max(np.abs(lut_file.values())) < 2 ** 15:
@@ -59,8 +58,6 @@ def create_strata(raster1, raster2, csvfile, header, output, delim, quote, forma
         else:
             click.echo('Required output data type is unknown')
             click.Abort()
-
-    print(out_dt)
 
     # Init output
     y1 = ds1.read(1)
