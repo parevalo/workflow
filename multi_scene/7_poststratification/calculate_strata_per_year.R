@@ -22,18 +22,25 @@ require(matrixcalc)
 
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
 wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
-auxpath = "C:/test"
+auxpath = "C:/test/"
 
 if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
     stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-
+    lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
+    
+    
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
 
 # If TRUE, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
+
+# Set input names and suffixes
+orig_stratif = "final_strata_01_16_UTM18N"
+rast_prefix = "final_strata_annual_"
+rast_suffix = "_UTM18N.tif"
 
 # List of original strata names
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
@@ -88,9 +95,7 @@ field_names = paste("ref_", years, sep="")
 df = vector()
 field = vector()
 codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
-lut = read.table(paste0(stratpath, "original_lut.csv"), header = T, sep = ",")
-lut2 = read.table(paste0(stratpath, "for-nofor_lut_A.csv"), header = T, sep = ",")
-lut3 = read.table(paste0(stratpath, "for-nofor_lut_B.csv"), header = T, sep = ",")
+lut = read.table(lutpath, header = T, sep = ",")
 
 # Iterate over rows (samples, easier this way)
 for (row in 1:rows){
@@ -145,18 +150,18 @@ samples@data[,field_names] <- df
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Iterate over names and extract to shapefile. We only need these to calculate accuracies per year.
+# Iterate over names and extract to shapefile. We only need these to calculate accuracies per year. 
 for (y in 2:length(years)){
-  rast_name = paste0("final_strata_annual_", sprintf("%02d",y-1), "_", sprintf("%02d",y), "_UTM18N")
-  map = raster(paste0(auxpath, rast_name, ".tif"))
+  rast_name = paste0(rast_prefix, sprintf("%02d",y-1), "_", sprintf("%02d",y), rast_suffix)
+  map = raster(paste0(auxpath, rast_name))
   samples = extract(map, samples, sp = TRUE) 
 }
 
 # Read original stratification. Done last so that the reference and map fields are contiguous
-samples = extract(raster(paste0(auxpath, "/final_strata_01_16_UTM18N.tif")), samples, sp=TRUE)
+samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
-ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
+ct = table(samples[[orig_stratif]], samples$strata)
 
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
 # TODO: CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
@@ -181,7 +186,7 @@ cr = c(7, 10, 12, 15)
 ss = ss[!(ss$stratum %in% cr),] 
 
 # Calculate total number of samples per ORIGINAL stratum
-strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$final_strata_01_16_UTM18N), length)
+strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif]]), length)
 
 # Calculate original strata weights and area proportions
 tot_area_pix = sum(ss$pixels)
@@ -202,7 +207,7 @@ prod_acc = diag(aprop) / colSums(aprop)
 
 # IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
 # a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
-defor_str = samples$final_strata_01_16_UTM18N
+defor_str = samples[[orig_stratif]]
 defor_str[defor_str == 8 | defor_str == 9] = 17
 
 # b) Find reference samples = 8 or 9 for each year and change value to 17
@@ -258,7 +263,7 @@ for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
   if (deformode == FALSE){
-    prop_out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
+    prop_out = calc_area_prop(samples[[orig_stratif]], samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
   } else {
     prop_out = calc_area_prop(defor_str, samples_defor[[field_names[y+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
   }
@@ -465,8 +470,8 @@ for(i in 1:length(ref_codes)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me_step", step, ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  #filename = paste0(strata_names[[i]], "_areas_me_step", step, ".png")
+  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
