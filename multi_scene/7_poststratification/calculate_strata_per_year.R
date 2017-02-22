@@ -41,6 +41,7 @@ deformode = FALSE
 orig_stratif = "final_strata_01_16_UTM18N"
 rast_prefix = "final_strata_annual_"
 rast_suffix = "_UTM18N.tif"
+pixcount_suffix = "*_pixcount.csv"
 
 # List of original strata names
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
@@ -166,7 +167,7 @@ ct = table(samples[[orig_stratif]], samples$strata)
 # Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
 # TODO: CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
 mapped_areas_list = list()
-filenames = dir(auxpath, pattern="*_pixcount.csv")
+filenames = dir(auxpath, pattern=pixcount_suffix)
 for(i in 1:length(filenames)){
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
 }
