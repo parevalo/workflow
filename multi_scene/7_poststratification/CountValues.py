@@ -1,54 +1,22 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
-# Written by Eric Bullock
-# Modified by Paulo Arevalo
-
-
-"""Script to count the number of pixels per class in a given raster file. 
-   Outputs a csv with the class numbers and pixel count.
-   Current version only really checks the first band. 
-
-Usage:
-  CountValues.py <filename> <output>
-
-
-"""
-
-from docopt import docopt
-import gdal, ogr, osr, os
+import click
 import numpy as np
-from osgeo import gdal
-import sys
-import math
+import rasterio
 
-
-if __name__ == '__main__':
-    args = docopt(__doc__, version='0.1.0')
-
-
-path = args['<filename>']
-out_csv = args['<output>']
-
- 
-gdalData = gdal.Open(path)
-if gdalData is None:
-  sys.exit( "ERROR: can't open raster" )
- 
-# get width and heights of the raster
-xsize = gdalData.RasterXSize
-ysize = gdalData.RasterYSize
- 
-# get number of bands
-bands = gdalData.RasterCount
- 
-# process the raster
-for i in xrange(1, bands + 1):
-    band_i = gdalData.GetRasterBand(i)
-    raster = band_i.ReadAsArray()
-
-    # count unique values for the given band (missing values get a count of 0)
-     
-    flatraster = raster.flatten()
+@clicl.command()
+@click.argument('input', metavar='<input raster>', nargs=1, type=click.Path(exists=True, resolve_path=True)
+@click.argument('output', metavar='<output csv>', nargs=1, type=click.Path(resolve_path=True)
+def count_pixels(input, output):
+    """Script to count the number of pixels per class in a given raster file. 
+   Outputs a csv with the class numbers and pixel count.
+   Current version only checks the first band."""
+    
+    # Read the data
+    raster = rasterio.open(input)
+    data = raster.read(1)
+    
+    # Count unique values 
+    flatraster = data.flatten()
     stats = np.bincount(flatraster)
     max = flatraster.max()
     min = flatraster.min()
@@ -57,9 +25,9 @@ for i in xrange(1, bands + 1):
     outarray[:, 1] = stats
 
 
-# Print/export class and number of pixels
-for i in (range(min, max+1)):
-    print "Class {0}: {1}".format(i, stats[i])
+    # Save csv with classes and pixels per class
+    np.savetxt(output, outarray, delimiter=',', header="stratum,pixels", fmt='%01d')
 
-np.savetxt(out_csv, outarray, delimiter=',', header="class,pixels", fmt='%01d')
+if __name__ == '__main__':
+    count_pixels()
 
