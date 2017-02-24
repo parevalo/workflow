@@ -28,7 +28,7 @@ if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
     stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-    lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
+    lutpath = "/home/paulo/workflow/multi_scene/data/for-nofor_lut_A.csv"
     
     
 setwd(wd)
@@ -37,11 +37,26 @@ source(paste0(stratpath, "functions.R"))
 # If TRUE, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
 deformode = FALSE
 
-# Set input names and suffixes
-orig_stratif = "final_strata_01_16_UTM18N"
+# Set input names and suffixes. Add/remove lutA or lutB at the end, except for the prefix
+orig_stratif = "final_strata_01_16_UTM18N_lutA"
 rast_prefix = "final_strata_annual_"
-rast_suffix = "_UTM18N.tif"
-pixcount_suffix = "*_pixcount.csv"
+rast_suffix = "_UTM18N_lutA.tif" 
+pixcount_suffix = "_pixcount_lutA.csv"
+
+# Set input names and suffixes
+# orig_stratif = "final_strata_01_16_UTM18N"
+# rast_prefix = "final_strata_annual_"
+# rast_suffix = "_UTM18N.tif"
+# pixcount_suffix = "_pixcount.csv"
+
+# Set up important global variables
+start = 2001
+end = 2016
+step = 2  # Number of years to do the analysis over
+years = seq(start, end, step) 
+field_names = paste("ref_", years, sep="")
+cr = c(0,seq(5,15))
+#cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
 
 # List of original strata names
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
@@ -60,6 +75,8 @@ if (deformode == FALSE){
                    "Loss of regrowth", "Deforestation")
 }
 
+
+strata_names = c("Stable forest", "Stable non-forest", "Forest loss", "Forest gain")
 # Grid table theme, only used to display some ancillary tables
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
                   colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14, parse=TRUE)),
@@ -79,20 +96,12 @@ samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 # We need to convert the dates to characters bc they are factors right now
 samples$CHGDATE <- as.character(samples$CHGDATE)
 
-# Set up important loop variables
-rows = nrow(samples)
-start = 2001
-end = 2016
-step = 1
-years = seq(start, end, step) 
-field_names = paste("ref_", years, sep="")
-
-
 # Convert reference sample info into vectors containing proper labels per each of
 # the years in our time period.
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
 # and name of the fields that store the class codes. Load LUT.
 
+rows = nrow(samples)
 df = vector()
 field = vector()
 codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
@@ -162,28 +171,33 @@ for (y in 2:length(years)){
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
-ct = table(samples[[orig_stratif]], samples$strata)
+# Get unique values first, then create a single list of all possible values
+# Use them as factors for both vectors and then tabulate. This is necessary to
+# create a square matrix under any given scenario.
+# Create "original strata reference labels"
+# FIX THIS SECTION TODAY, need to calculate NEED TO CALCULATE "NEW ORIGINAL STRATIFICATION!"
+l1 = unique(samples[[orig_stratif]])
+l2 = unique(samples$strata)
+code_levels = sort(union(l1,l2))
+f1=factor(samples[[orig_stratif]], levels=code_levels)
+f2=factor(samples$strata, levels=code_levels)
+ct = table(f1, f2)
 
-# Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
-# TODO: CALCULATE NEW ONES FOR THE NEW MAPS AND CHANGE THE CODE ACCORDINGLY.
+# Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
+# bc calculating it here with hist() takes forever..
+# TODO: CALCULATE NEW ONES FOR THE NEW MAPS!
 mapped_areas_list = list()
-filenames = dir(auxpath, pattern=pixcount_suffix)
+filenames = dir(auxpath, pattern=(paste0("*", pixcount_suffix)))
 for(i in 1:length(filenames)){
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
 }
 
-#' TODO: Once all the data has been extracted, we need to reclassify the codes from the
-#' read rasters and pixcount to match those that we use for the reference data. 
-#' But given that the strata codes are not totally exclusive (e.g multiple transitions
-#' get the same code) we need to recreate the new strata files or read the original
-#' rasters here. Probably better to do stratification in python and use a single LUT
-#' file that can be used there and here.
+# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
+# TODO: Generalize name calling
+ss=read.csv(paste0(auxpath, "strata_01_16", pixcount_suffix), header=TRUE, col.names=c("stratum", "pixels"))
 
-# Get only the total area for the original strata (i.e 01-16)
-ss = mapped_areas_list[[15]]
-# Classes to be removed/ignored
-cr = c(7, 10, 12, 15)
-# Filter classes NOT in that list
+# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
+# TODO: This probably has to be done to all csv files if we decide to use them
 ss = ss[!(ss$stratum %in% cr),] 
 
 # Calculate total number of samples per ORIGINAL stratum
@@ -192,10 +206,9 @@ strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif
 # Calculate original strata weights and area proportions
 tot_area_pix = sum(ss$pixels)
 str_weight = ss$pixels / tot_area_pix
-# Add column for class 13 with zeroes to obtain a square matrix and make everything easier
-cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
-# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
-aprop = apply(cmatr, 2, function(x) x * str_weight / strata_pixels$x)
+
+# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (i.e. columns)
+aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
 
 # Calculate accuracies
 tot_acc = sum(diag(aprop)) * 100
