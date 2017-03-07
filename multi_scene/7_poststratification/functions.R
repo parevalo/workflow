@@ -214,14 +214,18 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
 #' unique values of the two vectors. First vector is rows, second is columns.
 #' @param v1 First vector of integer values
 #' @param v2 Second vector of integer values
+#' @param code_levels List of integers with all the factors to be used as levels
 #' @return ctab Crosstabulation of the two vectors
 
-calc_ct = function(v1, v2){
-  l1 = unique(v1)  
-  l2 = unique(v2)
-  code_levels = sort(union(l1,l2))
-  f1 = factor(v1, levels=code_levels)
-  f2 = factor(v2, levels=code_levels)
-  ct = table(f1, f2)
+calc_ct = function(v1, v2, code_levels){
+  if(missing(code_levels)){
+    l1 = unique(v1)  
+    l2 = unique(v2)
+    code_levels = sort(union(l1,l2))
+  } else { 
+    f1 = factor(v1, levels=code_levels)
+    f2 = factor(v2, levels=code_levels)
+    ct = table(f1, f2)
+  }
   return(ct)
 }
