@@ -177,21 +177,12 @@ for (y in 2:length(years)){
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
-# Get unique values first, then create a single list of all possible values
-# Use them as factors for both vectors and then tabulate. This is necessary to
-# create a square matrix under any given scenario.
-# Create "original strata reference labels"
-# FIX THIS SECTION TODAY, need to calculate NEED TO CALCULATE "NEW ORIGINAL STRATIFICATION!"
-l1 = unique(samples[[orig_stratif]])
-l2 = unique(samples$strata)
-code_levels = sort(union(l1,l2))
-f1=factor(samples[[orig_stratif]], levels=code_levels)
-f2=factor(samples$strata, levels=code_levels)
-ct = table(f1, f2)
+# Returns a square matrix with all the reference and map codes in the samples
+
+ct = calc_ct(samples[[orig_stratif]], strata)
 
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
-# bc calculating it here with hist() takes forever..
-# TODO: CALCULATE NEW ONES FOR THE NEW MAPS!
+# REQUIRED for comparison between mapped and estimated areas.
 mapped_areas_list = list()
 filenames = dir(auxpath, pattern=(paste0("*", pixcount_suffix)))
 for(i in 1:length(filenames)){
@@ -199,14 +190,16 @@ for(i in 1:length(filenames)){
 }
 
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
-# TODO: Generalize name calling
-ss=read.csv(paste0(auxpath, "strata_01_16", pixcount_suffix), header=TRUE, col.names=c("stratum", "pixels"))
+
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
 
 # Filter classes NOT in the list of classes from the pixel count files to be ignored. 
 # TODO: This probably has to be done to all csv files if we decide to use them
 ss = ss[!(ss$stratum %in% cr),] 
 
-# Calculate total number of samples per ORIGINAL stratum
+# Calculate total number of samples per ORIGINAL stratum. 
+# ASSUMES that there is at least one sample per original stratum
+
 strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif]]), length)
 
 # Calculate original strata weights and area proportions
