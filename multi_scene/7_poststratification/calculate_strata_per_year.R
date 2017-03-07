@@ -28,35 +28,40 @@ if( .Platform$OS.type == "unix" )
     wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
     auxpath = "/media/paulo/785044BD504483BA/test/"
     stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-    lutpath = "/home/paulo/workflow/multi_scene/data/for-nofor_lut_A.csv"
+    #lutpath = "/home/paulo/workflow/multi_scene/data/for-nofor_lut_A.csv"
+    lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
     
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
+#source(paste0(stratpath, "testsource.R"))
 
-# If TRUE, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
-deformode = FALSE
-
-# Set input names and suffixes. Add/remove lutA or lutB at the end, except for the prefix
-orig_stratif = "final_strata_01_16_UTM18N_lutA"
-rast_prefix = "final_strata_annual_"
-rast_suffix = "_UTM18N_lutA.tif" 
-pixcount_suffix = "_pixcount_lutA.csv"
+#Set input names and suffixes. Add/remove lutA or lutB at the end, except for the prefix
+# lut_name = "lutA"
+# orig_stratif = paste0("final_strata_01_16_UTM18N_", lut_name)
+# rast_prefix = "final_strata_annual_"
+# rast_suffix = paste0("_UTM18N_", lut_name)
+# pixcount_suffix = paste0("_pixcount_", lut_name, ".csv")
+# pixcount_strata = paste0("strata_01_16", pixcount_suffix)
 
 # Set input names and suffixes
-# orig_stratif = "final_strata_01_16_UTM18N"
-# rast_prefix = "final_strata_annual_"
-# rast_suffix = "_UTM18N.tif"
-# pixcount_suffix = "_pixcount.csv"
+lut_name = "original_lut"
+orig_stratif = "buffered10_final_strata_01_16_UTM18N"
+#orig_stratif = "final_strata_01_16_UTM18N"
+rast_prefix = "final_strata_annual_"
+rast_suffix = "_UTM18N"
+pixcount_suffix = "_pixcount.csv"
+pixcount_strata = paste0("buffered10_strata_01_16", pixcount_suffix)
+#pixcount_strata = paste0("strata_01_16", pixcount_suffix)
 
 # Set up important global variables
 start = 2001
 end = 2016
-step = 2  # Number of years to do the analysis over
+step = 1  # Number of years to do the analysis over
 years = seq(start, end, step) 
-field_names = paste("ref_", years, sep="")
-cr = c(0,seq(5,15))
-#cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
+ref_names = paste("ref_", years, sep="")
+#cr = c(0,seq(5,15)) # For lutA
+cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
 
 # List of original strata names
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
@@ -64,19 +69,13 @@ orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "St
                       "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
 
 
-# Strata names depending on deformode. They DON'T have the "all to unclass." class bc it disappears when the ref. samples are collected.
-if (deformode == FALSE){
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+# # Strata names List doesn't have the "all to unclass." class bc it disappears when the ref. samples are collected.
+strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
                    "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
                    "Forest to secondary forest", "Gain of secondary forest", "Loss of secondary forest")
-}else{
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                   "Stable pasture-cropland", "Stable regrowth", "Stable water", "All others to regrowth", 
-                   "Loss of regrowth", "Deforestation")
-}
 
+#strata_names = c("Stable forest", "Stable non-forest", "Forest loss", "Forest gain")
 
-strata_names = c("Stable forest", "Stable non-forest", "Forest loss", "Forest gain")
 # Grid table theme, only used to display some ancillary tables
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
                   colhead=list(fg_params=list(font="Times", fontface="bold", fontsize=14, parse=TRUE)),
@@ -150,7 +149,7 @@ for (row in 1:rows){
   df <- as.data.frame(rbind(df, field))
 }
 
-names(df) = field_names
+names(df) = ref_names
 
 # Recalculate "original stratification", needed when we use a LUT different than the original
 strata = vector()
@@ -159,17 +158,25 @@ for (row in 1:rows){
 }
 
 # Attach table to shapefile 
-samples@data[,field_names] <- df
+samples@data[,ref_names] <- df
 #writeOGR(samples, "sample_yearly_strata", "sample_yearly_strata", driver="ESRI Shapefile", overwrite_layer = T)
 
 #############################################################################################################
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Iterate over names and extract to shapefile. We only need these to calculate accuracies per year. 
-for (y in 2:length(years)){
-  rast_name = paste0(rast_prefix, sprintf("%02d",y-1), "_", sprintf("%02d",y), rast_suffix)
-  map = raster(paste0(auxpath, rast_name))
+# Get unique ref codes and map codes for all the years. Then create a single
+# set of unique codes to be used in the confusion matrices
+ref_codes = sort(unique(unlist(samples@data[ref_names])))
+map_codes = sort(unique(unlist(samples@data[map_names])))
+class_codes = sort(union(ref_codes, map_codes))
+
+# Iterate over names and extract to shapefile. We need these to calculate 
+# confusion matrices per year
+map_names = character()
+for (y in 1:(length(years)-1)){
+  map_names[y] = paste0(rast_prefix, sprintf("%02d",y), "_", sprintf("%02d",y+1), rast_suffix)
+  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
 
@@ -179,7 +186,13 @@ samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRU
 # Crosstab final strata and reference strata (for the same period 01-16) 
 # Returns a square matrix with all the reference and map codes in the samples
 
-ct = calc_ct(samples[[orig_stratif]], strata)
+ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
+
+# Create confusion matrices per year between reference and map labels
+cm_list = list()
+for (y in 1:(length(years) - 1)){
+  cm_list[[y]] = calc_ct(samples[[map_names[y]]], samples[[ref_names[y]]], class_codes)
+}
 
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
 # REQUIRED for comparison between mapped and estimated areas.
@@ -218,9 +231,6 @@ prod_acc = diag(aprop) / colSums(aprop)
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-# Get unique strata codes for all the years
-ref_codes = sort(unique(unlist(samples@data[field_names])))
-
 # Initialize variables for area proportions, variances, etc (Step 1)
 area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 ref_var_list = list()
@@ -245,7 +255,7 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
-  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
+  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], ss, strata_pixels, ref_codes) 
   
   # Assign outputs of Step 1
   area_prop[y,] = prop_out[[1]]
@@ -313,12 +323,12 @@ print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.f
 # Calculate reference sample count per year. Initialize zero matrix with year * class dims and proper row and column names
 ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
 
-for (f in 1:(length(field_names))){
+for (f in 1:(length(ref_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
   if (deformode == FALSE){
-    a = table(samples[[field_names[f]]])
+    a = table(samples[[ref_names[f]]])
   }else{
-    a = table(samples_defor[[field_names[f]]])
+    a = table(samples_defor[[ref_names[f]]])
   }
   
   class_check = ref_codes %in% names(a)
@@ -626,7 +636,7 @@ for(i in 1:length(area_ha)){
 # MISCELANEOUS
 # Plot number of forest to pasture reference samples over time.
 fpc = vector()
-for (f in field_names){
+for (f in ref_names){
   a = samples@data[,f] == 8
   fpc = cbind(fpc, sum(a))
 }
