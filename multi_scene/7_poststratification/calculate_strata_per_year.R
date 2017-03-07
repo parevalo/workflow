@@ -354,24 +354,47 @@ grid.table(round(chg_rate, digits=2), theme=tt)
 
 
 ## Calculate when break occurred in maps and compare to break in reference samples
-# THIS APPROACH IS IGNORING THE FACT THAT SOME SAMPLES HAVE MULTIPLE TRANSITONS
+# Incomplete code
 
 break_calc = function(dataset){
+  out = list()
+  multi_out = list()
   unq = unique(as.numeric(dataset))
-  if (length(unq) == 1){
-    return(0)
-  }  
-  else{
-    # Find last column with the first code
-    break_col = tail(which(dataset == unq[1]), n=1)
-    # Calculate REAL year of change (e.g. if last column with the first code is 
-    # 12, then change happened in 2013-2014. Given that maps are created at the start of the year
-    # then the actual change date is 2013. This is temporary, a more robust approach
-    # would be better
-    break_year = years[break_col] + 1
-    return(break_year)
+  if (length(unq) == 1) {
+    multi_out = c(0,0)
+  } 
+  else {
+    for(i in 1:(length(dataset)-1)) {
+      if(dataset[i] == dataset[i+1]) {
+        next
+      } 
+      else {
+        out = c(dataset[i], dataset[i+1], years[i]) # Return ACTUAL year of change, not the one in the column name
+        multi_out = append(multi_out, out)  
+      }
+    }
   }
+  return(multi_out)
 }
+
+# Need to read original LC maps to verify if there was a LCC or not
+alt_samples = samples
+for (y in years){
+  rast_name = paste0(y,"_final_crop.tif")
+  map = raster(paste0(auxpath, rast_name))
+  alt_samples = extract(map, alt_samples, sp = TRUE) 
+}
+
+
+# Find unique values, find the year when it one turns into another
+delete = break_calc(alt_samples@data[570,23:38])
+temp_count = apply(alt_samples@data[, 23:38], MARGIN = 1, FUN = break_calc)
+temp_df = as.data.frame(t(temp_count))
+
+#This may work to format properly, or rewrite the stupid function
+indx <- sapply(temp_count, length)
+#indx <- lengths(lst) 
+res <- as.data.frame(do.call(rbind,lapply(temp_count, `length<-`,max(indx))))
 
 # Apply functions over rows on strata columns only
 strata_breaks = apply(samples@data[, 39:53], MARGIN = 1, FUN = break_calc)
@@ -407,12 +430,6 @@ colnames(total_breaks) = c("ref_breaks", "strata_breaks")
 # 6) CREATE SOME USEFUL PLOTS
 # Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
 # reference.
-
-area_ha = cum_area
-area_ci = cum_ci
-area_lower = cum_lower
-area_upper = cum_upper
-margin_error = cum_me
 
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
@@ -451,7 +468,7 @@ for(i in 1:length(ref_codes)){
   
   grid.newpage()
   grid.draw(g)
-  #filename = paste0(strata_names[[i]], "_areas_me_step", step, ".png")
+  #filename = paste0(strata_names[[i]], "_areas_me_step", step, "_", lut_name, ".png")
   #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
