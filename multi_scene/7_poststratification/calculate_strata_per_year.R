@@ -284,11 +284,7 @@ stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
 # 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
-if (deformode == TRUE){
-   suffix = "annual_defor.csv"  
- } else { 
-   suffix = "annual_regular.csv"
-}
+suffix = paste0("_step", step, "_", lut_name, ".csv")
 
 #write.csv(area_ha, file=paste0("area_ha", suffix))
 #write.csv(area_lower, file=paste0("area_lower", suffix))
