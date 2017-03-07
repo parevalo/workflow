@@ -208,3 +208,20 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
   return(list(area, ci, upper_ci, lower_ci, me))
 }
 
+
+#' Function to obtain a confusion matrix based on two vectors of equal lenght
+#' Output matrix is square and has labels resulting from the union of the
+#' unique values of the two vectors. First vector is rows, second is columns.
+#' @param v1 First vector of integer values
+#' @param v2 Second vector of integer values
+#' @return ctab Crosstabulation of the two vectors
+
+calc_ct = function(v1, v2){
+  l1 = unique(v1)  
+  l2 = unique(v2)
+  code_levels = sort(union(l1,l2))
+  f1 = factor(v1, levels=code_levels)
+  f2 = factor(v2, levels=code_levels)
+  ct = table(f1, f2)
+  return(ct)
+}
