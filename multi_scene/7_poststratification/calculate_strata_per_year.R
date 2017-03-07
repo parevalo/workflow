@@ -218,38 +218,8 @@ prod_acc = diag(aprop) / colSums(aprop)
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-# IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
-# a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
-defor_str = samples[[orig_stratif]]
-defor_str[defor_str == 8 | defor_str == 9] = 17
-
-# b) Find reference samples = 8 or 9 for each year and change value to 17
-samples_defor = samples
-for (f in 1:(length(field_names))){
-  defor_ind = samples_defor[[field_names[f]]] == 8 | samples_defor[[field_names[f]]] == 9
-  samples_defor@data[defor_ind,field_names[f]] = 17
-}
-
-# c) Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
-defor_str_totals = ss 
-class17a = defor_str_totals[defor_str_totals$stratum == 8,] + defor_str_totals[defor_str_totals$stratum == 9,]
-defor_str_totals = rbind(defor_str_totals, class17a)
-defor_str_totals = defor_str_totals[!(defor_str_totals$stratum == 8 | defor_str_totals$stratum == 9),]
-
-defor_samp_totals = strata_pixels 
-class17b = defor_samp_totals[defor_samp_totals$Group.1 == 8,] + defor_samp_totals[defor_samp_totals$Group.1 == 9,]
-defor_samp_totals = rbind(defor_samp_totals, class17b)
-defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
-
-# Deformode modifies output from HERE
-
-# Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
-if (deformode == TRUE){
-  ref_codes = sort(unique(unlist(samples_defor@data[field_names])))
-}else { 
-  ref_codes = sort(unique(unlist(samples@data[field_names])))
-}
-
+# Get unique strata codes for all the years
+ref_codes = sort(unique(unlist(samples@data[field_names])))
 
 # Initialize variables for area proportions, variances, etc (Step 1)
 area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
@@ -275,11 +245,7 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
-  if (deformode == FALSE){
-    prop_out = calc_area_prop(samples[[orig_stratif]], samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
-  } else {
-    prop_out = calc_area_prop(defor_str, samples_defor[[field_names[y+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
-  }
+  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[field_names[y+1]]], ss, strata_pixels, ref_codes) 
   
   # Assign outputs of Step 1
   area_prop[y,] = prop_out[[1]]
@@ -289,11 +255,7 @@ for (y in (1:(length(years)-1))){
   tot_area_pix = prop_out[[5]] # Will be overwritten with the same value anyway...
   
   # Run step two
-  if (deformode == FALSE){
-    se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
-  } else {
-    se_prop[y,] = calc_se_prop(defor_str_totals, defor_samp_totals, ref_var_list[[y]], ref_codes, tot_area_pix)
-  }
+  se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
   
   # Run and assign outputs of Step 3
   areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
