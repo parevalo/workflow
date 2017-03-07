@@ -152,6 +152,12 @@ for (row in 1:rows){
 
 names(df) = field_names
 
+# Recalculate "original stratification", needed when we use a LUT different than the original
+strata = vector()
+for (row in 1:rows){
+  strata[row] = calculate_strata(samples@data["CODE1"][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+}
+
 # Attach table to shapefile 
 samples@data[,field_names] <- df
 #writeOGR(samples, "sample_yearly_strata", "sample_yearly_strata", driver="ESRI Shapefile", overwrite_layer = T)
