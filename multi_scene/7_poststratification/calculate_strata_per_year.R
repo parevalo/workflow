@@ -25,56 +25,27 @@ wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
 auxpath = "C:/test/"
 
 if( .Platform$OS.type == "unix" )
-    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
+    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/final_sample"
     auxpath = "/media/paulo/785044BD504483BA/test/"
     stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-    #lutpath = "/home/paulo/workflow/multi_scene/data/for-nofor_lut_A.csv"
-    lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
-    
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
-#source(paste0(stratpath, "testsource.R"))
+source(paste0(stratpath, "input_variables_original.R"))
 
-#Set input names and suffixes. Add/remove lutA or lutB at the end, except for the prefix
-# lut_name = "lutA"
-# orig_stratif = paste0("final_strata_01_16_UTM18N_", lut_name)
-# rast_prefix = "final_strata_annual_"
-# rast_suffix = paste0("_UTM18N_", lut_name)
-# pixcount_suffix = paste0("_pixcount_", lut_name, ".csv")
-# pixcount_strata = paste0("strata_01_16", pixcount_suffix)
-
-# Set input names and suffixes
-lut_name = "original_lut"
-orig_stratif = "buffered10_final_strata_01_16_UTM18N"
-#orig_stratif = "final_strata_01_16_UTM18N"
-rast_prefix = "final_strata_annual_"
-rast_suffix = "_UTM18N"
-pixcount_suffix = "_pixcount.csv"
-pixcount_strata = paste0("buffered10_strata_01_16", pixcount_suffix)
-#pixcount_strata = paste0("strata_01_16", pixcount_suffix)
 
 # Set up important global variables
 start = 2001
 end = 2016
-step = 1  # Number of years to do the analysis over
+
 years = seq(start, end, step) 
 ref_names = paste("ref_", years, sep="")
-#cr = c(0,seq(5,15)) # For lutA
-cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
 
 # List of original strata names
 orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
                       "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
                       "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
 
-
-# # Strata names List doesn't have the "all to unclass." class bc it disappears when the ref. samples are collected.
-strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                   "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
-                   "Forest to secondary forest", "Gain of secondary forest", "Loss of secondary forest")
-
-#strata_names = c("Stable forest", "Stable non-forest", "Forest loss", "Forest gain")
 
 # Grid table theme, only used to display some ancillary tables
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
@@ -165,12 +136,6 @@ samples@data[,ref_names] <- df
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Get unique ref codes and map codes for all the years. Then create a single
-# set of unique codes to be used in the confusion matrices
-ref_codes = sort(unique(unlist(samples@data[ref_names])))
-map_codes = sort(unique(unlist(samples@data[map_names])))
-class_codes = sort(union(ref_codes, map_codes))
-
 # Iterate over names and extract to shapefile. We need these to calculate 
 # confusion matrices per year
 map_names = character()
@@ -182,6 +147,12 @@ for (y in 1:(length(years)-1)){
 
 # Read original stratification. Done last so that the reference and map fields are contiguous
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
+
+# Get unique ref codes and map codes for all the years. Then create a single
+# set of unique codes to be used in the confusion matrices
+ref_codes = sort(unique(unlist(samples@data[ref_names])))
+map_codes = sort(unique(unlist(samples@data[map_names])))
+class_codes = sort(union(ref_codes, map_codes))
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
 # Returns a square matrix with all the reference and map codes in the samples
@@ -286,9 +257,9 @@ stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
 # Write results to csv 
 suffix = paste0("_step", step, "_", lut_name, ".csv")
 
-#write.csv(area_ha, file=paste0("area_ha", suffix))
-#write.csv(area_lower, file=paste0("area_lower", suffix))
-#write.csv(area_upper, file=paste0("area_upper", suffix))
+write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
+write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
+write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
 
 ##############################################################################################################
@@ -468,8 +439,8 @@ for(i in 1:length(ref_codes)){
   
   grid.newpage()
   grid.draw(g)
-  #filename = paste0(strata_names[[i]], "_areas_me_step", step, "_", lut_name, ".png")
-  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, ".png")
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
 
