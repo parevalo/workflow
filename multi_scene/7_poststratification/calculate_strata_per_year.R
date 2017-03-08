@@ -302,23 +302,6 @@ tt =  ttheme_default(base_size=20)
 grid.table(round(ref_sample_count), theme=tt) # TODO REFORMAT AND SHOW! THIS IS PROBABLY THE KEY TO WIDE CI'S
 png(paste0(savepath, "numchange_strata_ref.png"), width=1000, height = 1000, units = "px"); grid.table(ref_sample_count, theme=tt); dev.off()
 
-# Calculate yearly area change and rate change (percentage of total area that is changing)
-# Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
-chg_area = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
-chg_rate = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
-
-# Iterate over strata labels
-for(i in 1:length(area_ha)){
-  chg_area[,i] = diff(area_ha[,i])
-  chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100 #14 years
-}
-
-#Format and show
-grid.newpage()
-tt =  ttheme_default(base_size=14)
-grid.table(round(chg_rate, digits=2), theme=tt)
-
-
 ## Calculate when break occurred in maps and compare to break in reference samples
 # Incomplete code
 
