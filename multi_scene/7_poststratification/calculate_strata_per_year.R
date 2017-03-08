@@ -31,21 +31,15 @@ if( .Platform$OS.type == "unix" )
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
-source(paste0(stratpath, "input_variables_original.R"))
+source(paste0(stratpath, "input_variables_original.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
 
 
 # Set up important global variables
 start = 2001
 end = 2016
 
-years = seq(start, end, step) 
+years = seq(start, end, 1) 
 ref_names = paste("ref_", years, sep="")
-
-# List of original strata names
-orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
-                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
-
 
 # Grid table theme, only used to display some ancillary tables
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
@@ -67,7 +61,8 @@ samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 samples$CHGDATE <- as.character(samples$CHGDATE)
 
 # Convert reference sample info into vectors containing proper labels per each of
-# the years in our time period.
+# the years in our time period. This takes into account that we could be doing the
+# analysis every two years or more. 
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
 # and name of the fields that store the class codes. Load LUT.
 
@@ -137,10 +132,13 @@ samples@data[,ref_names] <- df
 # Also calculate original strata size, weights, area proportions, and accuracies
 
 # Iterate over names and extract to shapefile. We need these to calculate 
-# confusion matrices per year
+# confusion matrices per year. We DON'T NEED THESE for the area estimation.
+# If we want to create confusion matrices for aggregated years, then we NEED TO
+# CREATE THOSE RASTERS FIRST e.g. (2001-2003 and so on)
 map_names = character()
+short_years = substr(years, 3,4) # Get years in two digit format
 for (y in 1:(length(years)-1)){
-  map_names[y] = paste0(rast_prefix, sprintf("%02d",y), "_", sprintf("%02d",y+1), rast_suffix)
+  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
   map = raster(paste0(auxpath, map_names[[y]], ".tif"))
   samples = extract(map, samples, sp = TRUE) 
 }
@@ -248,10 +246,11 @@ for (y in (1:(length(years)-1))){
   
 }
 
-# Calculate total area per stratum, making sure we only filter the classes
-# present in the reference code list.
-stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
-# map_bias = stratum_areas - area_ha['2016',] # doesn't work in all cases bc FIX!!
+# Calculate total area per stratum, and a filtered version with the reference
+# codes only
+stratum_areas= ss$stratum *30^2 / 100^2
+filtered_stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
+# map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc FIX!!
 # 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
@@ -270,16 +269,16 @@ write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
 strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
 strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
-
-# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+rownames(strata_table) = orig_strata_names 
 # Need to escape special characters, including backslash itself (e.g. $\\alpha$)
-rownames(strata_table) = orig_strata_names
 colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
 print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
 
 # Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
 # Also print to latex to be converted to pdf
 
+# TODO: Fix this block, won't work for all LUTS and time steps
 accuracies = as.data.frame(cbind(usr_acc, prod_acc))
 accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
 colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
@@ -292,20 +291,16 @@ ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimname
 
 for (f in 1:(length(ref_names))){
   # Get table, then check if unique classes is in that table, then use the boolean to assign values
-  if (deformode == FALSE){
-    a = table(samples[[ref_names[f]]])
-  }else{
-    a = table(samples_defor[[ref_names[f]]])
-  }
-  
+  a = table(samples[[ref_names[f]]])
   class_check = ref_codes %in% names(a)
   ref_sample_count[f,class_check] = a
 }
 
-# Format and show
+# Format and show/save
 grid.newpage()
-tt =  ttheme_default(base_size=14)
+tt =  ttheme_default(base_size=20)
 grid.table(round(ref_sample_count), theme=tt) # TODO REFORMAT AND SHOW! THIS IS PROBABLY THE KEY TO WIDE CI'S
+png(paste0(savepath, "numchange_strata_ref.png"), width=1000, height = 1000, units = "px"); grid.table(ref_sample_count, theme=tt); dev.off()
 
 # Calculate yearly area change and rate change (percentage of total area that is changing)
 # Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
