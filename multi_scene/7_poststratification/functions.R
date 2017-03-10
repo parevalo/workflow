@@ -38,7 +38,7 @@ reclass_codes <- function(vector, lut){
 #' returned.
 #' 
 
-calculate_strata <- function(year1, year2, lut){
+calc_strata <- function(year1, year2, lut){
   if (length(year1) != length(year2)){
     stop("Lengths of the two years are different")
   } else {
@@ -222,6 +222,9 @@ calc_ct = function(v1, v2, code_levels){
     l1 = unique(v1)  
     l2 = unique(v2)
     code_levels = sort(union(l1,l2))
+    f1 = factor(v1, levels=code_levels)
+    f2 = factor(v2, levels=code_levels)
+    ct = table(f1, f2)
   } else { 
     f1 = factor(v1, levels=code_levels)
     f2 = factor(v2, levels=code_levels)
