@@ -63,12 +63,19 @@ samples$CHGDATE <- as.character(samples$CHGDATE)
 # Convert reference sample info into vectors containing proper labels per each of
 # the years in our time period. This takes into account that we could be doing the
 # analysis every two years or more. 
+
 # Initialize empty vectors to store the data, current change and class code (start with the first!) 
 # and name of the fields that store the class codes. Load LUT.
+# df stores the labels per year with strata label when there is a change
+# df2 stores only the labels per year, with no strata info.
+# This whole massive loop could be rewritten using the break_calc function used
+# for the break analysis.
 
 rows = nrow(samples)
 df = vector()
+df2 = vector()
 field = vector()
+field2 = vector()
 codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
 lut = read.table(lutpath, header = T, sep = ",")
 
@@ -81,7 +88,8 @@ for (row in 1:rows){
   
       # If there are no changes, just use the only class code for both years
       if (is.na(samples$CHGDATE[row]) == TRUE) {
-        field[i] = calculate_strata(samples$CODE1[row], samples$CODE1[row], lut)
+        field[i] = calc_strata(samples$CODE1[row], samples$CODE1[row], lut)
+        field2[i] = samples$CODE1[row]
       }
     
       # If there is a change, compare each year to the current change year and update that one accordingly
@@ -93,12 +101,14 @@ for (row in 1:rows){
         
         # If we haven't reached change year yet
         if (years[i] < chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,], lut) 
+          field[i] = calc_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,], lut) 
+          field2[i] = samples@data[codelist[current_code]][row,]
         } 
         
         # If we JUST reached a change year
         else if (years[i] == chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,], lut) 
+          field[i] = calc_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,], lut) 
+          field2[i] = samples@data[codelist[current_code+1]][row,]
           # Check if we haven't reached the max number of recorded changes
           if (current_change < samples$NUMCHANGES[row]) {
             current_change = current_change + 1 
@@ -108,19 +118,23 @@ for (row in 1:rows){
         
         # If we went past the last change date, use the last code 
         else if (years[i] > chg_year) {
-          field[i] = calculate_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+          field[i] = calc_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+          field2[i] = samples@data[codelist[current_code]][row,]
         }
       } 
   }
   df <- as.data.frame(rbind(df, field))
+  df2 <- as.data.frame(rbind(df2, field2))
+  
 }
 
 names(df) = ref_names
+names(df2) = ref_names
 
 # Recalculate "original stratification", needed when we use a LUT different than the original
 strata = vector()
 for (row in 1:rows){
-  strata[row] = calculate_strata(samples@data["CODE1"][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+  strata[row] = calc_strata(samples@data["CODE1"][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
 }
 
 # Attach table to shapefile 
