@@ -21,7 +21,7 @@ require(matrixcalc)
 #0) SET VARIABLES/FOLDERS
 
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
-wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
+wd = "C:/OneDrive/Lab/area_calculation/final_sample"
 auxpath = "C:/test/"
 
 if( .Platform$OS.type == "unix" )
@@ -50,11 +50,9 @@ tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fonts
 #1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
 # on when the model break happened. In this version we use all of the points because when done 
-# annually, it does not matter how many changes we found in the TS. However, given that in the shapefile
-# the strata was calculated only betwen first and last label, we need to create as many strata as
-# NUMCHANGES. For this reason a new R function will be introduced to do this. 
+# annually, it does not matter how many changes we found in the TS.  
 
-# Read shapefile with reference strata and change info. Test if working from ubuntu or windows
+# Read shapefile with reference strata and change info. 
 samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # We need to convert the dates to characters bc they are factors right now
@@ -160,11 +158,14 @@ for (y in 1:(length(years)-1)){
 # Read original stratification. Done last so that the reference and map fields are contiguous
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
 
-# Get unique ref codes and map codes for all the years. Then create a single
-# set of unique codes to be used in the confusion matrices
+# Get unique ref codes and map codes for all the years. Also get unique codes from
+# stratification layer (because it may have a buffer that the individual maps don't have)
+# Then create a single set of unique codes to be used in the confusion matrices
 ref_codes = sort(unique(unlist(samples@data[ref_names])))
 map_codes = sort(unique(unlist(samples@data[map_names])))
+strat_codes = sort(unique(unlist(samples@data[orig_stratif])))
 class_codes = sort(union(ref_codes, map_codes))
+class_codes = sort(union(class_codes, strat_codes))
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
 # Returns a square matrix with all the reference and map codes in the samples
@@ -203,6 +204,16 @@ aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
 tot_acc = sum(diag(aprop)) * 100
 usr_acc = diag(aprop) / rowSums(aprop)
 prod_acc = diag(aprop) / colSums(aprop)
+
+# Format and save tables
+nsamp = rowSums(ct)
+ct_save = cbind(ct, nsamp, str_weight)
+
+suffix = paste0("_step", step, "_", lut_name, ".csv")
+write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
+write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
+write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
+
 
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
@@ -286,7 +297,7 @@ print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.funct
 # Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
 # Also print to latex to be converted to pdf
 
-# TODO: Fix this block, won't work for all LUTS and time steps
+# TODO: Fix this block, not working at all
 accuracies = as.data.frame(cbind(usr_acc, prod_acc))
 accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
 colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
