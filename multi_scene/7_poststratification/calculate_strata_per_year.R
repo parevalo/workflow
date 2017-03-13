@@ -258,7 +258,7 @@ for (y in (1:(length(years)-1))){
 # codes only
 stratum_areas= ss$stratum *30^2 / 100^2
 filtered_stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
-# map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc FIX!!
+map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc 
 # 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
@@ -310,6 +310,7 @@ tt =  ttheme_default(base_size=20)
 grid.table(round(ref_sample_count), theme=tt) 
 png(paste0(savepath, "numchange_strata_ref.png"), width=1000, height = 1000, units = "px"); grid.table(ref_sample_count, theme=tt); dev.off()
 
+## BREAK ANALYSIS
 ## Calculate when break occurred in maps and compare to break in reference samples
 
 # Function to return the indices of the locations where a there is a change in 
@@ -344,9 +345,6 @@ for (y in 1:length(years)){
 # After reading, prepend an X to be able to call columns by name
 rast_names = paste0("X", rast_names)
 
-# TEST ROW
-delete = break_calc(alt_samples@data[570,23:38])
-
 # Get break indices (column) for REFERENCE data in ORIGINAL class codes (e.g no strata codes)
 bi_ref = apply(df2, MARGIN = 1, FUN = break_calc)
 # Get the max number of elements in a subelement of the list
@@ -379,11 +377,11 @@ ref_chg = samples@data["NUMCHANGES"] <= 1
 numchg_map = apply(bi_map, MARGIN = 1, FUN = function(x) length(unique(na.omit(x))))
 map_chg = numchg_map <= 1
 subind = which(ref_chg & map_chg)
+subind2 = which(!(ref_chg & map_chg)) # Get the complementary indices, we will need them
 
 # Subset reference and map labels based on those indices
 # Remove all the NA's (effectively making it a vector)
 bi_ref_sub = bi_ref[subind, ]
-delete = bi_ref[subind2,]
 bi_ref_sub = bi_ref_sub[!is.na(bi_ref_sub)]
 
 bi_map_sub = bi_map[subind, ]
@@ -392,7 +390,7 @@ bi_map_sub = bi_map_sub[!is.na(bi_map_sub)]
 # Function to get the strata codes using those indices, both for reference and maps.
 # There must be a way to vectorize that but I don't see it
 get_break_strata = function(rw, index){
-  # When there is no change for reference (=0) or for map (-1)
+  # When there is no change for reference (=0)
   if(index <= 0){
     code = rw[,1]
   } else {
@@ -411,18 +409,26 @@ for(i in 1:length(subind)){
 }
 
 # Create dataframe with ref breaks map breaks and their corresponding labels.
-
+# Create a larger df with these results and the row id so that we can go back to the 
+# original samples easily. 
 break_ref_df = cbind(bi_ref_sub, break_ref)
 break_map_df = cbind(bi_map_sub, break_map)
+break_compare = as.data.frame(cbind(subind, break_ref_df, break_map_df, samples@data[subind, "PTRW"]))
+colnames(break_compare) = c("row_id", "ref_year", "ref_label", "map_year", "map_label", "ptrw")
 
+# Convert the indices to actual years to make subsequent analysis easier
+# (Just add 2000 and replace 2000 with zeros!)
+break_compare$ref_year = break_compare$ref_year + 2000
+break_compare$ref_year[break_compare$ref_year == 2000] = 0
+
+break_compare$map_year = break_compare$map_year + 2000
+break_compare$map_year[break_compare$map_year == 2000] = 0
 
 # Create confusion matrix of breaks and labels between map and reference
-cm_breaks = calc_ct(bi_map_sub, bi_ref_sub) # former change_cm made of strata_breaks and ref_breaks
-cm_labels = calc_ct(break_map, break_ref)
+cm_breaks = calc_ct(break_compare$map_year, break_compare$ref_year)
+cm_labels = calc_ct(break_compare$map_label, break_compare$ref_label)
 
 # Add row and column totals and display/save
-rownames(cm_breaks) = c(0,years)
-colnames(cm_breaks) = c(0,years)
 cm_breaks = cbind(cm_breaks, total=rowSums(cm_breaks))
 cm_breaks = rbind(cm_breaks, total=colSums(cm_breaks)) 
 
@@ -432,8 +438,67 @@ grid.newpage()
 grid.table(round(cm_breaks, digits=2), theme=tt)
 png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(cm_breaks, theme=tt); dev.off()
 
+# Find records for any given set of map year (from 1 to 16) and change year and get comparison of labels for it
+# Eg show label distribution for BREAK OMISSION ERRORS. 
+records = break_compare[break_compare$map_year == 0 & break_compare$ref_year != 0,]
+calc_ct(records$map_label, records$ref_label)
 
-# Create confusion matrices per year between reference and map labels MODIFY TO USE THE SUBSETS ABOVE
+# Eg show label distribution for BREAK COMMISSION ERRORS
+records = break_compare[break_compare$map_year != 0 & break_compare$ref_year == 0,]
+calc_ct(records$map_label, records$ref_label)
+
+# Eg show label distribution for EXACT CHANGE MATCH BREAK DETECTION
+records = break_compare[(break_compare$map_year == break_compare$ref_year) & (break_compare$map_year !=0 & break_compare$ref_year != 0),]
+calc_ct(records$map_label, records$ref_label)
+
+# Eg show label distribution for STABLE MATCH
+records = break_compare[break_compare$map_year == 0 & break_compare$ref_year == 0,]
+calc_ct(records$map_label, records$ref_label)
+
+# Can also be done for labels, to find years of break
+records = break_compare[break_compare$map_label == 8 & break_compare$ref_label == 8,]
+calc_ct(records$map_year, records$ref_year)
+
+# Analyze strata breaks vs ref breaks per path/row
+break_compare$breakdif = break_compare$ref_year - break_compare$map_year
+
+# Calculate type of break difference per sample: ommited change, commited change, 
+# detected change with small ofset in timing (either positive or negative), 
+# exact change match (first change detected in the same year) or stable match
+# (no changes detected in reference or maps)
+
+break_compare$type[break_compare$breakdif > 2000] = "omission"
+break_compare$type[break_compare$breakdif < -2000] = "comission" 
+break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "pos_offset" 
+break_compare$type[(break_compare$breakdif < 0) & (break_compare$breakdif > -2000)] = "neg_offset" 
+# Assume rows == 0 are exact change matches, then overwrite those that are stable matches
+break_compare$type[break_compare$breakdif == 0] = "exact_change_match" 
+break_compare$type[(break_compare$ref_year == 0) & (break_compare$map_year == 0)] = "stable_match"
+
+# Create new dataframe with the original number of rows and populate with the
+# results. Fill in the rows with no results (those that we didnt analyze)
+long_break_compare = data.frame(matrix(ncol = ncol(break_compare), nrow = nrow(df)))
+colnames(long_break_compare) = colnames(break_compare)
+long_break_compare[subind, ] = break_compare
+long_break_compare[subind2, "type"] = "not_analyzed"
+long_break_compare[subind2, "ptrw"] = samples@data[subind2,"PTRW"]
+
+# Aggregate results and calculate total points per path-row. 
+breakdif_count = aggregate(long_break_compare$type, by=list(long_break_compare$ptrw), FUN="summary")
+total_ptrw_pts = apply(breakdif_count[,2], MARGIN = 1, FUN = "sum")
+
+# # Calculate number of each type of change as ratios of the total
+bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) 
+rownames(bd_ratios) = breakdif_count$Group.1
+bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
+
+# Write aggregated results to CSV and row results to shapefile
+write.csv(bd_ratios_df, paste0(savepath, "LC_change_ratios_pathrow.csv"))
+samples@data[,names(long_break_compare)] <- long_break_compare
+writeOGR(samples, paste0(savepath, "sample_yearly_strata_break_analysis"), "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
+
+
+# Create confusion matrices per year between reference and map labels. USING FULL DATA HERE
 cm_list = list()
 for (y in 1:(length(years) - 1)){
   cm_list[[y]] = calc_ct(samples[[map_names[y]]], samples[[ref_names[y]]], class_codes)
@@ -677,42 +742,3 @@ dtf = as.data.frame(cbind(years, t(fpc)))
 colnames(dtf) = c("Years", "Count")
 
 
-# Analyze strata breaks vs ref breaks per path/row
-break_compare = as.data.frame(cbind(ref_breaks, strata_breaks, samples@data$PTRW))
-colnames(break_compare) = c("ref_breaks", "strata_breaks", "ptrw")
-break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
-
-# Calculate type of break difference per row: ommited change, commited change, 
-# detected change with small ofset in timing (either positive or negative), 
-# exact change match (first change detected in the same year) or stable match
-# (no changes detected in reference or maps)
-# THIS ANALYSIS ONLY COMPARES THE FIRST BREAK FOR SIMPLICITY'S SAKE
-# DOESNT TAKE LABELS INTO ACCOUNT, JUST TIMING OF BREAKS
-
-break_compare$type[break_compare$breakdif > 2000] = "omission"
-break_compare$type[break_compare$breakdif < -2000] = "comission" # small negative numbers ARE ALSO SMALL OFFSET (e.g 2002 - 2004)
-break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "pos_offset" 
-break_compare$type[(break_compare$breakdif < 0) & (break_compare$breakdif > -2000)] = "neg_offset" 
-# Assume rows == 0 are exact change matches, then overwrite those that are stable matches
-break_compare$type[break_compare$breakdif == 0] = "exact_change_match" 
-break_compare$type[(break_compare$ref_breaks == 0) & (break_compare$strata_breaks == 0)] = "stable_match"
-
-# Aggregate results and calculate total points per path-row 
-breakdif_count = aggregate(break_compare$type, by=list(break_compare$ptrw), FUN="summary")
-total_ptrw_pts = apply(breakdif_count[,2], MARGIN = 1, FUN = "sum")
-
-# # Calculate number of each type of change as ratios of the total
-bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) 
-rownames(bd_ratios) = breakdif_count$Group.1
-bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
-
-# Write aggregated results to CSV and row results to shapefile
-write.csv(bd_ratios_df, "LC_change_ratios_pathrow.csv")
-samples@data[,names(break_compare)] <- break_compare
-writeOGR(samples, "sample_yearly_strata_break_analysis", "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
-     
-# Re check change_cm and this, just in case
-   
-#TODO
-
-# - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
