@@ -10,10 +10,16 @@ rast_suffix = "_UTM18N"
 pixcount_suffix = "_pixcount.csv"
 pixcount_strata = paste0("strata_01_16", pixcount_suffix)
 
-# Reference strata names and other variables
+# Reference strata names (Ordered names of the classes that will get their areas estimated based on the reference samples)
 strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
                  "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
                  "Forest to secondary forest", "Gain of secondary forest", "Loss of secondary forest")
+
+# List of original strata names (Ordered names of all the classes from the original stratification, including those for which
+# areas won't be estimated)
+orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
+                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
+                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
 
 cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
 step = 1  # Number of years to do the analysis over
