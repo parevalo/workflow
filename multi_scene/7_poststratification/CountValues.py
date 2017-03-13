@@ -16,14 +16,11 @@ def count_pixels(input, output):
     raster = rasterio.open(input)
     data = raster.read(1)
     
-    # Count unique values 
-    flatraster = data.flatten()
-    stats = np.bincount(flatraster)
-    max = flatraster.max()
-    min = flatraster.min()
-    outarray = np.zeros((max+1, 2))
-    outarray[:, 0] = np.arange(max+1)
-    outarray[:, 1] = stats
+    # Count unique values
+    id_unique, id_count = np.unique(data, return_counts=True)
+    outarray = np.zeros((len(id_unique), 2))
+    outarray[:, 0] = id_unique
+    outarray[:, 1] = id_count
 
     # Save csv with classes and pixels per class
     np.savetxt(output, outarray, delimiter=',', header="stratum,pixels", fmt='%01d')
