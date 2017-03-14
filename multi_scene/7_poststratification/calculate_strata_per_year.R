@@ -279,6 +279,17 @@ write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
 write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
+# Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
+
+prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, ss, strata_pixels, ref_codes) 
+se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
+areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_orig)
+
+areas_orig = data.frame(t(sapply(areas_out_orig,c)))
+colnames(areas_orig) = ref_codes
+rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
+write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata.csv"))
+
 
 ##############################################################################################################
 # 5) CREATE SOME USEFUL TABLES
