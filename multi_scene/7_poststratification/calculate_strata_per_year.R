@@ -57,6 +57,8 @@ samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # We need to convert the dates to characters bc they are factors right now
 samples$CHGDATE <- as.character(samples$CHGDATE)
+# IF WE WANT TO REMOVE OMISSION ERRORS TO ANALYZE IMPACT ON RESULTS
+#samples = samples[-c(273, 898, 635),]
 
 # Convert reference sample info into vectors containing proper labels per each of
 # the years in our time period. This takes into account that we could be doing the
@@ -251,7 +253,7 @@ for (y in (1:(length(years)-1))){
   filtered_ss[[y]] = prop_out[[3]]
   ref_prop_list[[y]] = prop_out[[4]]
   tot_area_pix = prop_out[[5]] # Will be overwritten with the same value anyway...
-  
+
   # Run step two
   se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
   
@@ -529,7 +531,7 @@ for (y in 1:(length(years) - 1)){
 }
 
 
-# Compare total breaks detected per year
+# Compare total breaks detected per years
 total_breaks = cbind(cm_breaks["total",], cm_breaks[,"total"])
 colnames(total_breaks) = c("ref_breaks", "map_breaks")
 
@@ -598,7 +600,7 @@ regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) +
   scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Area [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu",  breaks=levels(regr_area_melt$Var2), guide = guide_legend(reverse=T)) + 
+  scale_fill_brewer(palette="GnBu",  breaks=levels(as.factor((regr_area_melt$Var2))), guide = guide_legend(reverse=T)) + 
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13),
   legend.title=element_blank()) #+ 
   #annotate("segment", x = 2016, xend=2016, y = 732031.3, yend = 416495.7, colour = "black", linetype=2) +
@@ -738,5 +740,5 @@ for (f in ref_names){
 
 dtf = as.data.frame(cbind(years, t(fpc)))
 colnames(dtf) = c("Years", "Count")
-
+plot(dtf,type="l")
 
