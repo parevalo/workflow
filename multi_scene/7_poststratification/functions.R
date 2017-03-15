@@ -147,7 +147,7 @@ calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_tot
   fss = strata_totals[strata_totals[,1] %in% str_codes,]
   # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
   for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE samp_strata. #CHECK!!!!!!
+    # totalarea_pix is REQUIRED here even if there are no reference counts for a given stratum
     class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
   }
   return(list(class_prop, ref_var, fss, ref_prop, totalarea_pix)) 

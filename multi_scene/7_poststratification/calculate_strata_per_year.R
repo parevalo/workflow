@@ -202,8 +202,8 @@ aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
 
 # Calculate accuracies
 tot_acc = sum(diag(aprop)) * 100
-usr_acc = diag(aprop) / rowSums(aprop)
-prod_acc = diag(aprop) / colSums(aprop)
+usr_acc = diag(aprop) / rowSums(aprop) *100
+prod_acc = diag(aprop) / colSums(aprop) *100
 
 # Format and save tables
 nsamp = rowSums(ct)
