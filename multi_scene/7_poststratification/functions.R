@@ -88,7 +88,7 @@ calculate_strata_old <- function(year1, year2){
 #' for a given year/map.
 #'
 #' @param samp_strata Vector with numeric codes representing the original stratification of each sample
-#' @param samp_reference Vector with numeric codes representing the reference stratification for that year/map
+#' @param samp_reference Vector with numeric codes representing the reference label for that year/map
 #' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
 #' in the original strata. The first column must have the same codes found in the original stratification 
 #' and the second must have the total number of PIXELS of each class in that original strata map.
