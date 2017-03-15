@@ -280,6 +280,8 @@ write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
+# Using the same equations givee quivalent results to doing it manually via the
+# confusion matrix.
 
 prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, ss, strata_pixels, ref_codes) 
 se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
@@ -578,32 +580,6 @@ for(i in 1:length(ref_codes)){
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
-
-
-## Plot forest change per year. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
-# Get only classes we're interested in
-for_change = chg_area[,c(2, 8, 9)]
-# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
-# Positive values (and also small values) in the "to other" column are attributed to rounding errors
-# While larger ones are attributed to changes from forest to other land cover type (class 0)
-for_to_other = rowSums(for_change[,1:3])
-for_change = cbind(for_change, for_to_other)
-for_change = abs(for_change[,2:4])
-colnames(for_change) = c("To pasture", "To secondary forest", "To other")
-
-# Melt and plot. 
-for_change_melt = melt(for_change)
-forest_plot <- ggplot(for_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack") + 
-  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu", breaks=levels(for_change_melt$Var2), guide = guide_legend(reverse=T)) + 
-  theme(legend.title=element_blank()) +
-  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
-
-print(forest_plot)
-#ggsave("forest_change.png", plot=forest_plot, device="png") 
 
 
 ## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
