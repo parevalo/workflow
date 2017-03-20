@@ -38,7 +38,7 @@ source(paste0(stratpath, "input_variables_original.R")) # CHANGE THIS FILE TO RU
 start = 2001
 end = 2016
 
-years = seq(start, end, 1) 
+years = seq(start, end, step) 
 ref_names = paste("ref_", years, sep="")
 
 # Grid table theme, only used to display some ancillary tables
@@ -58,7 +58,7 @@ samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 # We need to convert the dates to characters bc they are factors right now
 samples$CHGDATE <- as.character(samples$CHGDATE)
 # IF WE WANT TO REMOVE OMISSION ERRORS TO ANALYZE IMPACT ON RESULTS
-#samples = samples[-c(273, 898, 635),]
+#samples = samples[-c(273, 899, 636),]
 
 # Convert reference sample info into vectors containing proper labels per each of
 # the years in our time period. This takes into account that we could be doing the
