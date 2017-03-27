@@ -17,6 +17,8 @@ def raster_histogram(input, varname):
 
     for i in raster.indexes:
         fig, ax = plt.subplots(1)
+        # TODO: Make this calculation automatic based on SD or something
+        ax.set_xlim([-0.5, 0.5])
         show_hist(raster.read(i, masked=True), bins=50, lw=2, masked=True, alpha=0.6,
                   title="Histogram - band{}".format(i), ax=ax, facecolor='blue')
         plt.xlabel(varname)
