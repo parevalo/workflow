@@ -5,9 +5,11 @@ import rasterio
 from rasterio.plot import show_hist
 import matplotlib.pyplot as plt
 
+
 @click.command()
 @click.argument('input', metavar='<input raster>', nargs=1, type=click.Path(exists=True, resolve_path=True))
-def raster_histogram(input):
+@click.argument('varname', metavar='<variable name>', default='Value',  type=click.STRING)
+def raster_histogram(input, varname):
     """Create raster histograms each band in a raster and save them to file"""
     
     # Read the data
@@ -17,7 +19,8 @@ def raster_histogram(input):
         fig, ax = plt.subplots(1)
         show_hist(raster.read(i, masked=True), bins=50, lw=2, masked=True, alpha=0.6,
                   title="Histogram - band{}".format(i), ax=ax, facecolor='blue')
-        fig.savefig("hist_band{}".format(i), dpi=300, bbox_inches='tight')
+        plt.xlabel(varname)
+        fig.savefig(varname + "_hist_band{}".format(i), dpi=300, bbox_inches='tight')
 
 
 if __name__ == '__main__':
