@@ -10,12 +10,12 @@ export GDAL_CACHEMAX=2048
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
 
 # Set distance in pixels and file names
-npix=1
+npix=5
 bname=final_strata_01_16_UTM18N
 in_name=$bname".tif"
 out_sieve=$bname"_sieved_for_buffer.tif"
-out_buff=$bname"_bufferB"$npix
-out_strata="bufferedB"$npix"_"$bname".tif"
+out_buff=$bname"_buffer"$npix"B"
+out_strata="buffered"$npix"B_"$bname".tif"
 
 spath=/projectnb/landsat/projects/Colombia/workflow/multi_scene
 lut=poststrat_buffer_lut.csv
