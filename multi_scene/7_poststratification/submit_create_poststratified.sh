@@ -26,6 +26,7 @@ lut=poststrat_buffer_lut.csv
 # Buffer from classes of interest (e.g. pastures)  INTO the forest.
 # Original classes used -values 4,5,8,9,11,13,14 -maxdist $npix \
 
+qsub -j y -b y -V -N buff_gdal -hold_jid sieve_strata \
  gdal_proximity.py $out_sieve $out_buff".tif" \
   -values 8 -maxdist $npix \
    -fixed-buf-val 1 -nodata 0 -ot Byte -co "COMPRESS=PACKBITS"
