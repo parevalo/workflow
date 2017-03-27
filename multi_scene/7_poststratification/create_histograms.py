@@ -15,8 +15,8 @@ def raster_histogram(input):
 
     for i in raster.indexes:
         fig, ax = plt.subplots(1)
-        show_hist(raster.read(i, masked=True), bins=50, lw=2, masked=True, alpha=0.3,
-                  title="Histogram - band{}".format(i), ax=ax, color='blue')
+        show_hist(raster.read(i, masked=True), bins=50, lw=2, masked=True, alpha=0.6,
+                  title="Histogram - band{}".format(i), ax=ax, facecolor='blue')
         fig.savefig("hist_band{}".format(i), dpi=300, bbox_inches='tight')
 
 
