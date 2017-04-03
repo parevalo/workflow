@@ -169,13 +169,34 @@ strat_codes = sort(unique(unlist(samples@data[orig_stratif])))
 class_codes = sort(union(ref_codes, map_codes))
 class_codes = sort(union(class_codes, strat_codes))
 
+# Create a single variables with the column names for reference labels, map labels and
+# original stratification to simplify column indexing and avoid using col numbers
+sample_columns = c(ref_names, map_names, orig_stratif)
+
+# Add many correct forest samples, if enabled in input file
+if(add_samples == TRUE){
+  if(nforest > 0){ # If we want to add samples to stable forest class
+    df_add <- data.frame(matrix(1,ncol = 32, nrow = nforest)) 
+    colnames(df_add) = sample_columns
+    samples@data = rbind(samples@data[,sample_columns], df_add)
+    strata = c(strata, rep(1, nforest))
+  }
+  if(nbuffer > 0){  # If we want to add samples to the buffer, if it exists
+    df_add2 <- data.frame(matrix(1,ncol = 31, nrow = nbuffer)) # Add forest to ref and map labels
+    df_add2 = cbind(df_add2, rep(16, nbuffer)) # Add buffer class to stratification column
+    colnames(df_add2) = sample_columns
+    samples@data = rbind(samples@data[,sample_columns], df_add2)
+    strata = c(strata, rep(1, nbuffer))
+  }
+}
+
 # Crosstab final strata and reference strata (for the same period 01-16) 
 # Returns a square matrix with all the reference and map codes in the samples
 
 ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
-# REQUIRED for comparison between mapped and estimated areas.
+# REQUIRED for comparison between mapped and estimated areas only.
 mapped_areas_list = list()
 filenames = dir(auxpath, pattern=(paste0("*", pixcount_suffix)))
 for(i in 1:length(filenames)){

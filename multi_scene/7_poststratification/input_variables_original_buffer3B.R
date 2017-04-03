@@ -1,14 +1,14 @@
 # File with path to necessary files to run the area estimation analysis with the original parameters
 
 # Paths and suffixes/prefixes
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/results/original_buffer5/"
+savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/results/original_buffer3B/"
 lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
 lut_name = "original_lut"
-orig_stratif = "buffered5_final_strata_01_16_UTM18N"
+orig_stratif = "buffered3B_final_strata_01_16_UTM18N"
 rast_prefix = "final_strata_annual_"
 rast_suffix = "_UTM18N"
 pixcount_suffix = "_pixcount.csv"
-pixcount_strata = paste0("buffered5_strata_01_16", pixcount_suffix)
+pixcount_strata = paste0("buffered3B_strata_01_16", pixcount_suffix)
 
 # Reference strata names (Ordered names of the classes that will get their areas estimated based on the reference samples)
 strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
