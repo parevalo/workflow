@@ -31,7 +31,7 @@ if( .Platform$OS.type == "unix" )
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
-source(paste0(stratpath, "input_variables_original.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
+source(paste0(stratpath, "input_variables_defor_lut.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
 
 
 # Set up important global variables
@@ -175,20 +175,24 @@ sample_columns = c(ref_names, map_names, orig_stratif)
 
 # Add many correct forest samples, if enabled in input file
 if(add_samples == TRUE){
+  add_samples_suffix = paste0("_nfor", nfor, "_nbuf", nbuf)
   if(nforest > 0){ # If we want to add samples to stable forest class
-    df_add <- data.frame(matrix(1,ncol = 32, nrow = nforest)) 
+    df_add <- data.frame(matrix(1,ncol = 32, nrow = nfor)) 
     colnames(df_add) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add)
-    strata = c(strata, rep(1, nforest))
+    strata = c(strata, rep(1, nfor))
   }
   if(nbuffer > 0){  # If we want to add samples to the buffer, if it exists
-    df_add2 <- data.frame(matrix(1,ncol = 31, nrow = nbuffer)) # Add forest to ref and map labels
+    df_add2 <- data.frame(matrix(1,ncol = 31, nrow = nbuf)) # Add forest to ref and map labels
     df_add2 = cbind(df_add2, rep(16, nbuffer)) # Add buffer class to stratification column
     colnames(df_add2) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add2)
-    strata = c(strata, rep(1, nbuffer))
+    strata = c(strata, rep(1, nbuf))
   }
+} else {
+  add_samples_suffix = ""
 }
+
 
 # Crosstab final strata and reference strata (for the same period 01-16) 
 # Returns a square matrix with all the reference and map codes in the samples
@@ -232,7 +236,7 @@ prod_acc = diag(aprop) / colSums(aprop) *100
 nsamp = rowSums(ct)
 ct_save = cbind(ct, nsamp, str_weight)
 
-suffix = paste0("_step", step, "_", lut_name, ".csv")
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
 write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
 write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
@@ -296,7 +300,7 @@ map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases
 # 2016 is not always created if we aggregate the years.
 
 # Write results to csv 
-suffix = paste0("_step", step, "_", lut_name, ".csv")
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 
 write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
 write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
@@ -304,7 +308,7 @@ write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
 # Using the same equations givee quivalent results to doing it manually via the
-# confusion matrix.
+# confusion matrix. The calculation will include any extra samples if they were added abpve
 
 prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, ss, strata_pixels, ref_codes) 
 se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
@@ -313,7 +317,7 @@ areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_or
 areas_orig = data.frame(t(sapply(areas_out_orig,c)))
 colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
-write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata.csv"))
+write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 
 ##############################################################################################################
@@ -599,7 +603,7 @@ for(i in 1:length(ref_codes)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, ".png")
+  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
