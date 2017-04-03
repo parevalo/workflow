@@ -184,7 +184,7 @@ if(add_samples == TRUE){
   }
   if(nbuffer > 0){  # If we want to add samples to the buffer, if it exists
     df_add2 <- data.frame(matrix(1,ncol = 31, nrow = nbuf)) # Add forest to ref and map labels
-    df_add2 = cbind(df_add2, rep(16, nbuffer)) # Add buffer class to stratification column
+    df_add2 = cbind(df_add2, rep(16, nbuf)) # Add buffer class to stratification column
     colnames(df_add2) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add2)
     strata = c(strata, rep(1, nbuf))
