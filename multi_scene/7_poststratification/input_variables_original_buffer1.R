@@ -26,7 +26,7 @@ step = 1  # Number of years to do the analysis over
 
 # Run estimation with additional number of rows with perfect forest classification
 add_samples = FALSE 
-nforest = 200 # of perfect forest samples in stable forest class
-nbuffer = 50 # of perfect forest samples in buffer (if applicable)  
+nfor = 200 # of perfect forest samples in stable forest class
+nbuf = 50 # of perfect forest samples in buffer (if applicable)  
 
 
