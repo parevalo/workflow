@@ -177,14 +177,14 @@ sample_columns = c(ref_names, map_names, orig_stratif)
 if(add_samples == TRUE){
   add_samples_suffix = paste0("_nfor", nfor, "_nbuf", nbuf)
   if(nfor > 0){ # If we want to add samples to stable forest class
-    df_add <- data.frame(matrix(1,ncol = 32, nrow = nfor)) 
+    df_add <- data.frame(matrix(1,ncol = length(sample_columns), nrow = nfor))
     colnames(df_add) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add)
     strata = c(strata, rep(1, nfor))
   }
   if(nbuf > 0){  # If we want to add samples to the buffer, if it exists
-    df_add2 <- data.frame(matrix(1,ncol = 31, nrow = nbuf)) # Add forest to ref and map labels
-    df_add2 = cbind(df_add2, rep(16, nbuf)) # Add buffer class to stratification column
+    df_add2 <- data.frame(matrix(1,ncol = length(sample_columns)-1, nrow = nbuf)) # Add forest to ref and map labels
+    df_add2 = cbind(df_add2, rep(16, nbuf)) # Add buffer class to stratification column, the code is 16
     colnames(df_add2) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add2)
     strata = c(strata, rep(1, nbuf))
