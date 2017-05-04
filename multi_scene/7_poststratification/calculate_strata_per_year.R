@@ -568,6 +568,7 @@ colnames(total_breaks) = c("ref_breaks", "map_breaks")
 
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
+allplots = list()
 
 for(i in 1:length(ref_codes)){
   
@@ -586,6 +587,9 @@ for(i in 1:length(ref_codes)){
     ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
+  # Put plots together on a list and change some properties in order to save them together as a single plot
+  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  allplots[[i]] = a2
   
   # Plot margin of error
   b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
@@ -607,6 +611,11 @@ for(i in 1:length(ref_codes)){
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 
 }
+
+# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
+multiplots = grid.arrange(grobs=allplots, ncol=4)
+ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+
 
 
 ## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
