@@ -24,5 +24,9 @@ orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "St
 cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
 step = 1  # Number of years to do the analysis over
 
+# Run estimation with additional number of rows with perfect forest classification
+add_samples = FALSE 
+nfor = 200 # of perfect forest samples in stable forest class
+nbuf = 50 # of perfect forest samples in buffer (if applicable)  
 
 
