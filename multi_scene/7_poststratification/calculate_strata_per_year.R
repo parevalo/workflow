@@ -4,8 +4,9 @@
 ### 2) Read yearly strata raster and extract values to the SpatialPoints object (i.e. shapefile) 
 ### 3) Calculate reference class area proportions and variance of ref samples per strata
 ### 4) Calculate unbiased standard error for proportion of reference class areas 
-### 5) Create some useful tables
-### 6) Create some useful plots
+### 5) Plot areas and margin of error
+### 6) Create some useful tables
+### 7) Create some useful plots
 
 require(rgdal)
 require(raster)
@@ -174,6 +175,7 @@ class_codes = sort(union(class_codes, strat_codes))
 sample_columns = c(ref_names, map_names, orig_stratif)
 
 # Add many correct forest samples, if enabled in input file
+
 if(add_samples == TRUE){
   add_samples_suffix = paste0("_nfor", nfor, "_nbuf", nbuf)
   if(nfor > 0){ # If we want to add samples to stable forest class
@@ -188,9 +190,17 @@ if(add_samples == TRUE){
     colnames(df_add2) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add2)
     strata = c(strata, rep(1, nbuf))
+    
+    # mat = matrix(1,  ncol=16, nrow=16) ############################# REMOVE/REFORMAT
+    # mat[upper.tri(mat)] = 8
+    # mat = matrix(rep(t(mat), 1) , ncol=ncol(mat) , byrow=TRUE)
+    # df5 = cbind(mat, mat[,2:16], rep(8,16))
+    # colnames(df5) = sample_columns
+    # samples@data = rbind(samples@data[,sample_columns], df5)
+    # strata = c(strata, rep(1, 160))
   }
 } else {
-  add_samples_suffix = ""
+    add_samples_suffix = ""
 }
 
 
@@ -319,9 +329,63 @@ colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
 write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
+##############################################################################################################
+# 5) PLOT AREAS AND MARGINS OF ERROR
+
+## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
+# so I did it with grids. 
+allplots = list()
+
+for(i in 1:length(ref_codes)){
+  
+  # Define data and variables to use
+  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
+  
+  # Plot areas with CI
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
+  # Other custom settings for number of breaks, label formatting and title.
+  
+  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # Put plots together on a list and change some properties in order to save them together as a single plot
+  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  allplots[[i]] = a2
+  
+  # Plot margin of error
+  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # To remove grid and background add this:
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
+  
+  # Use gtable to stack plots together with matching extent and save  
+  g1 <- ggplotGrob(a)
+  g2 <- ggplotGrob(b)
+  g <- rbind(g1, g2, size="first") # stack the two plots
+  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
+  
+  grid.newpage()
+  grid.draw(g)
+  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  
+}
+
+# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
+multiplots = grid.arrange(grobs=allplots, ncol=4)
+ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+
+
 
 ##############################################################################################################
-# 5) CREATE SOME USEFUL TABLES
+# 6) CREATE SOME USEFUL TABLES
 
 # Export table of  sample count, areas, percentages
 
@@ -562,60 +626,7 @@ colnames(total_breaks) = c("ref_breaks", "map_breaks")
 
 
 ##############################################################################################################
-# 6) CREATE SOME USEFUL PLOTS
-# Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
-# reference.
-
-## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
-# so I did it with grids. 
-allplots = list()
-
-for(i in 1:length(ref_codes)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
-  
-  # Plot areas with CI
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
-  
-  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
-    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # Put plots together on a list and change some properties in order to save them together as a single plot
-  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
-  allplots[[i]] = a2
-  
-  # Plot margin of error
-  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
-    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # To remove grid and background add this:
-  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
-  
-  # Use gtable to stack plots together with matching extent and save  
-  g1 <- ggplotGrob(a)
-  g2 <- ggplotGrob(b)
-  g <- rbind(g1, g2, size="first") # stack the two plots
-  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
-  
-  grid.newpage()
-  grid.draw(g)
-  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
-
-}
-
-# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
-multiplots = grid.arrange(grobs=allplots, ncol=4)
-ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
-
+# 6) CREATE SOME MORE PLOTS, NEEDS TO BE REWRITTEN
 
 
 ## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
