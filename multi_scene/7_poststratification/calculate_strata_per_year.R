@@ -212,9 +212,10 @@ ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
 # REQUIRED for comparison between mapped and estimated areas only.
 mapped_areas_list = list()
-filenames = dir(auxpath, pattern=(paste0("*", pixcount_suffix)))
-for(i in 1:length(filenames)){
-  mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
+
+for(i in 1:(length(short_years)-1)){
+  fname = paste0("strata_", short_years[i], "_", short_years[i+1], pixcount_suffix)
+  mapped_areas_list[[i]] = read.csv(paste0(auxpath,fname), header=TRUE, col.names=c("stratum", "pixels"))
 }
 
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
