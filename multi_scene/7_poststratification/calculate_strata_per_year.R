@@ -216,6 +216,8 @@ mapped_areas_list = list()
 for(i in 1:(length(short_years)-1)){
   fname = paste0("strata_", short_years[i], "_", short_years[i+1], pixcount_suffix)
   mapped_areas_list[[i]] = read.csv(paste0(auxpath,fname), header=TRUE, col.names=c("stratum", "pixels"))
+  # Get rid of rows we don't need, eg class 15, also done below for ss
+  mapped_areas_list[[i]] = mapped_areas_list[[i]][!(mapped_areas_list[[i]]$stratum %in% cr),]
 }
 
 # Create empty matrix to store mapped values and fill
@@ -225,6 +227,9 @@ for (i in 1:length(mapped_areas_list)){
   mapped_areas[i,] = mapped_areas_list[[i]][,2]  
 }
 
+# Calculate strata weights for each of them
+mapped_weights = mapped_areas / rowSums(mapped_areas)
+
 # Convert to ha
 mapped_areas = mapped_areas * 30^2 / 100^2
 
@@ -233,7 +238,6 @@ mapped_areas = mapped_areas * 30^2 / 100^2
 ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
 
 # Filter classes NOT in the list of classes from the pixel count files to be ignored. 
-# TODO: This probably has to be done to all csv files if we decide to use them
 ss = ss[!(ss$stratum %in% cr),] 
 
 # Calculate total number of samples per ORIGINAL stratum. 
