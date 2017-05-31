@@ -11,11 +11,11 @@ pixcount_suffix = paste0("_pixcount_", lut_name, ".csv")
 pixcount_strata = paste0("buffered3B_strata_01_16", pixcount_suffix)
 
 # Reference strata names and other variables
-strata_names = c("Stable forest", "Stable non-forest", "Forest loss", "Forest gain")
-cr = c(0,seq(5,15)) # Classes to ignore from the loaded area count tables
+strata_names = c("Stable forest", "Stable non-forest", "Forest loss")
+cr = c(0,seq(4,15)) # Classes to ignore from the loaded area count tables
 step = 1  # Number of years to do the analysis over
 
 # Run estimation with additional number of rows with perfect forest classification
 add_samples = TRUE 
-nfor = 200 # of perfect forest samples in stable forest class
-nbuf = 100 # of perfect forest samples in buffer (if applicable)  
+nfor = 0 # of perfect forest samples in stable forest class
+nbuf = 50 # of perfect forest samples in buffer (if applicable)  
