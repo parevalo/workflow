@@ -4,8 +4,9 @@
 ### 2) Read yearly strata raster and extract values to the SpatialPoints object (i.e. shapefile) 
 ### 3) Calculate reference class area proportions and variance of ref samples per strata
 ### 4) Calculate unbiased standard error for proportion of reference class areas 
-### 5) Create some useful tables
-### 6) Create some useful plots
+### 5) Plot areas and margin of error
+### 6) Create some useful tables
+### 7) Create some useful plots
 
 require(rgdal)
 require(raster)
@@ -151,11 +152,11 @@ samples@data[,ref_names] <- df
 # CREATE THOSE RASTERS FIRST e.g. (2001-2003 and so on)
 map_names = character()
 short_years = substr(years, 3,4) # Get years in two digit format
-for (y in 1:(length(years)-1)){
-  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
-  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
-  samples = extract(map, samples, sp = TRUE) 
-}
+#for (y in 1:(length(years)-1)){
+#  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
+#  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
+#  samples = extract(map, samples, sp = TRUE) 
+#}
 
 # Read original stratification. Done last so that the reference and map fields are contiguous
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
@@ -174,6 +175,7 @@ class_codes = sort(union(class_codes, strat_codes))
 sample_columns = c(ref_names, map_names, orig_stratif)
 
 # Add many correct forest samples, if enabled in input file
+
 if(add_samples == TRUE){
   add_samples_suffix = paste0("_nfor", nfor, "_nbuf", nbuf)
   if(nfor > 0){ # If we want to add samples to stable forest class
@@ -188,9 +190,17 @@ if(add_samples == TRUE){
     colnames(df_add2) = sample_columns
     samples@data = rbind(samples@data[,sample_columns], df_add2)
     strata = c(strata, rep(1, nbuf))
+    
+    # mat = matrix(1,  ncol=16, nrow=16) ############################# REMOVE/REFORMAT
+    # mat[upper.tri(mat)] = 8
+    # mat = matrix(rep(t(mat), 1) , ncol=ncol(mat) , byrow=TRUE)
+    # df5 = cbind(mat, mat[,2:16], rep(8,16))
+    # colnames(df5) = sample_columns
+    # samples@data = rbind(samples@data[,sample_columns], df5)
+    # strata = c(strata, rep(1, 160))
   }
 } else {
-  add_samples_suffix = ""
+    add_samples_suffix = ""
 }
 
 
@@ -200,19 +210,34 @@ if(add_samples == TRUE){
 ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
-# REQUIRED for comparison between mapped and estimated areas only.
+# REQUIRED for comparison between mapped and estimated areas only. Convert to a function?
 mapped_areas_list = list()
-filenames = dir(auxpath, pattern=(paste0("*", pixcount_suffix)))
-for(i in 1:length(filenames)){
-  mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
+
+for(i in 1:(length(short_years)-1)){
+  fname = paste0("strata_", short_years[i], "_", short_years[i+1], pixcount_suffix)
+  mapped_areas_list[[i]] = read.csv(paste0(auxpath,fname), header=TRUE, col.names=c("stratum", "pixels"))
+  # Get rid of rows we don't need, eg class 15, also done below for ss
+  mapped_areas_list[[i]] = mapped_areas_list[[i]][!(mapped_areas_list[[i]]$stratum %in% cr),]
 }
+
+# Create empty matrix to store mapped values and fill
+mapped_areas = matrix(0, nrow=length(years[2:length(years)]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:length(years)], mapped_areas_list[[1]][,1]))
+
+for (i in 1:length(mapped_areas_list)){
+  mapped_areas[i,] = mapped_areas_list[[i]][,2]  
+}
+
+# Calculate strata weights for each of them
+mapped_weights = mapped_areas / rowSums(mapped_areas)
+
+# Convert to ha
+mapped_areas = mapped_areas * 30^2 / 100^2
 
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
 
 ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
 
 # Filter classes NOT in the list of classes from the pixel count files to be ignored. 
-# TODO: This probably has to be done to all csv files if we decide to use them
 ss = ss[!(ss$stratum %in% cr),] 
 
 # Calculate total number of samples per ORIGINAL stratum. 
@@ -237,9 +262,9 @@ nsamp = rowSums(ct)
 ct_save = cbind(ct, nsamp, str_weight)
 
 suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
-write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
-write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
-write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
+#write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
+#write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
+#write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
 
 
 ##############################################################################################################
@@ -302,9 +327,9 @@ map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases
 # Write results to csv 
 suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 
-write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
-write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
-write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+#write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
+#write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
+#write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
 # Using the same equations givee quivalent results to doing it manually via the
@@ -317,11 +342,79 @@ areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_or
 areas_orig = data.frame(t(sapply(areas_out_orig,c)))
 colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
-write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
+#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
+
+##############################################################################################################
+# 5) PLOT AREAS AND MARGINS OF ERROR
+
+## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
+# so I did it with grids. 
+
+plot_mapped = T
+allplots = list()
+
+for(i in 1:length(ref_codes)){
+  
+  # Define data and variables to use
+  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
+  
+  # Plot areas with CI
+  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
+  # Other custom settings for number of breaks, label formatting and title.
+  
+  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() +
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # Plot MAPPEd areas
+  if(plot_mapped == T){
+    m = geom_line(mapping = aes(x=Years, y=mapped_areas[,i]), linetype=2)
+    a = a+c
+  }
+  
+  # Put plots together on a list and change some properties in order to save them together as a single plot
+  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  allplots[[i]] = a2
+  
+  # Plot margin of error
+  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # To remove grid and background add this:
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
+  
+  # Use gtable to stack plots together with matching extent and save  
+  g1 <- ggplotGrob(a)
+  g2 <- ggplotGrob(b)
+  g <- rbind(g1, g2, size="first") # stack the two plots
+  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
+  
+  grid.newpage()
+  grid.draw(g)
+  
+  if(plot_mapped == T){
+    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, "mapped_areas.png")
+  } else {
+    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
+  }
+  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  
+}
+
+# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
+# NOT YET WORKING WITH THE MAPPED AREAS FOR SOME REASON BUT INDIVIDUALLY PLOTS ARE CORRECT
+multiplots = grid.arrange(grobs=allplots, ncol=4)
+#ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+
 
 
 ##############################################################################################################
-# 5) CREATE SOME USEFUL TABLES
+# 6) CREATE SOME USEFUL TABLES
 
 # Export table of  sample count, areas, percentages
 
@@ -562,60 +655,7 @@ colnames(total_breaks) = c("ref_breaks", "map_breaks")
 
 
 ##############################################################################################################
-# 6) CREATE SOME USEFUL PLOTS
-# Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
-# reference.
-
-## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
-# so I did it with grids. 
-allplots = list()
-
-for(i in 1:length(ref_codes)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
-  
-  # Plot areas with CI
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
-  
-  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
-    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # Put plots together on a list and change some properties in order to save them together as a single plot
-  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
-  allplots[[i]] = a2
-  
-  # Plot margin of error
-  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
-    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # To remove grid and background add this:
-  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
-  
-  # Use gtable to stack plots together with matching extent and save  
-  g1 <- ggplotGrob(a)
-  g2 <- ggplotGrob(b)
-  g <- rbind(g1, g2, size="first") # stack the two plots
-  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
-  
-  grid.newpage()
-  grid.draw(g)
-  filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
-
-}
-
-# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
-multiplots = grid.arrange(grobs=allplots, ncol=4)
-ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
-
+# 6) CREATE SOME MORE PLOTS, NEEDS TO BE REWRITTEN
 
 
 ## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
@@ -663,105 +703,6 @@ forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var
 print(forest_loss_plot)
 #ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
 
-
-# COMPARE MAPPED AREAS WITH ESTIMATES
-
-# Create empty matrix to store mapped values and fill
-mapped_areas = matrix(0, nrow=length(years[2:length(years)]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:length(years)], mapped_areas_list[[1]][,1]))
-
-for (i in 1:length(mapped_areas_list)){
-  mapped_areas[i,] = mapped_areas_list[[i]][,2]  
-}
-
-
-# Convert to ha
-mapped_areas = mapped_areas * 30^2 / 100^2
-
-# Calculate yearly area change and rate change (percentage of total area that is changing)
-# Initialize zero matrix with year (03 to 16) * class (16) dimensions and proper row and column names
-mapped_chg = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
-mapped_rate = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
-
-# Iterate over strata labels
-for(i in 1:ncol(mapped_areas)){
-  mapped_chg[,i] = diff(mapped_areas[,i])
-  mapped_rate[,i] = mapped_chg[,i] / mapped_areas[1:14,i] * 100 #14 years
-}
-
-
-mapped_for_change = mapped_chg[,c(2, 9, 10)] # This matrix has extra cols
-
-# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
-mfor_to_other = rowSums(mapped_for_change[,1:3])
-mapped_for_change = cbind(mapped_for_change, mfor_to_other)
-mapped_for_change = abs(mapped_for_change[,2:4])
-colnames(mapped_for_change) = c("To pasture", "To regrowth", "To other")
-mapped_for_chg = mapped_chg[,c(8,9)] 
-
-## Melt and plot annual areas of change per year 
-mfor_change_melt = melt(mapped_for_change)
-mforest_plot <- ggplot(mfor_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack") + 
-  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu", breaks=levels(mfor_change_melt$Var2), guide = guide_legend(reverse=T)) + 
-  theme(legend.title=element_blank()) +
-  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
-
-print(mforest_plot)
-#ggsave("mapped_forest_change.png", plot=mforest_plot, device="png") 
-
-## Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
-mapped_plots = as.data.frame(mapped_areas[,c(9, 10)])
-mapped_plots = cbind(years[2:length(years)], mapped_plots)
-colnames(mapped_plots) = c("Years", "Forest_to_pasture",  "Forest_to_regrowth")
-
-mfp <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-mfr <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-mdefor <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture + Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-
-print(mdefor)
-#ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
-#ggsave("mapped_forest_to_secondary_forest.png", plot=mfr, device="png") 
-#ggsave("mapped_deforestation.png", plot=mdefor, device="png") 
-
-
-## Plot estimated areas with CI along with mapped areas. The way it is right now is only taking the mapped area of forest to pasture,
-# so the rest of the plots are not correct. I need to fix that.
-
-for(i in 1:length(area_ha)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8']))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped")
-  
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
-  a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha))+ geom_line(aes(x=Years, y=Mapped),linetype=4 )+
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
-  theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
-  filename = paste0(strata_names[[i]], "_areasCI", ".png")
-  
-  print(a)
-  #ggsave(filename, plot=a, device="png") 
-  
-}
 
 ##############################################################################################################
 # MISCELANEOUS
