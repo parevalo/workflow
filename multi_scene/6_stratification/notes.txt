@@ -1,1 +1,0 @@
-sample_map.py -v --size 850 --allocation "50 200 75 50 75 50 50 50 50 50 50 50 50" --mask "15 255" --ndv 255 --vector sample_may2016.shp --seed 10000 stratified strata_01_16_UTM18N_13Strata.tif
