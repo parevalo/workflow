@@ -10,8 +10,10 @@ import pyproj
 @click.command()
 @click.argument('sample_shp', metavar='<input sample shapefile>', nargs=1,
                 type=click.Path(exists=True, resolve_path=True))
-@click.argument('footprints_shp', metavar='<landsat footprints>', nargs=1, type=click.STRING)
-def extract_pathrow(sample_shp, footprints_shp):
+@click.argument('footprints_shp', metavar='<landsat footprints>', nargs=1,
+                type=click.Path(exists=True, resolve_path=True))
+@click.argument('output_shp', metavar='<output shapefile>', nargs=1, type=click.STRING)
+def extract_pathrow(sample_shp, footprints_shp, output_shp):
     """Intersect samples with path-rows and extract their info.
     Assumes both are in the same coordinate system
     If samples intersect the boundary of two scenes, duplicate samples will be created"""
@@ -40,7 +42,7 @@ def extract_pathrow(sample_shp, footprints_shp):
     # to do it in order, create a list with the order of the scenes and then iterate over that list, calling
     # the polygon by the properties.
 
-    with collection("test_out.shp", "w", "ESRI Shapefile", schema, crs=crs) as output_west:
+    with collection(output_shp, "w", "ESRI Shapefile", schema, crs=crs) as output_west:
         for s in scene_list:
             with fiona.open(footprints_shp, "r") as footprints:
                 scene = [scn for scn in footprints if scn['properties']['PTRW'] == s][0]
