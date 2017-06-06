@@ -15,7 +15,7 @@
 cd /projectnb/landsat/projects/Colombia/biannual_samples_june2017
 zpath=/projectnb/landsat/projects/Colombia/Mosaics/M3
 vpath=/projectnb/landsat/projects/Colombia/vector
-scriptpath=/projectnb/landsat/projects/Colombia/workflow/multi_scene/6_stratification
+scriptpath=/projectnb/landsat/projects/Colombia/workflow/multi_scene
 
 # Set year and step info
 first_yr=1
@@ -31,7 +31,7 @@ for yr in $(seq -w $fy $step $ly); do
     # Split samples
     sname=sample_$yr"_"$yr2
     qsub -j y -b y -V -N split_$yr \
-        $scriptpath/split_samples.py $sname".shp" \
+        $scriptpath/6_stratification/split_samples.py $sname".shp" \
          $vpath/amazon_selection_EAST_UTM18_clipped.shp \
           $vpath/amazon_selection_WEST_UTM18.shp \
            $sname"_east.shp" $sname"_west.shp"
@@ -55,6 +55,17 @@ for yr in $(seq -w $fy $step $ly); do
         gdal_polygonize.py $sname"_east_UTM19N.tif" -f '"ESRI Shapefile"' \
          $sname"_east_UTM19N.shp" $sname"_east_UTM19N" ID
 
+    # Assign path-row info to these and save as new. Submit one for east
+    # and one for west. west doesn't need hold_jid
+    qsub -j y -b y -V -N pr_W_$yr \
+        $scriptpath/other/assign_path-row.py $sname"_west.shp" \
+         $vpath/WRS2_amazon_selection_UTM18_no-overlap.shp \
+          $sname_"west_PR.shp"  
+    
+    qsub -j y -b y -V -N pr_E_$yr -hold_jid polig_$yr \
+        $scriptpath/other/assign_path-row.py $sname"_east_UTM19.shp" \
+         $vpath/WRS2_amazon_selection_UTM19_no-overlap.shp \
+          $sname_"east_PR.shp"  
 done
 
 
