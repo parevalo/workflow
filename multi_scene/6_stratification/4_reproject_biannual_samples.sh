@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -l
 
 # Script that performs the following operations:
 # 1) Split samples in the east and west zones into separate shapefiles
