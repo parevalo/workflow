@@ -232,3 +232,11 @@ calc_ct = function(v1, v2, code_levels){
   }
   return(ct)
 }
+
+
+#' Function to read a list of csv's with the class codes and pixel counts
+#' (e.g. 'pixcount' files) and create a table with years
+#' 
+
+# to get the pair of years we are reading
+#regmatches(map_names[[1]],regexpr('[0-9]{2}_[0-9]{2}', map_names[[1]]))

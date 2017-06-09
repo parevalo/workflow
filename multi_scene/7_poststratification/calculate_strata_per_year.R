@@ -32,7 +32,7 @@ if( .Platform$OS.type == "unix" )
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
-source(paste0(stratpath, "input_variables_defor_lut.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
+source(paste0(stratpath, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
 
 
 # Set up important global variables
@@ -152,11 +152,11 @@ samples@data[,ref_names] <- df
 # CREATE THOSE RASTERS FIRST e.g. (2001-2003 and so on)
 map_names = character()
 short_years = substr(years, 3,4) # Get years in two digit format
-#for (y in 1:(length(years)-1)){
-#  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
+for (y in 1:(length(years)-1)){
+  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
 #  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
 #  samples = extract(map, samples, sp = TRUE) 
-#}
+}
 
 # Read original stratification. Done last so that the reference and map fields are contiguous
 samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
@@ -210,7 +210,8 @@ if(add_samples == TRUE){
 ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 
 # Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
-# REQUIRED for comparison between mapped and estimated areas only. Convert to a function?
+# REQUIRED for comparison between mapped and estimated areas only. 
+# TODO: CONVERT THIS SECTION TO A FUNCTION
 mapped_areas_list = list()
 
 for(i in 1:(length(short_years)-1)){
@@ -230,8 +231,14 @@ for (i in 1:length(mapped_areas_list)){
 # Calculate strata weights for each of them
 mapped_weights = mapped_areas / rowSums(mapped_areas)
 
-# Convert to ha
+# Convert areas to ha
 mapped_areas = mapped_areas * 30^2 / 100^2
+
+# Save mapped areas and strata weights to file.
+suffix = paste0("_step", step, "_", lut_name, ".csv")
+write.csv(mapped_areas, file=paste0(savepath, "mapped_areas", suffix))
+write.csv(mapped_weights, file=paste0(savepath, "mapped_areas", suffix))
+
 
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
 
