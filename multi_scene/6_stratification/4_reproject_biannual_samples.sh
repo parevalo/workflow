@@ -1,4 +1,4 @@
-#!/bin/bash -l
+#!/bin/bash
 
 # Script that performs the following operations:
 # 1) Split samples in the east and west zones into separate shapefiles
@@ -8,8 +8,7 @@
 # grid of the east zone in the same way it was done for the mosaics
 # so that it matches the grid individual scenes in that zone for TS interpretation
 # 4) Poligonize those reprojected samples
-# 5) TODO: Add fields to those samples (fiona/shapely script, iterate over scenes
-# to add scene info"
+# 5) Add new column with path-row info (creates new shapefile)
 
 # cd to the biannual samples folder
 cd /projectnb/landsat/projects/Colombia/biannual_samples_june2017
@@ -19,7 +18,7 @@ scriptpath=/projectnb/landsat/projects/Colombia/workflow/multi_scene
 
 # Set year and step info
 first_yr=1
-last_yr=4
+last_yr=16
 step=2
 fy=$(printf %02d $first_yr)
 ly=$(printf %02d `expr $last_yr - $step`)
@@ -27,9 +26,9 @@ ly=$(printf %02d `expr $last_yr - $step`)
 for yr in $(seq -w $fy $step $ly); do
     # Set vars and names
     yr2=$(printf %02d `expr $yr + $step`)    
+    sname=sample_$yr"_"$yr2
 
     # Split samples
-    sname=sample_$yr"_"$yr2
     qsub -j y -b y -V -N split_$yr \
         $scriptpath/6_stratification/split_samples.py $sname".shp" \
          $vpath/amazon_selection_EAST_UTM18_clipped.shp \
@@ -56,16 +55,27 @@ for yr in $(seq -w $fy $step $ly); do
          $sname"_east_UTM19N.shp" $sname"_east_UTM19N" ID
 
     # Assign path-row info to these and save as new. Submit one for east
-    # and one for west. west doesn't need hold_jid
-    qsub -j y -b y -V -N pr_W_$yr \
+    # and one for west. Depends on completion of first script
+    qsub -j y -b y -V -N pr_W_$yr -hold_jid split_$yr\
         $scriptpath/other/assign_path-row.py $sname"_west.shp" \
          $vpath/WRS2_amazon_selection_UTM18_no-overlap.shp \
-          $sname_"west_PR.shp"  
+          "$sname'_west_PR.shp'"  
     
     qsub -j y -b y -V -N pr_E_$yr -hold_jid polig_$yr \
-        $scriptpath/other/assign_path-row.py $sname"_east_UTM19.shp" \
+        $scriptpath/other/assign_path-row.py $sname"_east_UTM19N.shp" \
          $vpath/WRS2_amazon_selection_UTM19_no-overlap.shp \
-          $sname_"east_PR.shp"  
+          "$sname'_east_PR.shp'"
+
+    # Convert to KML to be usable in google earth. KML only supports
+#    # WGS84 though, reprojection is done automatically. Requires LIBKML, so
+#    # can't be run in the cluster...
+# 
+#    ogr2ogr -f "KML" -overwrite -a_srs "EPSG:32618" $sname"_west_PR.kml" \
+#     "$sname'_west_PR.shp'"
+#        
+#    ogr2ogr -f "KML" -overwrite -a_srs "EPSG:32619" $sname"_east_PR.kml" \
+#     "$sname'_east_PR.shp'"
+    
 done
 
 
