@@ -62,3 +62,5 @@ Repository that shows all the steps followed to calculate annual unbiased area e
 
 **Definitive, ready to use samples for each zone**: 
 `sample_east_UTM19N_ID_PR_ZONE.shp` and `sample_west_UTM18N_ID_PR_ZONE.shp`
+
+East region (UTM19) is composed of all the scenes with path-rows equal or less than 6-58
