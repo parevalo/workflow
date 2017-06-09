@@ -4,8 +4,9 @@
 ### 2) Read yearly strata raster and extract values to the SpatialPoints object (i.e. shapefile) 
 ### 3) Calculate reference class area proportions and variance of ref samples per strata
 ### 4) Calculate unbiased standard error for proportion of reference class areas 
-### 5) Create some useful tables
-### 6) Create some useful plots
+### 5) Plot areas and margin of error
+### 6) Create some useful tables
+### 7) Create some useful plots
 
 require(rgdal)
 require(raster)
@@ -14,40 +15,32 @@ require(ggplot2)
 require(gtable)
 require(grid)
 require(gridExtra)
-library(xtable)
+require(xtable)
+require(matrixcalc)
 
 ##############################################################################################################
 #0) SET VARIABLES/FOLDERS
 
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
-wd = "C:/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
-auxpath = "C:/test"
+wd = "C:/OneDrive/Lab/area_calculation/final_sample"
+auxpath = "C:/test/"
 
 if( .Platform$OS.type == "unix" )
-    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/sample_may2016/interpreted_w_strata_23062016"
+    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/final_sample"
     auxpath = "/media/paulo/785044BD504483BA/test/"
-
+    stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
+    
 setwd(wd)
-
-# If true, uses class 8 and 9 together as deforestation, labeled as class 17. Otherwise keeps them separate
-deformode = FALSE
-
-# List of original strata names
-orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                      "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
-                      "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest")
+source(paste0(stratpath, "functions.R"))
+source(paste0(stratpath, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
 
 
-# Strata names depending on deformode. They DON'T have the "all to unclass." class bc it disappears when the ref. samples are collected.
-if (deformode == FALSE){
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                   "Stable pasture-cropland", "Stable secondary forest", "Stable water", "Forest to pasture", 
-                   "Forest to secondary forest", "Gain of secondary forest", "Loss of secondary forest")
-}else{
-  strata_names = c("Other to other", "Stable forest", "Stable grassland", "Stable Urban + Stable other", 
-                   "Stable pasture-cropland", "Stable regrowth", "Stable water", "All others to regrowth", 
-                   "Loss of regrowth", "Deforestation")
-}
+# Set up important global variables
+start = 2001
+end = 2016
+
+years = seq(start, end, step) 
+ref_names = paste("ref_", years, sep="")
 
 # Grid table theme, only used to display some ancillary tables
 tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fontsize=14)),
@@ -57,392 +50,320 @@ tt=ttheme_default(core=list(fg_params=list(font="Times", fontface="plain", fonts
 #############################################################################################################
 #1) READ SHAPEFILE AND CALCULATE REFERENCE LABELS PER YEAR
 # This section takes the sample shapefile and assigns the proper strata for each year, depending
-# on when the model break happened. For now it's written to filter the pixels with only ONE CHANGE (1020 pts) 
+# on when the model break happened. In this version we use all of the points because when done 
+# annually, it does not matter how many changes we found in the TS.  
 
-# Read shapefile with reference strata and change info. Test if working from ubuntu or windows
-full_samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
-
-# Subset to only use records with one or no change
-samples <- full_samples[full_samples@data$NUMCHANGES <= 1, ]
+# Read shapefile with reference strata and change info. 
+samples <- readOGR(".", "final_extended_sample_merge_UTM18N_point")
 
 # We need to convert the dates to characters bc they are factors right now
 samples$CHGDATE <- as.character(samples$CHGDATE)
+# IF WE WANT TO REMOVE OMISSION ERRORS TO ANALYZE IMPACT ON RESULTS
+#samples = samples[-c(273, 899, 636),]
 
-# Set up important loop variables
+# Convert reference sample info into vectors containing proper labels per each of
+# the years in our time period. This takes into account that we could be doing the
+# analysis every two years or more. 
+
+# Initialize empty vectors to store the data, current change and class code (start with the first!) 
+# and name of the fields that store the class codes. Load LUT.
+# df stores the labels per year with strata label when there is a change
+# df2 stores only the labels per year, with no strata info.
+# This whole massive loop could be rewritten using the break_calc function used
+# for the break analysis.
+
 rows = nrow(samples)
-start = 2001
-end = 2016
-years = seq(start, end)
-field_names = paste("ref_", years, sep="")
-
-# Initialize empty vectors to store the data
 df = vector()
+df2 = vector()
 field = vector()
+field2 = vector()
+codelist = c("CODE1", "CODE2", "CODE3", "CODE4")
+lut = read.table(lutpath, header = T, sep = ",")
 
-# Iterate over years ("columns")
-for (y in years){
-  # Iterate over rows
-  for (row in 1:rows){
+# Iterate over rows (samples, easier this way)
+for (row in 1:rows){
+  current_change = 1
+  current_code=1
+  # Iterate over years
+  for (i in 1:length(years)){
+  
+      # If there are no changes, just use the only class code for both years
       if (is.na(samples$CHGDATE[row]) == TRUE) {
-          field[row] = samples$strata[row]
-      } else {
-        # Find FIRST date and make the comparison. 
-        chgdate = na.omit(as.numeric(unlist(strsplit(samples$CHGDATE[row], "[^0-9]"))))
-        if (y <= chgdate[1]){
-          field[row] = samples$CODE1[row]
-        } else {
-          field[row] = samples$strata[row]
-        }
+        field[i] = calc_strata(samples$CODE1[row], samples$CODE1[row], lut)
+        field2[i] = samples$CODE1[row]
       }
+    
+      # If there is a change, compare each year to the current change year and update that one accordingly
+      else {
+        # Get the current date of change (initialized as the first change available)
+        chg_date = unlist(strsplit(as.vector(samples$CHGDATE[row]), ','))[current_change] #742
+        # Extract the YEAR from the date of change
+        chg_year = na.omit(as.numeric(unlist(strsplit(chg_date, "[^0-9]"))))[1]
+        
+        # If we haven't reached change year yet
+        if (years[i] < chg_year) {
+          field[i] = calc_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code]][row,], lut) 
+          field2[i] = samples@data[codelist[current_code]][row,]
+        } 
+        
+        # If we JUST reached a change year
+        else if (years[i] == chg_year) {
+          field[i] = calc_strata(samples@data[codelist[current_code]][row,], samples@data[codelist[current_code+1]][row,], lut) 
+          field2[i] = samples@data[codelist[current_code+1]][row,]
+          # Check if we haven't reached the max number of recorded changes
+          if (current_change < samples$NUMCHANGES[row]) {
+            current_change = current_change + 1 
+          }
+          current_code = current_code + 1
+        }
+        
+        # If we went past the last change date, use the last code 
+        else if (years[i] > chg_year) {
+          field[i] = calc_strata(samples@data[codelist[samples$endcodecol[row]]][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+          field2[i] = samples@data[codelist[current_code]][row,]
+        }
+      } 
   }
-  # Find and replace values of 7 with 3, because that's how this strata was defined
-  field[which(field == 7)] = 3
-  # Paste vectors iteratively
-  df <- as.data.frame(cbind(df, field))
+  df <- as.data.frame(rbind(df, field))
+  df2 <- as.data.frame(rbind(df2, field2))
+  
 }
 
-names(df) = field_names
+names(df) = ref_names
+names(df2) = ref_names
+
+# Recalculate "original stratification", needed when we use a LUT different than the original
+strata = vector()
+for (row in 1:rows){
+  strata[row] = calc_strata(samples@data["CODE1"][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
+}
 
 # Attach table to shapefile 
-samples@data[,field_names] <- df
+samples@data[,ref_names] <- df
 #writeOGR(samples, "sample_yearly_strata", "sample_yearly_strata", driver="ESRI Shapefile", overwrite_layer = T)
 
 #############################################################################################################
-# 2) READ YEARLY STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
+# 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Create a list with the raster names
-years_short = seq(02,16)
-rast_names = paste0("final_strata_01_", sprintf("%02d",years_short), "_UTM18N")
-
-# Iterate over names and extract to shapefile
-for (r in rast_names){
-  map = raster(paste0(auxpath, r, ".tif"))
-  samples = extract(map, samples, sp = TRUE) 
+# Iterate over names and extract to shapefile. We need these to calculate 
+# confusion matrices per year. We DON'T NEED THESE for the area estimation.
+# If we want to create confusion matrices for aggregated years, then we NEED TO
+# CREATE THOSE RASTERS FIRST e.g. (2001-2003 and so on)
+map_names = character()
+short_years = substr(years, 3,4) # Get years in two digit format
+for (y in 1:(length(years)-1)){
+  map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
+#  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
+#  samples = extract(map, samples, sp = TRUE) 
 }
 
-# Crosstab reference sample vs final strata 
-ct = table(samples$final_strata_01_16_UTM18N, samples$strata)
+# Read original stratification. Done last so that the reference and map fields are contiguous
+samples = extract(raster(paste0(auxpath, orig_stratif, ".tif")), samples, sp=TRUE)
 
-# Load mapped areas (total strata sample size) produced from CountValues.py, bc calculating it here with hist() takes forever..
+# Get unique ref codes and map codes for all the years. Also get unique codes from
+# stratification layer (because it may have a buffer that the individual maps don't have)
+# Then create a single set of unique codes to be used in the confusion matrices
+ref_codes = sort(unique(unlist(samples@data[ref_names])))
+map_codes = sort(unique(unlist(samples@data[map_names])))
+strat_codes = sort(unique(unlist(samples@data[orig_stratif])))
+class_codes = sort(union(ref_codes, map_codes))
+class_codes = sort(union(class_codes, strat_codes))
+
+# Create a single variables with the column names for reference labels, map labels and
+# original stratification to simplify column indexing and avoid using col numbers
+sample_columns = c(ref_names, map_names, orig_stratif)
+
+# Add many correct forest samples, if enabled in input file
+
+if(add_samples == TRUE){
+  add_samples_suffix = paste0("_nfor", nfor, "_nbuf", nbuf)
+  if(nfor > 0){ # If we want to add samples to stable forest class
+    df_add <- data.frame(matrix(1,ncol = length(sample_columns), nrow = nfor))
+    colnames(df_add) = sample_columns
+    samples@data = rbind(samples@data[,sample_columns], df_add)
+    strata = c(strata, rep(1, nfor))
+  }
+  if(nbuf > 0){  # If we want to add samples to the buffer, if it exists
+    df_add2 <- data.frame(matrix(1,ncol = length(sample_columns)-1, nrow = nbuf)) # Add forest to ref and map labels
+    df_add2 = cbind(df_add2, rep(16, nbuf)) # Add buffer class to stratification column, the code is 16
+    colnames(df_add2) = sample_columns
+    samples@data = rbind(samples@data[,sample_columns], df_add2)
+    strata = c(strata, rep(1, nbuf))
+    
+    # mat = matrix(1,  ncol=16, nrow=16) ############################# REMOVE/REFORMAT
+    # mat[upper.tri(mat)] = 8
+    # mat = matrix(rep(t(mat), 1) , ncol=ncol(mat) , byrow=TRUE)
+    # df5 = cbind(mat, mat[,2:16], rep(8,16))
+    # colnames(df5) = sample_columns
+    # samples@data = rbind(samples@data[,sample_columns], df5)
+    # strata = c(strata, rep(1, 160))
+  }
+} else {
+    add_samples_suffix = ""
+}
+
+
+# Crosstab final strata and reference strata (for the same period 01-16) 
+# Returns a square matrix with all the reference and map codes in the samples
+
+ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
+
+# Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
+# REQUIRED for comparison between mapped and estimated areas only. 
+# TODO: CONVERT THIS SECTION TO A FUNCTION
 mapped_areas_list = list()
-filenames = dir(auxpath, pattern="*_pixcount.csv")
-for(i in 1:length(filenames)){
-  mapped_areas_list[[i]] = read.csv(paste0(auxpath,filenames[i]), header=TRUE, col.names=c("stratum", "pixels"))
+
+for(i in 1:(length(short_years)-1)){
+  fname = paste0("strata_", short_years[i], "_", short_years[i+1], pixcount_suffix)
+  mapped_areas_list[[i]] = read.csv(paste0(auxpath,fname), header=TRUE, col.names=c("stratum", "pixels"))
+  # Get rid of rows we don't need, eg class 15, also done below for ss
+  mapped_areas_list[[i]] = mapped_areas_list[[i]][!(mapped_areas_list[[i]]$stratum %in% cr),]
 }
 
-# Get only the total area for the original strata (eg 01-16)
-ss = mapped_areas_list[[15]]
-# Classes to be removed/ignored
-cr = c(7, 10, 12, 15)
-# Filter classes NOT in that list
+# Create empty matrix to store mapped values and fill
+mapped_areas = matrix(0, nrow=length(years[2:length(years)]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:length(years)], mapped_areas_list[[1]][,1]))
+
+for (i in 1:length(mapped_areas_list)){
+  mapped_areas[i,] = mapped_areas_list[[i]][,2]  
+}
+
+# Calculate strata weights for each of them
+mapped_weights = mapped_areas / rowSums(mapped_areas)
+
+# Convert areas to ha
+mapped_areas = mapped_areas * 30^2 / 100^2
+
+# Save mapped areas and strata weights to file.
+suffix = paste0("_step", step, "_", lut_name, ".csv")
+write.csv(mapped_areas, file=paste0(savepath, "mapped_areas", suffix))
+write.csv(mapped_weights, file=paste0(savepath, "mapped_areas", suffix))
+
+
+# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
+
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
+
+# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
 ss = ss[!(ss$stratum %in% cr),] 
 
-# Calculate total number of samples per ORIGINAL stratum
-strata_pixels = aggregate(samples$final_strata_01_16_UTM18N, by=list(samples$final_strata_01_16_UTM18N), length)
+# Calculate total number of samples per ORIGINAL stratum. 
+# ASSUMES that there is at least one sample per original stratum
+
+strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif]]), length)
 
 # Calculate original strata weights and area proportions
 tot_area_pix = sum(ss$pixels)
 str_weight = ss$pixels / tot_area_pix
-# Add column for class 13 with zeroes to obtain a square matrix and make everything easier
-cmatr = cbind(ct[,1:10], matrix(0, nrow=nrow(ct), ncol=1, byrow=T, dimnames = list(rownames(ct), "13")), ct[,11,drop=F])
-# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (e.g. columns)
-aprop = apply(cmatr, 2, function(x) x * str_weight / strata_pixels$x)
+
+# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (i.e. columns)
+aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
 
 # Calculate accuracies
 tot_acc = sum(diag(aprop)) * 100
-usr_acc = diag(aprop) / rowSums(aprop)
-prod_acc = diag(aprop) / colSums(aprop)
+usr_acc = diag(aprop) / rowSums(aprop) *100
+prod_acc = diag(aprop) / colSums(aprop) *100
+
+# Format and save tables
+nsamp = rowSums(ct)
+ct_save = cbind(ct, nsamp, str_weight)
+
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
+#write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
+#write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
+#write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
+
 
 ##############################################################################################################
 # 3) CALCULATE REFERENCE CLASS AREA PROPORTIONS AND VARIANCE OF REFERENCE SAMPLES PER STRATA 
+# 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
-# Takes vectors of sample strata, sample references, their totals and the reference codes (strata codes are calculated) 
-# Returns a list of vectors with length equal to the number of reference classes. The list contains: 
-# Area proportions per class, sample variance per sample strata, total strata size present in that year, 
-# proportion of sample ref class present on each samp strata
-calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
-
-  # Obtain unique values in the samp_strata field
-  str_codes = sort(unique(samp_strata))
-  str_ind = seq_along(str_codes)
-  
-  # Get a sequence for the reference codes
-  ref_ind = seq_along(rfcodes)
-  
-  # Initialize empty df for proportions per samp_strata, and for sample variance per samp_strata
-  ref_prop = data.frame()
-  ref_var = data.frame()
-  
-  # Compare the fields, iterate over "samp_strata" and "samp_reference" classes
-  for (s in str_ind){
-    for (r in ref_ind){
-      # Compared fields and get TRUE or FALSE on each row
-      cond_bool = samp_strata == str_codes[s] & samp_reference == rfcodes[r]
-      # Get row numbers that meet that condition
-      ind = which(cond_bool)
-      # Get location of rows for the current samp_strata
-      str_ref = which(samp_strata == str_codes[s])
-      # Get proportion of samp_reference class present on that samp_strata
-      ref_prop[s, r] = length(ind)/sample_totals$x[sample_totals$Group.1 == str_codes[s]]
-      # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
-      # which is the same formula specified in the paper
-      ref_var[s, r] = var(cond_bool[str_ref]) 
-      
-    }
-  }
-  
-  # Assign column and row names for easier samp_reference
-  rownames(ref_prop) = paste0("strat_",str_codes)
-  colnames(ref_prop) = paste0("ref_", rfcodes)
-  rownames(ref_var) = paste0("strat_",str_codes)
-  colnames(ref_var) = paste0("ref_", rfcodes)
-  
-  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
-  class_prop = vector()
-  # Filter only total sample sizes that are present in the samp_strata for that year
-  fss = strata_totals[strata_totals$stratum %in% str_codes,]
-  for (r in 1:ncol(ref_prop)){
-    # LEAVE THE SUM OF THE ENTIRE samp_strata
-    class_prop[r] = sum(fss$pixels * ref_prop[,r])/tot_area_pix
-  }
-  return(list(class_prop, ref_var, fss, ref_prop)) 
-}
-
-# IF DEFORMODE = TRUE THESE STEPS ARE REQUIRED BC WE NEED ONE CLASS INSTEAD OF TWO
-# a) calculate deforestation combined (e.g 8 + 9): Reclassify samples$final and samples$ref<year>, ss, strata_pixels.
-defor_str = samples$final_strata_01_16_UTM18N
-defor_str[defor_str == 8 | defor_str == 9] = 17
-
-# b) Find reference samples = 8 or 9 for each year and change value to 17
-samples_defor = samples
-for (f in 1:(length(field_names))){
-  defor_ind = samples_defor[[field_names[f]]] == 8 | samples_defor[[field_names[f]]] == 9
-  samples_defor@data[defor_ind,field_names[f]] = 17
-}
-
-# c) Sum class 8 and 9 to produce "class 17", then delete 8 and 9. Do that for total pixels and sample counts
-defor_str_totals = ss 
-class17a = defor_str_totals[defor_str_totals$stratum == 8,] + defor_str_totals[defor_str_totals$stratum == 9,]
-defor_str_totals = rbind(defor_str_totals, class17a)
-defor_str_totals = defor_str_totals[!(defor_str_totals$stratum == 8 | defor_str_totals$stratum == 9),]
-
-defor_samp_totals = strata_pixels 
-class17b = defor_samp_totals[defor_samp_totals$Group.1 == 8,] + defor_samp_totals[defor_samp_totals$Group.1 == 9,]
-defor_samp_totals = rbind(defor_samp_totals, class17b)
-defor_samp_totals = defor_samp_totals[!(defor_samp_totals$Group.1 == 8 | defor_samp_totals$Group.1 == 9),]
-
-# Deformode modifies output from HERE
-
-# Get unique classes through all the reference years (This won't have class 13 for that reason) and get numbered sequence
-if (deformode == TRUE){
-  ref_codes = sort(unique(unlist(samples_defor@data[field_names])))
-}else { 
-  ref_codes = sort(unique(unlist(samples@data[field_names])))
-}
-
-
-# Call the function for every reference year we want and get area proportions and sample variance
-# NOTE the double square brackets to allow for substitution. Only requires the original strata, so no need to 
-# iterate over yearly rasters, that's only needed for accuracies. 
-
-area_prop = data.frame()
+# Initialize variables for area proportions, variances, etc (Step 1)
+area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 ref_var_list = list()
 filtered_ss = list()
 ref_prop_list = list()
-for (i in (1:length(rast_names))){
-  # Compare year strata with year reference. Field names must start at 2002, hence i+1
-  if (deformode == FALSE){
-    out = calc_area_prop(samples$final_strata_01_16_UTM18N, samples[[field_names[i+1]]], ss, strata_pixels, ref_codes) 
-  } else {
-    out = calc_area_prop(defor_str, samples_defor[[field_names[i+1]]], defor_str_totals, defor_samp_totals, ref_codes) 
-  }
-  ap = out[[1]]
-  rv = out[[2]]
-  fs = out[[3]]
-  rp = out[[4]]
-  area_prop = rbind(area_prop, ap)
-  ref_var_list[[i]] = rv
-  filtered_ss[[i]] = fs
-  ref_prop_list[[i]] = rp
+
+# Initialize empty matrix to store standard error proportions (Step 2)
+se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+
+# Initialize matrices for area calculations (Step 3)
+area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+
+#' Run all the calculations. Call the function for every reference year we want and get area proportions
+#' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
+#' margin of errors. NOTE the double square brackets to allow for substitution. Only requires the original 
+#' strata, so no need to iterate over yearly rasters, that's only needed for accuracies. 
+
+for (y in (1:(length(years)-1))){
+  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
+  # start at 1 though.
+  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], ss, strata_pixels, ref_codes) 
+  
+  # Assign outputs of Step 1
+  area_prop[y,] = prop_out[[1]]
+  ref_var_list[[y]] = prop_out[[2]]
+  filtered_ss[[y]] = prop_out[[3]]
+  ref_prop_list[[y]] = prop_out[[4]]
+  tot_area_pix = prop_out[[5]] # Will be overwritten with the same value anyway...
+
+  # Run step two
+  se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
+  
+  # Run and assign outputs of Step 3
+  areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
+  area_ha[y,] = areas_out[[1]]
+  area_ci[y,] = areas_out[[2]]
+  area_upper[y,] = areas_out[[3]]
+  area_lower[y,] = areas_out[[4]]
+  margin_error[y,] = areas_out[[5]]
+  
 }
 
-# Assign names to make it easier to interprete
-rownames(area_prop) = years[2:length(years)]
-colnames(area_prop) = ref_codes
+# Calculate total area per stratum, and a filtered version with the reference
+# codes only
+stratum_areas= ss$stratum *30^2 / 100^2
+filtered_stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
+map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc 
+# 2016 is not always created if we aggregate the years.
+
+# Write results to csv 
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
+
+#write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
+#write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
+#write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+
+# Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
+# Using the same equations givee quivalent results to doing it manually via the
+# confusion matrix. The calculation will include any extra samples if they were added abpve
+
+prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, ss, strata_pixels, ref_codes) 
+se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
+areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_orig)
+
+areas_orig = data.frame(t(sapply(areas_out_orig,c)))
+colnames(areas_orig) = ref_codes
+rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
+#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 ##############################################################################################################
-# 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
-
-# Function to calculate standard error of area proportion of reference classes
-calc_se_prop = function(strata_totals, sample_totals){
-
-  # Formula works correctly, tested
-  se_pr = data.frame()
-  
-  #Iterate over years
-  for (y in 1:length(ref_var_list)){
-    # Iterate over classes
-    for (c in 1:length(ref_codes)){
-    v = 1/tot_area_pix^2 * (sum(strata_totals$pixels^2 * (1 - sample_totals$x/strata_totals$pixels) * (ref_var_list[[y]][,c] / sample_totals$x)))
-    se_pr[y,c] = sqrt(v)
-    }
-  }
-  return(se_pr)
-}
-
-# Check deforestation mode and get calculation accordingly
-if (deformode == FALSE){
-  se_prop = calc_se_prop(ss, strata_pixels)
-  }else{
-  se_prop = calc_se_prop(defor_str_totals, defor_samp_totals)
-}
-  
-  
-# Reassign names...
-rownames(se_prop) = years[2:length(years)]
-colnames(se_prop) = ref_codes
-
-# Total area in ha
-N_ha = tot_area_pix * 30^2 / 100^2
-# Calculate area in ha from area proportions
-area_ha = area_prop * N_ha
-# Calculate confidence interval in ha
-area_ci = se_prop * 1.96 * N_ha
-#Upper and lower CI
-area_upper = area_ha + area_ci
-area_lower = area_ha - area_ci
-
-# Write results to csv
-if (deformode == TRUE){
-  suffix = "_defor.csv"  
-}else { 
-  suffix = "_regular.csv"
-}
-
-write.csv(area_ha, file=paste0("area_ha", suffix))
-write.csv(area_lower, file=paste0("area_lower", suffix))
-write.csv(area_upper, file=paste0("area_upper", suffix))
-
-##############################################################################################################
-# 5) CREATE SOME USEFUL TABLES
-
-# Export table of  sample count, areas, percentages
-stratum_areas= ss$pixels *30^2 / 100^2
-stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
-strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
-strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
-
-# Create table in Latex instead, and produce the pdf there, much easier than grid.table
-# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
-rownames(strata_table) = orig_strata_names
-colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
-print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
-
-# Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
-# Also print to latex to be converted to pdf
-margin_error = area_ci / area_ha 
-map_bias = stratum_areas - area_ha['2016',]
-accuracies = as.data.frame(cbind(usr_acc, prod_acc))
-accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
-colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
-rownames(accuracy_table) = orig_strata_names[-11]
-accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
-print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.function=function(x){x})
-
-# Calculate reference sample count per year. Initialize zero matrix with year * class dims and proper row and column names
-ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
-
-for (f in 1:(length(field_names))){
-  # Get table, then check if unique classes is in that table, then use the boolean to assign values
-  if (deformode == FALSE){
-    a = table(samples[[field_names[f]]])
-  }else{
-    a = table(samples_defor[[field_names[f]]])
-  }
-  
-  class_check = ref_codes %in% names(a)
-  ref_sample_count[f,class_check] = a
-}
-
-# Format and show
-grid.newpage()
-tt =  ttheme_default(base_size=14)
-grid.table(round(ref_sample_count), theme=tt)
-
-# Calculate yearly area change and rate change (percentage of total area that is changing)
-# Initialize zero matrix with year (03 to 16) * class (11) dimensions and proper row and column names
-chg_area = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
-chg_rate = matrix(0, nrow=length(years)-2, ncol=length(ref_codes), dimnames=list(years[3:16], ref_codes))
-
-# Iterate over strata labels
-for(i in 1:length(area_ha)){
-  chg_area[,i] = diff(area_ha[,i])
-  chg_rate[,i] = chg_area[,i] / area_ha[1:14,i] * 100 #14 years
-}
-
-#Format and show
-grid.newpage()
-tt =  ttheme_default(base_size=14)
-grid.table(round(chg_rate, digits=2), theme=tt)
-
-
-## Calculate when break occurred in maps and compare to break in reference samples
-
-break_calc = function(dataset){
-  unq = unique(as.numeric(dataset))
-  if (length(unq) == 1){
-    return(0)
-  }  
-  else{
-    # Find last column with the first code
-    break_col = tail(which(dataset == unq[1]), n=1)
-    # Calculate year of change (e.g if break was 12, break year was 2013) and format accordingly
-    break_year = as.numeric(paste0("20",sprintf("%02d",break_col+1)))
-    #print(sprintf("Break happened in %s", break_year))
-    return(break_year)
-  }
-}
-
-# Apply functions over rows on strata columns only
-strata_breaks = apply(samples@data[, 39:53], MARGIN = 1, FUN = break_calc)
-
-# Split CHGDATE to get year, then replace NA with 0 and substract, or convert to date and compare.
-# Get YEAR of change from reference samples
-ref_breaks = strsplit(samples$CHGDATE, "-")
-# Get the first element of each list (i.e the year), unlist the output, pass as numeric
-ref_breaks = as.numeric(unlist(lapply(ref_breaks, '[[', 1)))
-# Replace NA's with zeros
-ref_breaks[is.na(ref_breaks)] = 0
-# Create table with the two datasets and add totals
-change_cm = table(strata_breaks, ref_breaks)
-change_cm = cbind(change_cm, total=rowSums(change_cm))
-change_cm = rbind(change_cm, total=colSums(change_cm)) 
-# Compare total breaks detected per year
-total_ref = change_cm["total",]
-total_ref = total_ref[-2]
-total_breaks = cbind(total_ref, change_cm[,"total"])
-colnames(total_breaks) = c("ref_breaks", "strata_breaks")
-
-# Format table and display
-tt= ttheme_default(base_size=18)
-grid.newpage()
-grid.table(round(change_cm, digits=2), theme=tt)
-#png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(change_cm, theme=tt); dev.off()
-
-
-##############################################################################################################
-# 6) CREATE SOME USEFUL PLOTS
-# Most of these plots were recreated in python (add name of the script) bc the lack of dual axis support in ggplot. This code is left for 
-# reference.
+# 5) PLOT AREAS AND MARGINS OF ERROR
 
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
 
-for(i in 1:length(area_ha)){
+plot_mapped = T
+allplots = list()
+
+for(i in 1:length(ref_codes)){
   
   # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  tempdf <- as.data.frame(cbind(years[2:length(years)], area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
   
   # Plot areas with CI
@@ -450,16 +371,25 @@ for(i in 1:length(area_ha)){
   # Other custom settings for number of breaks, label formatting and title.
   
   a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() +
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + 
     scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
     ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
   
+  # Plot MAPPEd areas
+  if(plot_mapped == T){
+    m = geom_line(mapping = aes(x=Years, y=mapped_areas[,i]), linetype=2)
+    a = a+c
+  }
+  
+  # Put plots together on a list and change some properties in order to save them together as a single plot
+  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  allplots[[i]] = a2
   
   # Plot margin of error
   b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   # To remove grid and background add this:
@@ -473,36 +403,266 @@ for(i in 1:length(area_ha)){
   
   grid.newpage()
   grid.draw(g)
-  filename = paste0(strata_names[[i]], "_areas_me", ".png")
+  
+  if(plot_mapped == T){
+    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, "mapped_areas.png")
+  } else {
+    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
+  }
   #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  
+}
 
+# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
+# NOT YET WORKING WITH THE MAPPED AREAS FOR SOME REASON BUT INDIVIDUALLY PLOTS ARE CORRECT
+multiplots = grid.arrange(grobs=allplots, ncol=4)
+#ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+
+
+
+##############################################################################################################
+# 6) CREATE SOME USEFUL TABLES
+
+# Export table of  sample count, areas, percentages
+
+stratum_percentages=round(ss$pixels / tot_area_pix * 100, digits=3) 
+strata_table = as.data.frame(cbind(stratum_areas, stratum_percentages, strata_pixels$x))
+strata_table$stratum_areas = format(strata_table$stratum_areas, scientific = FALSE, big.mark = ",")
+rownames(strata_table) = orig_strata_names 
+# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
+
+# Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
+# Also print to latex to be converted to pdf
+
+# TODO: Fix this block, not working at all
+accuracies = as.data.frame(cbind(usr_acc, prod_acc))
+accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
+colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
+rownames(accuracy_table) = orig_strata_names[-11]
+accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
+print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.function=function(x){x})
+
+# Calculate reference sample count per year. Initialize zero matrix with year * class dims and proper row and column names
+ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
+
+for (f in 1:(length(ref_names))){
+  # Get table, then check if unique classes is in that table, then use the boolean to assign values
+  a = table(samples[[ref_names[f]]])
+  class_check = ref_codes %in% names(a)
+  ref_sample_count[f,class_check] = a
+}
+
+# Format and show/save
+grid.newpage()
+tt =  ttheme_default(base_size=20)
+grid.table(round(ref_sample_count), theme=tt) 
+png(paste0(savepath, "numchange_strata_ref.png"), width=1000, height = 1000, units = "px"); grid.table(ref_sample_count, theme=tt); dev.off()
+
+## BREAK ANALYSIS
+## Calculate when break occurred in maps and compare to break in reference samples
+
+# Function to return the indices of the locations where a there is a change in 
+# class code of a vector. Useful for detecting years of change of reference and
+# map labels. 
+
+break_calc = function(values){
+  out = vector()
+  unq = unique(as.numeric(values))
+  # When there are no changes
+  if (length(unq) == 1) {
+    out = 0
+  # When there is one or more changes
+  } else {
+    out = c(1 + which(diff(as.numeric(values))!=0))
+  }
+  return(out)
+}
+    
+        
+# We need to load the original maps in order to avoid having to reclassify
+# the strata rasters. 
+
+alt_samples = samples
+rast_names = character()
+for (y in 1:length(years)){
+ rast_names[y] = paste0(years[y],"_final_crop")
+ map = raster(paste0(auxpath, rast_names[y], ".tif"))
+ alt_samples = extract(map, alt_samples, sp = TRUE) 
+}
+
+# After reading, prepend an X to be able to call columns by name
+rast_names = paste0("X", rast_names)
+
+# Get break indices (column) for REFERENCE data in ORIGINAL class codes (e.g no strata codes)
+bi_ref = apply(df2, MARGIN = 1, FUN = break_calc)
+# Get the max number of elements in a subelement of the list
+max_l <- max(sapply(bi_ref, length))
+# Fill with NA's using the max number of elements
+l <- lapply(bi_ref, function(v) { c(v, rep(NA, max_l - length(v)))})
+# Bind into a dataframe
+bi_ref = do.call(rbind, l)
+
+# Get break indices (column) for the original MAPPED data. 
+
+bi_map = apply(alt_samples@data[rast_names], MARGIN = 1, FUN = break_calc) 
+# Get the max number of elements in a subelement of the list
+max_l <- max(sapply(bi_map, length))
+# Fill with NA's using the max number of elements
+l <- lapply(bi_map, function(v) { c(v, rep(NA, max_l - length(v)))})
+# Bind into a dataframe
+bi_map = do.call(rbind, l)
+# Substract 1 and replace -1 with zero. We need this beause the maps really represent the 
+# dynamic of the year before them. This also allows us to index from STRATA maps directly
+# (because the max == 15)
+bi_map = bi_map - 1
+bi_map[bi_map == -1] = 0
+
+# Get rows where there is only one or no changes in the REFERENCE AND MAP labels
+# to simplify the analysis.
+# Use the NUMCHANGES column because it is a better source of break info
+
+ref_chg = samples@data["NUMCHANGES"] <= 1 
+numchg_map = apply(bi_map, MARGIN = 1, FUN = function(x) length(unique(na.omit(x))))
+map_chg = numchg_map <= 1
+subind = which(ref_chg & map_chg)
+subind2 = which(!(ref_chg & map_chg)) # Get the complementary indices, we will need them
+
+# Subset reference and map labels based on those indices
+# Remove all the NA's (effectively making it a vector)
+bi_ref_sub = bi_ref[subind, ]
+bi_ref_sub = bi_ref_sub[!is.na(bi_ref_sub)]
+
+bi_map_sub = bi_map[subind, ]
+bi_map_sub = bi_map_sub[!is.na(bi_map_sub)]
+
+# Function to get the strata codes using those indices, both for reference and maps.
+# There must be a way to vectorize that but I don't see it
+get_break_strata = function(rw, index){
+  # When there is no change for reference (=0)
+  if(index <= 0){
+    code = rw[,1]
+  } else {
+    code = rw[,index]  
+  }
+  return(code)
+}
+
+# Initialize vectors and get reference and map labels using the column indices
+break_ref = vector(length = length(subind))
+break_map = vector(length = length(subind))
+
+for(i in 1:length(subind)){
+  break_ref[i] = get_break_strata(df[subind[i],], bi_ref_sub[i])  
+  break_map[i] = get_break_strata(samples@data[subind[i], map_names], bi_map_sub[i])  
+}
+
+# Create dataframe with ref breaks map breaks and their corresponding labels.
+# Create a larger df with these results and the row id so that we can go back to the 
+# original samples easily. 
+break_ref_df = cbind(bi_ref_sub, break_ref)
+break_map_df = cbind(bi_map_sub, break_map)
+break_compare = as.data.frame(cbind(subind, break_ref_df, break_map_df, samples@data[subind, "PTRW"]))
+colnames(break_compare) = c("row_id", "ref_year", "ref_label", "map_year", "map_label", "ptrw")
+
+# Convert the indices to actual years to make subsequent analysis easier
+# (Just add 2000 and replace 2000 with zeros!)
+break_compare$ref_year = break_compare$ref_year + 2000
+break_compare$ref_year[break_compare$ref_year == 2000] = 0
+
+break_compare$map_year = break_compare$map_year + 2000
+break_compare$map_year[break_compare$map_year == 2000] = 0
+
+# Create confusion matrix of breaks and labels between map and reference
+cm_breaks = calc_ct(break_compare$map_year, break_compare$ref_year)
+cm_labels = calc_ct(break_compare$map_label, break_compare$ref_label)
+
+# Add row and column totals and display/save
+cm_breaks = cbind(cm_breaks, total=rowSums(cm_breaks))
+cm_breaks = rbind(cm_breaks, total=colSums(cm_breaks)) 
+
+# Format table and display
+tt= ttheme_default(base_size=18)
+grid.newpage()
+grid.table(round(cm_breaks, digits=2), theme=tt)
+png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(cm_breaks, theme=tt); dev.off()
+
+# Find records for any given set of map year (from 1 to 16) and change year and get comparison of labels for it
+# Eg show label distribution for BREAK OMISSION ERRORS. 
+records = break_compare[break_compare$map_year == 0 & break_compare$ref_year != 0,]
+calc_ct(records$map_label, records$ref_label)
+
+# Eg show label distribution for BREAK COMMISSION ERRORS
+records = break_compare[break_compare$map_year != 0 & break_compare$ref_year == 0,]
+calc_ct(records$map_label, records$ref_label)
+
+# Eg show label distribution for EXACT CHANGE MATCH BREAK DETECTION
+records = break_compare[(break_compare$map_year == break_compare$ref_year) & (break_compare$map_year !=0 & break_compare$ref_year != 0),]
+calc_ct(records$map_label, records$ref_label)
+
+# Eg show label distribution for STABLE MATCH
+records = break_compare[break_compare$map_year == 0 & break_compare$ref_year == 0,]
+calc_ct(records$map_label, records$ref_label)
+
+# Can also be done for labels, to find years of break
+records = break_compare[break_compare$map_label == 8 & break_compare$ref_label == 8,]
+calc_ct(records$map_year, records$ref_year)
+
+# Analyze strata breaks vs ref breaks per path/row
+break_compare$breakdif = break_compare$ref_year - break_compare$map_year
+
+# Calculate type of break difference per sample: ommited change, commited change, 
+# detected change with small ofset in timing (either positive or negative), 
+# exact change match (first change detected in the same year) or stable match
+# (no changes detected in reference or maps)
+
+break_compare$type[break_compare$breakdif > 2000] = "omission"
+break_compare$type[break_compare$breakdif < -2000] = "comission" 
+break_compare$type[(break_compare$breakdif > 0) & (break_compare$breakdif < 2000)] = "pos_offset" 
+break_compare$type[(break_compare$breakdif < 0) & (break_compare$breakdif > -2000)] = "neg_offset" 
+# Assume rows == 0 are exact change matches, then overwrite those that are stable matches
+break_compare$type[break_compare$breakdif == 0] = "exact_change_match" 
+break_compare$type[(break_compare$ref_year == 0) & (break_compare$map_year == 0)] = "stable_match"
+
+# Create new dataframe with the original number of rows and populate with the
+# results. Fill in the rows with no results (those that we didnt analyze)
+long_break_compare = data.frame(matrix(ncol = ncol(break_compare), nrow = nrow(df)))
+colnames(long_break_compare) = colnames(break_compare)
+long_break_compare[subind, ] = break_compare
+long_break_compare[subind2, "type"] = "not_analyzed"
+long_break_compare[subind2, "ptrw"] = samples@data[subind2,"PTRW"]
+
+# Aggregate results and calculate total points per path-row. 
+breakdif_count = aggregate(long_break_compare$type, by=list(long_break_compare$ptrw), FUN="summary")
+total_ptrw_pts = apply(breakdif_count[,2], MARGIN = 1, FUN = "sum")
+
+# # Calculate number of each type of change as ratios of the total
+bd_ratios = t(apply(breakdif_count[,2], MARGIN = 1, function(x) x/sum(x))) 
+rownames(bd_ratios) = breakdif_count$Group.1
+bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
+
+# Write aggregated results to CSV and row results to shapefile
+write.csv(bd_ratios_df, paste0(savepath, "LC_change_ratios_pathrow.csv"))
+samples@data[,names(long_break_compare)] <- long_break_compare
+writeOGR(samples, paste0(savepath, "sample_yearly_strata_break_analysis"), "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
+
+
+# Create confusion matrices per year between reference and map labels. USING FULL DATA HERE
+cm_list = list()
+for (y in 1:(length(years) - 1)){
+  cm_list[[y]] = calc_ct(samples[[map_names[y]]], samples[[ref_names[y]]], class_codes)
 }
 
 
-## Plot forest change per year. Yearly loss in 1 mostly equals yearly gain in 8+9, with the exception of a couple years
-# Get only classes we're interested in
-for_change = chg_area[,c(2, 8, 9)]
-# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
-# Positive values (and also small values) in the "to other" column are attributed to rounding errors
-# While larger ones are attributed to changes from forest to other land cover type (class 0)
-for_to_other = rowSums(for_change[,1:3])
-for_change = cbind(for_change, for_to_other)
-for_change = abs(for_change[,2:4])
-colnames(for_change) = c("To pasture", "To secondary forest", "To other")
+# Compare total breaks detected per years
+total_breaks = cbind(cm_breaks["total",], cm_breaks[,"total"])
+colnames(total_breaks) = c("ref_breaks", "map_breaks")
 
-# Melt and plot. 
-for_change_melt = melt(for_change)
-forest_plot <- ggplot(for_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack") + 
-  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu", breaks=levels(for_change_melt$Var2), guide = guide_legend(reverse=T)) + 
-  theme(legend.title=element_blank()) +
-  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
 
-print(forest_plot)
-#ggsave("forest_change.png", plot=forest_plot, device="png") 
+##############################################################################################################
+# 6) CREATE SOME MORE PLOTS, NEEDS TO BE REWRITTEN
 
 
 ## Plot net regrowth (net secondary forest). Yearly loss in 5 equals yearly gain in 14
@@ -518,10 +678,10 @@ regr_area_melt = melt(as.matrix(regr_area))
 
 regr_plot <- ggplot(regr_area_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
   geom_area(position="stack", alpha=0.8) + #geom_line(aes(x=Var1, y=732031.3), linetype=2) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Area [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu",  breaks=levels(regr_area_melt$Var2), guide = guide_legend(reverse=T)) + 
+  scale_fill_brewer(palette="GnBu",  breaks=levels(as.factor((regr_area_melt$Var2))), guide = guide_legend(reverse=T)) + 
   theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13),
   legend.title=element_blank()) #+ 
   #annotate("segment", x = 2016, xend=2016, y = 732031.3, yend = 416495.7, colour = "black", linetype=2) +
@@ -540,7 +700,7 @@ names(for_loss) = c("Forest to pasture", "Forest to secondary forest")
 for_loss_melt = melt(as.matrix(for_loss))
 forest_loss_plot <- ggplot(for_loss_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
   geom_area(position="stack", alpha=0.8) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL)  + 
+  scale_x_continuous(breaks=years[2:length(years)], minor_breaks = NULL)  + 
   scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
   ylab("Loss of primary forest [ha]") + xlab("Years") +
   scale_fill_brewer(palette="GnBu", breaks=levels(for_loss_melt$Var2), guide = guide_legend(reverse=T)) + 
@@ -551,140 +711,16 @@ print(forest_loss_plot)
 #ggsave("forest_loss.png", plot=forest_loss_plot, device="png") 
 
 
-# COMPARE MAPPED AREAS WITH ESTIMATES
-
-# Create empty matrix to store mapped values and fill
-mapped_areas = matrix(0, nrow=length(years[2:16]), ncol=nrow(mapped_areas_list[[1]]), byrow=T, dimnames = list(years[2:16], mapped_areas_list[[1]][,1]))
-
-for (i in 1:length(mapped_areas_list)){
-  mapped_areas[i,] = mapped_areas_list[[i]][,2]  
-}
-
-
-# Convert to ha
-mapped_areas = mapped_areas * 30^2 / 100^2
-
-# Calculate yearly area change and rate change (percentage of total area that is changing)
-# Initialize zero matrix with year (03 to 16) * class (16) dimensions and proper row and column names
-mapped_chg = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
-mapped_rate = matrix(0, nrow=length(years)-2, ncol=ncol(mapped_areas), dimnames=list(years[3:16], colnames(mapped_areas)))
-
-# Iterate over strata labels
-for(i in 1:ncol(mapped_areas)){
-  mapped_chg[,i] = diff(mapped_areas[,i])
-  mapped_rate[,i] = mapped_chg[,i] / mapped_areas[1:14,i] * 100 #14 years
-}
-
-
-mapped_for_change = mapped_chg[,c(2, 9, 10)] # This matrix has extra cols
-
-# Calculate how much of deforestation is not caused by pastures or regrowth and get absolute values
-mfor_to_other = rowSums(mapped_for_change[,1:3])
-mapped_for_change = cbind(mapped_for_change, mfor_to_other)
-mapped_for_change = abs(mapped_for_change[,2:4])
-colnames(mapped_for_change) = c("To pasture", "To regrowth", "To other")
-mapped_for_chg = mapped_chg[,c(8,9)] 
-
-## Melt and plot annual areas of change per year 
-mfor_change_melt = melt(mapped_for_change)
-mforest_plot <- ggplot(mfor_change_melt, aes(x=Var1,y=value,group=Var2,fill=Var2)) + 
-  geom_area(position="stack") + 
-  scale_x_continuous(breaks=years[3:16], minor_breaks = NULL)  + 
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) + 
-  ylab("Annual forest conversion to other classes [ha]") + xlab("Years")+
-  scale_fill_brewer(palette="GnBu", breaks=levels(mfor_change_melt$Var2), guide = guide_legend(reverse=T)) + 
-  theme(legend.title=element_blank()) +
-  theme(axis.title=element_text(size=15), axis.text=element_text(size=13), legend.text=element_text(size=13))
-
-print(mforest_plot)
-#ggsave("mapped_forest_change.png", plot=mforest_plot, device="png") 
-
-## Plot MAPPED areas of forest to pasture, forest to regrowth and deforestation
-mapped_plots = as.data.frame(mapped_areas[,c(9, 10)])
-mapped_plots = cbind(years[2:16], mapped_plots)
-colnames(mapped_plots) = c("Years", "Forest_to_pasture",  "Forest_to_regrowth")
-
-mfp <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-mfr <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-mdefor <- ggplot(data=mapped_plots, aes(x=Years, y=Forest_to_pasture + Forest_to_regrowth)) + geom_line(size=1.1) + 
-  scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + expand_limits(y=0) + ylab("Area [ha]") +
-  scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-  theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-
-
-print(mdefor)
-#ggsave("mapped_forest_to_pasture.png", plot=mfp, device="png") 
-#ggsave("mapped_forest_to_secondary_forest.png", plot=mfr, device="png") 
-#ggsave("mapped_deforestation.png", plot=mdefor, device="png") 
-
-
-## Plot estimated areas with CI along with mapped areas. The way it is right now is only taking the mapped area of forest to pasture,
-# so the rest of the plots are not correct. I need to fix that.
-
-for(i in 1:length(area_ha)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(years[2:16], area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,'8']))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped")
-  
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
-  a<-ggplot(data=tempdf, aes(x=Years, y=Area_ha))+ geom_line(aes(x=Years, y=Mapped),linetype=4 )+
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + 
-    scale_x_continuous(breaks=years[2:16], minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area in ha") + ggtitle(strata_names[[i]]) + expand_limits(y=0)
-  theme(plot.title = element_text(size=18), axis.title=element_text(size=15), axis.text=element_text(size=13))
-  filename = paste0(strata_names[[i]], "_areasCI", ".png")
-  
-  print(a)
-  #ggsave(filename, plot=a, device="png") 
-  
-}
-
 ##############################################################################################################
 # MISCELANEOUS
 # Plot number of forest to pasture reference samples over time.
 fpc = vector()
-for (f in field_names){
+for (f in ref_names){
   a = samples@data[,f] == 8
   fpc = cbind(fpc, sum(a))
 }
 
 dtf = as.data.frame(cbind(years, t(fpc)))
 colnames(dtf) = c("Years", "Count")
+plot(dtf,type="l")
 
-
-# Analyze strata breaks vs ref breaks per path/row
-break_compare = as.data.frame(cbind(ref_breaks, strata_breaks, samples@data$PTRW))
-colnames(break_compare) = c("ref_breaks", "strata_breaks", "ptrw")
-break_compare$breakdif = break_compare$ref_breaks - break_compare$strata_breaks
-
-# Function to calculate frequency of break differences. Sum gives total of pts
-calc_break_time <- function(freqlist){
-  pos = sum(freqlist > 2000) # Map didn't detect break but reference did (omission)
-  neg = sum(freqlist < 0) # Reference didn't detect break but map did (commission)
-  sm = sum(freqlist > 0 & freqlist< 2000)
-  zr = sum(freqlist == 0)
-  return(rbind(pos, neg, sm, zr))
-}
-
-breakdif_count = by(break_compare$breakdif, break_compare$ptrw, calc_break_time, simplify = FALSE) 
-total_ptrw_pts = unlist(lapply(breakdif_count, sum))
-bd_ratios = lapply(breakdif_count, function(x) x/sum(x)) # Calculate as ratios of the total
-bd_ratios_melt =melt(bd_ratios) # Get that out of the ugly list
-bd_ratios_df = dcast(bd_ratios_melt, L1~Var1) # Reshape to get an easier to manage df
-bd_ratios_df = cbind(bd_ratios_df, total_ptrw_pts)
-write.csv(bd_ratios_df, "break_ratios.csv")
-        
-#TODO
-
-# - Plot of primary forest loss disagregated by class (requires operating over original mosaics)
