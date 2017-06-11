@@ -4,6 +4,10 @@
    has row and column labels, and that the last four columns are samples per 
    class, number of map pixel per class, area in ha and class weigth.
 
+   This is an old script and hasn't been updated in a while. All of these steps
+   are being done in the calculate_strate_per_year.R for now.
+
+
 Usage:
     area_estimation.py <input_csv> <output_csv>
 """

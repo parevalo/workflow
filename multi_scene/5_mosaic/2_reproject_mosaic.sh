@@ -4,8 +4,6 @@
 # concentrated. The output file is "snapped" to the grid of the west zone
 # mosaic to simplify merging the two.
 
-export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
-
 # cd to the corresponding class folder
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
     

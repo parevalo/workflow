@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Script to create the samples for each of the biannual maps (including
-# a buffer class (16) around the forest to pasture areas. Run in interactive
+# a buffer class (16) around the forest to pasture areas. Ran in interactive
 # mode with stdout-stderr redirection bc it wasn't working with qsub.
 
 # Set paths and file names

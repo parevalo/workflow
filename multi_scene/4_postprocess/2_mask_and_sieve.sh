@@ -8,8 +8,6 @@
 # This script goes BEFORE the crop script and the input maps MUST NOT
 # have set a NoData value
 
-#module load python/2.7.5_nopath
-#module load gdal/1.11.1
 
 scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
           005059 005060 005061 006058 006059 006060 006061 007058 007059 \

@@ -33,13 +33,6 @@ qsub -j y -b y -V -N buff_gdal -hold_jid sieve_strata \
   -values 3 -maxdist $npix \
    -fixed-buf-val 1 -nodata 0 -ot Byte -co "COMPRESS=PACKBITS"
 
-# Polygonize in case we want to do spatial selection of points that fall inside
-# Not working, WAY too slow 
-
-#qsub -j y -b y -V -N pol_buffer -hold_jid buff_gdal \
-# gdal_polygonize.py $out_buff".tif" -f '"ESRI Shapefile"' \
-#  $out_buff".shp" $out_buff ID
-
 # Create strata with the new buffer
 
 qsub -j y -b y -V -N poststrat -l mem_total=94G -hold_jid buff_gdal \

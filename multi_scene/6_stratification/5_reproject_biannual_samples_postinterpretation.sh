@@ -1,10 +1,11 @@
 #!/bin/bash -l
 
-# Reprojects sample in east zone to UTM18. The output file is "snapped" to the 
-# grid of the west zone in the same way it was done for the mosaics
-#  so that they can be merged easily
-
-export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
+# Reprojects sample in east zone to UTM18 in order to create a single
+# sample file after samples have been interpreted. The output file is 
+# "snapped" to the  grid of the west zone in the same way it was done for 
+# the mosaics so that they can be merged easily and match the strata maps.
+# THIS FILE IS JUST A COPY OF THE ORIGINAL VERSION TO SERVE AS A PLACEHOLDER
+# AND NEEDS TO BE UPDATED ACCORDINGLY
 
 # cd to the corresponding class folder
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3

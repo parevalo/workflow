@@ -6,8 +6,6 @@
 # However, model M2B won't be used anymore, and instead, two versions of M3, 
 # one classified with classifier M1 and the other with M3.
 
-module load python/2.7.5_nopath
-module load gdal/1.11.1
 
 scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
           005059 005060 005061 006058 006059 006060 006061 007058 007059 \

@@ -9,6 +9,7 @@
 # so that it matches the grid individual scenes in that zone for TS interpretation
 # 4) Poligonize those reprojected samples
 # 5) Add new column with path-row info (creates new shapefile)
+# These steps are required to get the sample ready for interpretation
 
 # cd to the biannual samples folder
 #cd /projectnb/landsat/projects/Colombia/biannual_samples_june2017

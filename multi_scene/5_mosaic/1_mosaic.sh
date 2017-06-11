@@ -4,8 +4,6 @@
 # with the scenes in sequence because this improves the appearance, and because
 # most of the training data and areas of interest are located towards the west
 
-export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
-
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
 imgf=/projectnb/landsat/projects/Colombia/images
 suf=_final.tif

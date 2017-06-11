@@ -19,7 +19,14 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
 ## 3_map
 
 1. Create the land cover maps based on the classified results from previous step.
-2. Merge the TWO resulting land cover maps (I used two classifiers, need to add documentation on that)
+2. Merge the TWO resulting land cover maps. Technically only the results of the model M3 were used to create 
+ the maps, but those records were classified two times, using two different classifiers. A map was created for
+ each  one of those classifications, then those two maps were merged. The first classifier was obtained from 
+ model M1 (which has minor differences from model M3) and the second came from using the training data over
+ the M3 records. The first was used because it produced better results for forest mapping, the second was used
+ because it produced better results to distinguish between pastures and grasslands. Therefore, the map from the first approach was preserved, but areas mapped as grasslands were replaced by whatever label was assigned in
+ the second approach, as long as there was no change in the entire period. This procedure is more of a stopgap  to distinguish pastures and grasslands properly, but in the future simpler methods should be favored.
+ 
 3. Create changemap between 2001 and 2016, required for the sieving operation (see below)
 4. Modify the metadata to make the maps easier to use with gdalcalc.
 
@@ -33,34 +40,51 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
 ## 5_mosaic
 
 1. Mosaic the scenes present in each of the two UTM zones in the area (18 and 19).
-2. Reproject the east zone mosaic (in UTM19) to UTM18
+2. Reproject the east zone mosaic (in UTM19) to UTM18 (move/remove second part of that script and document)
 3. Merge the two mosaics into a single one.
 
 ## 6_stratification
 
 1. Clip mosaics to the amazon region boundary
-2. Create strata based on the classes shown in the README file.
-3. Submit the script to draw the stratified sample based on the parameters in the `notes.txt` file.
+2. Create strata based on the classes shown in the README file. This can be done either annually
+ or biannually and including a buffer class to capture omission errors around areas where forest to
+ pasture conversion is expected. Both scripts use the `create_strata.py` script.
+3. Submit the script to draw the stratified random samples either for the stratification of the entire period 
+ (original, 2001 - 2016) or the biannual stratification. Both scripts use the `sample_map.py` script. 
+4. Pre-interpretation reprojection and processing of the samples that intersect east zone to UTM19 in order 
+ to aid the interpretation using TSTools. This process was made mostly manually for the origina samples but
+ was automated for the biannual samples.
+
+ The biannual script uses the `split_samples.py` script to separate those in east and west  zones and then 
+ assigns the correct path rows using the `assign_path-row.py` script and a customized version  of the scenes 
+ footprints to deal properly with the overlap zones. The process of path-row assignment may result in samples 
+ being located in the line boundary between two scenes, in which case the sample will be duplicated and a 
+ manual decision will have to be made regarding which scene to use. Therefore, it is possible that after 
+ this step the total number of samples is temporarily increased. 
+5. Post-interpretation reprojection and processing of the samples in order to be merged into a single
+ shapefily that can be compared against the stratification in order to calculate unbiased areas and 
+ accuracies.
+
+TODO
+- Reproject strata files instead of having to reproject samples?
+- Move output logs from original samples to the samples folder, but need permissions to access it.
 
 ## 7_poststratification
 
-- area_estimation.py: Calculation of estimated areas with standard errors only. This is also done in the
+0. Generate a poststratified version of the current strata that creates a buffer into the forest around
+ forest to pasture areas, in order to capture omissions errors.
+1. Calculate areas for each class in each of the strata maps (annual, bianual, original). Uses the script
+ `count_pixels.py`. This is required to calculate the unbiased area estimates and accuracies.
 calculate_strata_per_year.R along with other things.
+2. calculate_strata_per_year.R: This script can be run from start to end, specifying multiple input files
+ with different configurations that refer to stratification schemes (e.g original, forest-noforest, original
+ where class 8 and 9 are merged together).The main purpose is to calculate the unbiased area estimations, 
+ standard errors and margins of error per period and create the plots. Other sections to create useful tables,
+ as well as other calculations and plots need to be rewritten. 
+
+
 - area_plot.py: Alternative script to the one written in R to create the figures of areas and confidence
-interval in one axis and the margin of error in the other (not possible to do in ggplot). As of Dec 14 2016 
+interval in one axis and the margin of error in the other (not possible to do in ggplot). As of June 11 2017 
 this version is incomplete, and the full version is in a jupyter notebook that I need to include in this 
 repository.
-- CountValues.py: Script to count the number of pixels per class in a given raster file.
-- calc_comparison_areas: Submit the CountValues.py script to calculate all the rasters product of 
-comparing my maps to those from IDEAM.
-- reprohect_samples.sh: Reprojects the sample in the east zone to UTM18.
-- submit_crostab.sh: Submits the crosstabulation script created bhy Christ Holden to get a confusion
-matrix.
-- calculate_strata_per_year.R: This script can be run from start to end, specifying the correct paths where 
-the required files are found. The main purpose is to calculate the unbiased areas, standard errors and margins
-of error per year and create the plots, but it also creates other useful tables and perform other calculations explained directly in the file. 
 
-TODO
-
-- Number the scripts or explain their possible ordering 
-- Explain better what the R script does. 

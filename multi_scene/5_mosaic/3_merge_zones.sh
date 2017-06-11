@@ -1,8 +1,6 @@
 #!/bin/bash -l
 # Merge west and east zones, both in UTM18
 
-export GDAL_DATA=/usr3/graduate/parevalo/miniconda2/envs/GDAL_ENV/share/gdal
-
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3
 
 for yr in $(seq -w 01 16); do
