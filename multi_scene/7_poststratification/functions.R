@@ -87,70 +87,122 @@ calculate_strata_old <- function(year1, year2){
 #' Calculate area proportions of reference classes and variance of reference samples per original strata
 #' for a given year/map.
 #'
-#' @param samp_strata Vector with numeric codes representing the original stratification of each sample
-#' @param samp_reference Vector with numeric codes representing the reference label for that year/map
+#' @param orig_strata Vector with numeric codes representing the original stratification of each sample
+#' @param ref_label Vector with numeric codes representing the reference label for that year/map
 #' @param strata_totals Dataframe with two columns and number of rows equal to the total number of classes 
 #' in the original strata. The first column must have the same codes found in the original stratification 
 #' and the second must have the total number of PIXELS of each class in that original strata map.
 #' @param sample_totals Dataframe with two columns and number of rows equal to the total number of classes 
 #' in the original strata. The first column must have the same codes found in the original stratification, 
 #' and the second must have the total number of SAMPLES of each class collected from that original strata map. 
-#' @param rfcodes Vector with all the unique numerical classes present in the REFERENCE data . This is required
-#' to facilitate the calculations for multiple maps/years when not all the reference classes are present in every map.
-#' @return List with: Vector of area proportions per class (class_prop), dataframe with sample variance per sample strata (ref_var), 
+#' @param class_codes Vector with all the unique numerical classes present in BOTH the maps and reference data.
+#' This is required to facilitate the calculations for multiple maps/years when not all the reference/maps classes are present 
+#' in every map, and to simplify the calculations of accuracies. 
+#' @return List with: dataframe with proportion (mean) of reference labels present on each sample strata class (ref_prop) and 
+#' dataframe with its variance (ref_var), dataframe with proportion (mean) of map labels present on each sample strata class (map_prop),
+#' and dataframe with its variance (map_var), dataframe with proportion (mean) of matching reference and map labels present 
+#' on each sample strata class (map_and_ref_prop) and dataframe with its variance (map_and_ref_var), dataframees associated with
+#' users's and producer's covariance (users_cov, producers_cov), vector of area proportions per class (class_prop),
 #' dataframe with original strata codes and total area in pixels present in the map/year being evaluated (fss), 
-#' vector with proportion of sample reference class present on each sample strata class (ref_prop)
+#' and total area in pixel (totalarea_pix). 
 #' @export
 
-calc_area_prop = function(samp_strata, samp_reference, strata_totals, sample_totals, rfcodes){
-  #TODO: Test if class codes match when they should?
+calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, sample_totals, rfcodes){
   
-  # Obtain unique values in the samp_strata field
-  str_codes = sort(unique(samp_strata))
-  str_ind = seq_along(str_codes)
+  # Obtain unique values in the orig_strata field and get a sequence
+  str_codes = sort(unique(orig_strata))
+  str_seq = seq_along(str_codes)
   
   # Get a sequence for the reference codes
-  ref_ind = seq_along(rfcodes)
+  ref_seq = seq_along(rfcodes)
   
-  # Initialize empty df for proportions per samp_strata, and for sample variance per samp_strata
+  # Initialize empty df for proportions per orig_strata, and for sample variance per orig_strata
   ref_prop = data.frame()
   ref_var = data.frame()
+  map_prop = data.frame()
+  map_var = data.frame()
+  map_and_ref_prop = data.frame()
+  map_and_ref_var = data.frame()
+  users_cov = data.frame()
+  producers_cov = data.frame()
   
-  # Compare the fields, iterate over "samp_strata" and "samp_reference" classes
-  for (s in str_ind){
-    for (r in ref_ind){
-      # Compared fields and get TRUE or FALSE on each row
-      cond_bool = samp_strata == str_codes[s] & samp_reference == rfcodes[r]
+  # Compare the fields, iterate over "orig_strata" and "ref_label" classes
+  for (s in str_seq){
+    
+    # Get location of rows for the current orig_strata
+    str_bool = orig_strata == str_codes[s]
+    str_ind = which(str_bool)
+    
+    for (r in ref_seq){
+      # Compare reference vs stratum and get TRUE or FALSE on each row
+      ref_vs_str_bool = str_bool & ref_label == rfcodes[r]
       # Get row numbers that meet that condition
-      ind = which(cond_bool)
-      # Get location of rows for the current samp_strata
-      str_ref = which(samp_strata == str_codes[s])
-      # Get proportion of samp_reference class present on that samp_strata
-      ref_prop[s, r] = length(ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
-      # Calculate SAMPLE variance of current samp_reference code in current samp_strata (needed later)
-      # which is the same formula specified in the paper
-      ref_var[s, r] = var(cond_bool[str_ref]) 
+      ref_vs_str_ind = which(ref_vs_str_bool)
+      
+      # Compare map vs stratum and get TRUE or FALSE on each row
+      map_vs_str_bool = str_bool & map_label == rfcodes[r]
+      # Get row numbers that meet that condition
+      map_vs_str_ind = which(map_vs_str_bool)
+      
+      # Get places where reference and map are the same in that stratum class
+      ref_vs_map_bool = ref_vs_str_bool & map_vs_str_bool
+      # Get row numbers that meet that condition
+      ref_vs_map_ind = which(ref_vs_map_bool)
+      
+      # Calculate proportion (mean) of reference present in stratum
+      ref_prop[s, r] = length(ref_vs_str_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
+      # Calculate SAMPLE variance of reference in stratum.
+      ref_var[s, r] = var(ref_vs_str_bool[str_ind])
+      
+      # Calculate proportion (mean) of map present in stratum
+      map_prop[s, r] = length(map_vs_str_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
+      # Calculate SAMPLE variance of map in stratum.
+      map_var[s, r] = var(map_vs_str_bool[str_ind])
+      
+      # Calculate proportion (mean) of map == reference present in stratum
+      map_and_ref_prop[s, r] = length(ref_vs_map_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
+      # Calculate SAMPLE variance of map == reference.
+      map_and_ref_var[s, r] = var(ref_vs_map_bool[str_ind])
+      
+      # Calculate covariances associated with users and producers accuracy
+      users_cov[s, r] = cov(ref_vs_map_bool[str_ind], map_vs_str_bool[str_ind])
+      producers_cov[s, r] = cov(ref_vs_map_bool[str_ind], ref_vs_str_bool[str_ind])
       
     }
   }
   
+  # Helper function to assign row and colnames
+  assign_names = function(df, rnames, cnames){
+    rownames(df) = rnames
+    colnames(df) = cnames
+    return(df)
+  }
+  
   # Assign column and row names
-  rownames(ref_prop) = paste0("strat_",str_codes)
-  colnames(ref_prop) = paste0("ref_", rfcodes)
-  rownames(ref_var) = paste0("strat_",str_codes)
-  colnames(ref_var) = paste0("ref_", rfcodes)
+  strata_rownames = paste0("strat_",str_codes)
+  ref_prop = assign_names(ref_prop, strata_rownames, paste0("ref_", rfcodes))
+  ref_var =  assign_names(ref_var, strata_rownames, paste0("ref_", rfcodes))
+  map_prop = assign_names(map_prop, strata_rownames, paste0("map_", rfcodes))
+  map_var =  assign_names(map_var, strata_rownames, paste0("map_", rfcodes))
+  map_and_ref_prop = assign_names(map_and_ref_prop, strata_rownames, paste0("mapandref_", rfcodes))
+  map_and_ref_var =  assign_names(map_and_ref_var, strata_rownames, paste0("mapandref_", rfcodes))
+  users_cov =  assign_names(users_cov, strata_rownames, paste0("ucov_", rfcodes))
+  producers_cov =  assign_names(producers_cov, strata_rownames, paste0("pcov_", rfcodes))
   
   # Calculate total number of pixels in original strata map
   totalarea_pix = sum(strata_totals[,2])
   class_prop = vector()
-  # Filter only total sample sizes that are present in the samp_strata for that year
+  # Filter only total sample sizes that are present in the orig_strata for that year
   fss = strata_totals[strata_totals[,1] %in% str_codes,]
-  # Calculate samp_reference class proportions (i.e. by columns) using total, original samp_strata areas.
+  
+  # Calculate ref_label class proportions (i.e. by columns) using total, original orig_strata areas.
   for (r in 1:ncol(ref_prop)){
     # totalarea_pix is REQUIRED here even if there are no reference counts for a given stratum
     class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
   }
-  return(list(class_prop, ref_var, fss, ref_prop, totalarea_pix)) 
+  
+  return(list(ref_prop, ref_var, map_prop, map_var, map_and_ref_prop, map_and_ref_var, users_cov, producers_cov, 
+              class_prop, fss, totalarea_pix)) 
 }
 
 
@@ -240,3 +292,4 @@ calc_ct = function(v1, v2, code_levels){
 
 # to get the pair of years we are reading
 #regmatches(map_names[[1]],regexpr('[0-9]{2}_[0-9]{2}', map_names[[1]]))
+

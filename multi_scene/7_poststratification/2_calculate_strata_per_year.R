@@ -146,16 +146,15 @@ samples@data[,ref_names] <- df
 # 2) READ ORIGINAL AND ANNUAL STRATA RASTERS AND EXTRACT THEIR VALUES TO THE SHAPEFILE
 # Also calculate original strata size, weights, area proportions, and accuracies
 
-# Iterate over names and extract to shapefile. We need these to calculate 
-# confusion matrices per year. We DON'T NEED THESE for the area estimation.
-# If we want to create confusion matrices for aggregated years, then we NEED TO
-# CREATE THOSE RASTERS FIRST e.g. (2001-2003 and so on)
+# Iterate over names and extract to shapefile. Not required for area estimation,
+# only for confusion matrices and accuracies per year
+
 map_names = character()
 short_years = substr(years, 3,4) # Get years in two digit format
 for (y in 1:(length(years)-1)){
   map_names[y] = paste0(rast_prefix, short_years[y], "_", short_years[y+1], rast_suffix)
-#  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
-#  samples = extract(map, samples, sp = TRUE) 
+  map = raster(paste0(auxpath, map_names[[y]], ".tif"))
+  samples = extract(map, samples, sp = TRUE) 
 }
 
 # Read original stratification. Done last so that the reference and map fields are contiguous
@@ -209,7 +208,7 @@ if(add_samples == TRUE){
 
 ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 
-# Load mapped areas for each individual stratification map (total strata sample size) produced from CountValues.py, 
+# Load mapped areas for each individual stratification map (total strata sample size) produced from count_pixels.py, 
 # REQUIRED for comparison between mapped and estimated areas only. 
 # TODO: CONVERT THIS SECTION TO A FUNCTION
 mapped_areas_list = list()
@@ -236,8 +235,8 @@ mapped_areas = mapped_areas * 30^2 / 100^2
 
 # Save mapped areas and strata weights to file.
 suffix = paste0("_step", step, "_", lut_name, ".csv")
-write.csv(mapped_areas, file=paste0(savepath, "mapped_areas", suffix))
-write.csv(mapped_weights, file=paste0(savepath, "mapped_areas", suffix))
+#write.csv(mapped_areas, file=paste0(savepath, "mapped_areas", suffix))
+#write.csv(mapped_weights, file=paste0(savepath, "mapped_areas", suffix))
 
 
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
@@ -279,10 +278,16 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 # 4) CALCULATE UNBIASED STANDARD ERROR FOR PROPORTION OF REFERENCE CLASS AREAS
 
 # Initialize variables for area proportions, variances, etc (Step 1)
-area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-ref_var_list = list()
-filtered_ss = list()
 ref_prop_list = list()
+ref_var_list = list()
+map_prop_list = list()
+map_var_list = list()
+mapref_prop_list = list()
+mapref_var_list = list()
+users_cov_list = list()
+producers_cov_list = list()
+filtered_ss = list()
+area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 # Initialize empty matrix to store standard error proportions (Step 2)
 se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
@@ -302,14 +307,20 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
-  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], ss, strata_pixels, ref_codes) 
+  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y+1]]], ss, strata_pixels, ref_codes) 
   
   # Assign outputs of Step 1
-  area_prop[y,] = prop_out[[1]]
+  ref_prop_list[[y]] = prop_out[[1]]
   ref_var_list[[y]] = prop_out[[2]]
-  filtered_ss[[y]] = prop_out[[3]]
-  ref_prop_list[[y]] = prop_out[[4]]
-  tot_area_pix = prop_out[[5]] # Will be overwritten with the same value anyway...
+  map_prop_list[[y]] = prop_out[[3]]
+  map_var_list[[y]] = prop_out[[4]]
+  mapref_prop_list[[y]] = prop_out[[5]]
+  mapref_var_list[[y]] = prop_out[[6]]
+  users_cov_list[[y]] = prop_out[[7]]
+  producers_cov_list[[y]] = prop_out[[7]]
+  area_prop[y,] = prop_out[[9]]
+  filtered_ss[[y]] = prop_out[[10]]
+  tot_area_pix = prop_out[[11]] # Will be overwritten with the same value anyway...
 
   # Run step two
   se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
@@ -341,14 +352,15 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
 # Using the same equations givee quivalent results to doing it manually via the
 # confusion matrix. The calculation will include any extra samples if they were added abpve
-
-prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, ss, strata_pixels, ref_codes) 
-se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
-areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_orig)
-
-areas_orig = data.frame(t(sapply(areas_out_orig,c)))
-colnames(areas_orig) = ref_codes
-rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
+# TODO: Update or remove this part, cannot be run as is with the new calculation script
+# bc it requires the map info, and I am not going to load the original maps here
+# prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata,  ss, strata_pixels, ref_codes) 
+# se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
+# areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_orig)
+# 
+# areas_orig = data.frame(t(sapply(areas_out_orig,c)))
+# colnames(areas_orig) = ref_codes
+#rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
 #write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 ##############################################################################################################
@@ -380,7 +392,7 @@ for(i in 1:length(ref_codes)){
   # Plot MAPPEd areas
   if(plot_mapped == T){
     m = geom_line(mapping = aes(x=Years, y=mapped_areas[,i]), linetype=2)
-    a = a+c
+    a = a+m
   }
   
   # Put plots together on a list and change some properties in order to save them together as a single plot
