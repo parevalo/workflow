@@ -238,9 +238,7 @@ suffix = paste0("_step", step, "_", lut_name, ".csv")
 #write.csv(mapped_areas, file=paste0(savepath, "mapped_areas", suffix))
 #write.csv(mapped_weights, file=paste0(savepath, "mapped_areas", suffix))
 
-
 # Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
-
 ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
 
 # Filter classes NOT in the list of classes from the pixel count files to be ignored. 
@@ -248,15 +246,15 @@ ss = ss[!(ss$stratum %in% cr),]
 
 # Calculate total number of samples per ORIGINAL stratum. 
 # ASSUMES that there is at least one sample per original stratum
-
 strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif]]), length)
 
 # Calculate original strata weights and area proportions
-tot_area_pix = sum(ss$pixels)
+tot_area_pix = sum(ss$pixels) # Assummed to be the same for all maps
 str_weight = ss$pixels / tot_area_pix
 
 # Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (i.e. columns)
 aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
+aprop_sum = rowSums(aprop)
 
 # Calculate accuracies
 tot_acc = sum(diag(aprop)) * 100
@@ -271,6 +269,17 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 #write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
 #write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
 #write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
+
+# Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
+# This is reusing the functions from the annual stratification bc they provide the same results
+
+prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, samples[[orig_stratif]],  ss, strata_pixels, ref_codes) 
+se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
+areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[9]], se_prop_orig)
+areas_orig = data.frame(t(sapply(areas_out_orig,c)))
+colnames(areas_orig) = ref_codes
+rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
+#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 
 ##############################################################################################################
@@ -301,13 +310,13 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 
 #' Run all the calculations. Call the function for every reference year we want and get area proportions
 #' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
-#' margin of errors. NOTE the double square brackets to allow for substitution. Only requires the original 
-#' strata, so no need to iterate over yearly rasters, that's only needed for accuracies. 
+#' margin of errors. NOTE the double square brackets to allow for substitution.  
 
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
-  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y+1]]], ss, strata_pixels, ref_codes) 
+  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y+1]]], 
+                            ss, strata_pixels, ref_codes) 
   
   # Assign outputs of Step 1
   ref_prop_list[[y]] = prop_out[[1]]
@@ -319,8 +328,6 @@ for (y in (1:(length(years)-1))){
   users_cov_list[[y]] = prop_out[[7]]
   producers_cov_list[[y]] = prop_out[[7]]
   area_prop[y,] = prop_out[[9]]
-  filtered_ss[[y]] = prop_out[[10]]
-  tot_area_pix = prop_out[[11]] # Will be overwritten with the same value anyway...
 
   # Run step two
   se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
@@ -349,19 +356,6 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 #write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 #write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
-# Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
-# Using the same equations givee quivalent results to doing it manually via the
-# confusion matrix. The calculation will include any extra samples if they were added abpve
-# TODO: Update or remove this part, cannot be run as is with the new calculation script
-# bc it requires the map info, and I am not going to load the original maps here
-# prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata,  ss, strata_pixels, ref_codes) 
-# se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
-# areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[1]], se_prop_orig)
-# 
-# areas_orig = data.frame(t(sapply(areas_out_orig,c)))
-# colnames(areas_orig) = ref_codes
-#rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
-#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 ##############################################################################################################
 # 5) PLOT AREAS AND MARGINS OF ERROR

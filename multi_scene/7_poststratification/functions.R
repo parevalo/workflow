@@ -102,14 +102,14 @@ calculate_strata_old <- function(year1, year2){
 #' dataframe with its variance (ref_var), dataframe with proportion (mean) of map labels present on each sample strata class (map_prop),
 #' and dataframe with its variance (map_var), dataframe with proportion (mean) of matching reference and map labels present 
 #' on each sample strata class (map_and_ref_prop) and dataframe with its variance (map_and_ref_var), dataframees associated with
-#' users's and producer's covariance (users_cov, producers_cov), vector of area proportions per class (class_prop),
-#' dataframe with original strata codes and total area in pixels present in the map/year being evaluated (fss), 
-#' and total area in pixel (totalarea_pix). 
+#' users's and producer's covariance (users_cov, producers_cov), vector of area proportions per class (class_prop).
 #' @export
 
 calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, sample_totals, rfcodes){
   
-  # Obtain unique values in the orig_strata field and get a sequence
+  # Obtain unique values in the orig_strata field and get a sequence. We will use ALL codes
+  # even if they are not present for a year, in which case we would obtain values of 0.
+  # This facilitates all the other calculations
   str_codes = sort(unique(orig_strata))
   str_seq = seq_along(str_codes)
   
@@ -189,20 +189,21 @@ calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, samp
   users_cov =  assign_names(users_cov, strata_rownames, paste0("ucov_", rfcodes))
   producers_cov =  assign_names(producers_cov, strata_rownames, paste0("pcov_", rfcodes))
   
-  # Calculate total number of pixels in original strata map
+  # Calculate total number of pixels in original strata map. This is also calculated
+  # in the main script, so it's not being returned here.
   totalarea_pix = sum(strata_totals[,2])
   class_prop = vector()
-  # Filter only total sample sizes that are present in the orig_strata for that year
-  fss = strata_totals[strata_totals[,1] %in% str_codes,]
   
   # Calculate ref_label class proportions (i.e. by columns) using total, original orig_strata areas.
   for (r in 1:ncol(ref_prop)){
     # totalarea_pix is REQUIRED here even if there are no reference counts for a given stratum
-    class_prop[r] = sum(fss[,2] * ref_prop[,r])/totalarea_pix
+    class_prop[r] = sum(strata_totals[,2] * ref_prop[,r])/totalarea_pix
   }
   
-  return(list(ref_prop, ref_var, map_prop, map_var, map_and_ref_prop, map_and_ref_var, users_cov, producers_cov, 
-              class_prop, fss, totalarea_pix)) 
+  return(list(ref_prop, ref_var, map_prop, map_var, 
+              map_and_ref_prop, map_and_ref_var, 
+              users_cov, producers_cov, 
+              class_prop)) 
 }
 
 
