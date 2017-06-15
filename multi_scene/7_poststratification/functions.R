@@ -84,7 +84,7 @@ calculate_strata_old <- function(year1, year2){
 }
 
 
-#' Calculate area proportions of reference classes and variance of reference samples per original strata
+#' Calculate proportions and variances for area and accuracies calculation per original strata
 #' for a given year/map.
 #'
 #' @param orig_strata Vector with numeric codes representing the original stratification of each sample
@@ -105,7 +105,7 @@ calculate_strata_old <- function(year1, year2){
 #' users's and producer's covariance (users_cov, producers_cov), vector of area proportions per class (class_prop).
 #' @export
 
-calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, sample_totals, rfcodes){
+calc_props_and_vars = function(orig_strata, ref_label, map_label, strata_totals, sample_totals, rfcodes){
   
   # Obtain unique values in the orig_strata field and get a sequence. We will use ALL codes
   # even if they are not present for a year, in which case we would obtain values of 0.
@@ -123,6 +123,8 @@ calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, samp
   map_var = data.frame()
   map_and_ref_prop = data.frame()
   map_and_ref_var = data.frame()
+  overall_acc_prop = vector()
+  overall_acc_var = vector()
   users_cov = data.frame()
   producers_cov = data.frame()
   
@@ -144,11 +146,15 @@ calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, samp
       # Get row numbers that meet that condition
       map_vs_str_ind = which(map_vs_str_bool)
       
-      # Get places where reference and map are the same in that stratum class
+      # Get places where the current reference and map are the same in the current stratum class
       ref_vs_map_bool = ref_vs_str_bool & map_vs_str_bool
       # Get row numbers that meet that condition
       ref_vs_map_ind = which(ref_vs_map_bool)
       
+      # Get place where ANY reference and map labels are the same in the current stratum class 
+      ref_vs_map_all_bool = str_bool & (ref_label == map_label)
+      ref_vs_map_all_ind = which(ref_vs_map_all_bool)
+
       # Calculate proportion (mean) of reference present in stratum
       ref_prop[s, r] = length(ref_vs_str_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
       # Calculate SAMPLE variance of reference in stratum.
@@ -159,11 +165,15 @@ calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, samp
       # Calculate SAMPLE variance of map in stratum.
       map_var[s, r] = var(map_vs_str_bool[str_ind])
       
-      # Calculate proportion (mean) of map == reference present in stratum
+      # Calculate proportion (mean) of map == reference present in stratum for one particular label
       map_and_ref_prop[s, r] = length(ref_vs_map_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
       # Calculate SAMPLE variance of map == reference.
       map_and_ref_var[s, r] = var(ref_vs_map_bool[str_ind])
       
+      # Calculate proportion of map == reference present in stratum for ALL labels
+      overall_acc_prop[s] = length(ref_vs_map_all_ind)/sample_totals[,2][sample_totals[,1] == str_codes[s]]
+      overall_acc_var[s] = var(ref_vs_map_all_bool[str_ind])
+     
       # Calculate covariances associated with users and producers accuracy
       users_cov[s, r] = cov(ref_vs_map_bool[str_ind], map_vs_str_bool[str_ind])
       producers_cov[s, r] = cov(ref_vs_map_bool[str_ind], ref_vs_str_bool[str_ind])
@@ -201,9 +211,10 @@ calc_area_prop = function(orig_strata, ref_label, map_label, strata_totals, samp
   }
   
   return(list(ref_prop, ref_var, map_prop, map_var, 
-              map_and_ref_prop, map_and_ref_var, 
-              users_cov, producers_cov, 
-              class_prop)) 
+              map_and_ref_prop, map_and_ref_var,
+              overall_acc_prop, overall_acc_var,
+              users_cov, producers_cov,
+              class_prop))
 }
 
 
@@ -259,6 +270,59 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
   lower_ci = area - ci
   me = ci / area 
   return(list(area, ci, upper_ci, lower_ci, me))
+}
+
+#' Function to calculate accuracies and their standard errors.
+#' 
+#' 
+
+calc_accuracies = function(strata_totals, sample_totals, rfcodes, totalarea_pix, 
+                           ref_prop, ref_var, map_prop, map_var, 
+                           map_and_ref_prop, map_and_ref_var,
+                           overall_acc_prop, overall_acc_var,
+                           users_cov, producers_cov){
+  
+  # Initialize vector to store results
+  se_overall = vector(mode="numeric", length=length(rfcodes))
+  se_usr = vector(mode="numeric", length=length(rfcodes))
+  se_prod = vector(mode="numeric", length=length(rfcodes))
+  
+  # Overall accuracy
+  overall_acc = sum(strata_totals[,2] * overall_acc_prop) / totalarea_pix
+  
+  # User's and producers accuracies, common parameter
+  param1 = colSums(strata_totals[,2] * map_and_ref_prop)
+  
+  # Users's accuracy
+  uparam = colSums(strata_totals[,2] * map_prop)
+  users_acc = param1 / uparam
+
+  # Producer's accuracy
+  pparam = colSums(strata_totals[,2] * ref_prop)
+  producers_acc = param1 / pparam
+
+  # Finite population correction term
+  corr_term = (1 - sample_totals[,2]/strata_totals[,2])
+  
+  # Standard error of accuracies
+  # Overall accuracy
+  vro = 1/totalarea_pix^2 * (sum(strata_totals[,2]^2 * corr_term  * overall_acc_var / sample_totals[,2])) 
+  se_overall = sqrt(vro)
+  
+  for (c in 1:length(rfcodes)){
+    
+    # User's accuracy
+    vru = 1/uparam[c]^2 * (sum(strata_totals[,2]^2 * corr_term  * 
+                                (map_and_ref_var[,c] + (users_acc[c]^2)*(map_var[,c]) - 2*users_acc[c]*users_cov[,c]) / sample_totals[,2]))
+    se_usr[c] = sqrt(vru)
+    
+    # Producer's accuracy, higher than paper by 0.002
+    vrp = 1/pparam[c]^2 * (sum(strata_totals[,2]^2 * corr_term * 
+                                (map_and_ref_var[,c] + (producers_acc[c]^2)*(ref_var[,c]) - 2*producers_acc[c]*producers_cov[,c]) / sample_totals[,2]))
+    se_prod[c] = sqrt(vrp)
+  }
+  return(list(overall_acc, se_overall, users_acc, se_usr, producers_acc, se_prod))
+  
 }
 
 

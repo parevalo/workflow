@@ -273,7 +273,7 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
 # This is reusing the functions from the annual stratification bc they provide the same results
 
-prop_out_orig = calc_area_prop(samples[[orig_stratif]], strata, samples[[orig_stratif]],  ss, strata_pixels, ref_codes) 
+prop_out_orig = calc_props_and_vars(samples[[orig_stratif]], strata, samples[[orig_stratif]],  ss, strata_pixels, ref_codes) 
 se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
 areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[9]], se_prop_orig)
 areas_orig = data.frame(t(sapply(areas_out_orig,c)))
@@ -293,9 +293,13 @@ map_prop_list = list()
 map_var_list = list()
 mapref_prop_list = list()
 mapref_var_list = list()
+overall_acc_prop_list = list()
+overall_acc_var_list = list()
 users_cov_list = list()
 producers_cov_list = list()
 filtered_ss = list()
+overall_accs = vector()
+overall_accs_se = vector()
 area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 # Initialize empty matrix to store standard error proportions (Step 2)
@@ -308,6 +312,12 @@ area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=li
 area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
+# Initialize matrices for accuracies
+users_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+users_accs_se = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+producers_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+producers_accs_se = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+
 #' Run all the calculations. Call the function for every reference year we want and get area proportions
 #' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
 #' margin of errors. NOTE the double square brackets to allow for substitution.  
@@ -315,30 +325,46 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
   # start at 1 though.
-  prop_out = calc_area_prop(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y+1]]], 
+  prop_out = calc_props_and_vars(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y]]], 
                             ss, strata_pixels, ref_codes) 
   
-  # Assign outputs of Step 1
+  # Assign outputs of Step 1 - Proportions and variances for areas and accuracies
   ref_prop_list[[y]] = prop_out[[1]]
   ref_var_list[[y]] = prop_out[[2]]
   map_prop_list[[y]] = prop_out[[3]]
   map_var_list[[y]] = prop_out[[4]]
   mapref_prop_list[[y]] = prop_out[[5]]
   mapref_var_list[[y]] = prop_out[[6]]
-  users_cov_list[[y]] = prop_out[[7]]
-  producers_cov_list[[y]] = prop_out[[7]]
-  area_prop[y,] = prop_out[[9]]
+  overall_acc_prop_list[[y]] = prop_out[[7]]
+  overall_acc_var_list[[y]] = prop_out[[8]]
+  users_cov_list[[y]] = prop_out[[9]]
+  producers_cov_list[[y]] = prop_out[[10]]
+  area_prop[y,] = prop_out[[11]]
 
-  # Run step two
+  # Run step two - Calculate standard error of area proportions
   se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
   
-  # Run and assign outputs of Step 3
+  # Run and assign outputs of Step 3 - Area estimation and margin of error
   areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
   area_ha[y,] = areas_out[[1]]
   area_ci[y,] = areas_out[[2]]
   area_upper[y,] = areas_out[[3]]
   area_lower[y,] = areas_out[[4]]
   margin_error[y,] = areas_out[[5]]
+  
+  # Step 4 - Calculate accuracies and their standard errors
+  #TODO Check if very low values are correct or a bug
+  accuracies_out = calc_accuracies(ss, strata_pixels, ref_codes, tot_area_pix,
+                                   ref_prop_list[[y]], ref_var_list[[y]], map_prop_list[[y]], map_var_list[[y]],
+                                   mapref_prop_list[[y]], mapref_var_list[[y]], 
+                                   overall_acc_prop_list[[y]], overall_acc_var_list[[y]],
+                                   users_cov_list[[y]], producers_cov_list[[y]])
+  overall_accs[y] = accuracies_out[[1]]
+  overall_accs_se[y] = accuracies_out[[2]]
+  users_accs[y,] = accuracies_out[[3]]
+  users_accs_se[y,] = accuracies_out[[4]]
+  producers_accs[y,] = accuracies_out[[5]]
+  producers_accs_se[y,] = accuracies_out[[6]]
   
 }
 
@@ -349,12 +375,19 @@ filtered_stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
 map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc 
 # 2016 is not always created if we aggregate the years.
 
-# Write results to csv 
-suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
+# Write results to csv (areas and accuracies)
 
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 #write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
 #write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 #write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+
+#write.csv(overall_accs, file=paste0(savepath, "overall_accuracies", suffix))
+write.csv(overall_accs_se * 1.96 * overall_accs, file=paste0(savepath, "overall_accuracies_ci", suffix))
+write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
+write.csv(users_accs_se * 1.96 * users_accs , file=paste0(savepath, "users_accuracies_ci", suffix))
+write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
+write.csv(producers_accs_se * 1.96 * producers_accs, file=paste0(savepath, "producers_accuracies_ci", suffix))
 
 
 ##############################################################################################################
