@@ -275,11 +275,15 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 
 prop_out_orig = calc_props_and_vars(samples[[orig_stratif]], strata, samples[[orig_stratif]],  ss, strata_pixels, ref_codes) 
 se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
-areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[9]], se_prop_orig)
+areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[11]], se_prop_orig)
 areas_orig = data.frame(t(sapply(areas_out_orig,c)))
 colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
-#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
+
+ss_filtered = ss[ss$stratum %in% ref_codes,]
+ss_filtered$area_ha = ss_filtered$pixels * 30^2 / 100^2
+areas_orig["map_bias",] = ss_filtered$area_ha - areas_orig["area_ha",]
+write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 
 ##############################################################################################################
@@ -326,8 +330,8 @@ producers_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dim
 #' margin of errors. NOTE the double square brackets to allow for substitution.  
 
 for (y in (1:(length(years)-1))){
-  # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
-  # start at 1 though.(JUST modified ref_names)
+  # Compare year strata with year reference, e.g strata_01_02 vs reference_2001.
+  
   prop_out = calc_props_and_vars(samples[[orig_stratif]], samples[[ref_names[y]]], samples[[map_names[y]]], 
                             ss, strata_pixels, ref_codes) 
   
@@ -373,28 +377,34 @@ for (y in (1:(length(years)-1))){
   
 }
 
+# Create confusion matrices per year between reference and map labels.
+# Useful for interpreting results
 
-# Calculate total area per stratum, and a filtered version with the reference
-# codes only
-stratum_areas= ss$stratum *30^2 / 100^2
-filtered_stratum_areas= ss$stratum[ss$stratum %in% ref_codes] *30^2 / 100^2
-map_bias = filtered_stratum_areas - area_ha['2016',] # doesn't work in all cases bc 
-# 2016 is not always created if we aggregate the years.
+cm_list = list()
+for (y in 1:(length(years) - 1)){
+  cm_list[[y]] = calc_ct(samples[[map_names[y]]], samples[[ref_names[y]]], class_codes)
+}
+
+# Calculate map biases per period, filter only classes of interest
+
+map_bias = mapped_areas[, as.character(ref_codes)] - area_ha
+
 
 # Write results to csv (areas and accuracies)
 
 suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
-#write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
-#write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
-#write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
+write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
+write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+write.csv(map_bias, file=paste0(savepath, "map_bias", suffix))
 
-# write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
-# write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
-# write.csv(users_accs_min, file=paste0(savepath, "users_accuracies_min", suffix))
-# write.csv(users_accs_max, file=paste0(savepath, "users_accuracies_max", suffix))
-# write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
-# write.csv(producers_accs_min, file=paste0(savepath, "producers_accuracies_min", suffix))
-# write.csv(producers_accs_max, file=paste0(savepath, "producers_accuracies_max", suffix))
+write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
+write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
+write.csv(users_accs_min, file=paste0(savepath, "users_accuracies_min", suffix))
+write.csv(users_accs_max, file=paste0(savepath, "users_accuracies_max", suffix))
+write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
+write.csv(producers_accs_min, file=paste0(savepath, "producers_accuracies_min", suffix))
+write.csv(producers_accs_max, file=paste0(savepath, "producers_accuracies_max", suffix))
 
 
 ##############################################################################################################
@@ -403,7 +413,7 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 ## Plot area estimates with CI and margin of error in separate plot. Couldn't figure out how to do it with facets
 # so I did it with grids. 
 
-plot_mapped = T
+plot_mapped = F
 allplots = list()
 
 for(i in 1:length(ref_codes)){
@@ -455,14 +465,14 @@ for(i in 1:length(ref_codes)){
   } else {
     filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, add_samples_suffix, ".png")
   }
-  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
   
 }
 
 # Arrange plots into a single one to make it easier to compare differences between classes when a change is made
 # NOT YET WORKING WITH THE MAPPED AREAS FOR SOME REASON BUT INDIVIDUALLY PLOTS ARE CORRECT
 multiplots = grid.arrange(grobs=allplots, ncol=4)
-#ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
 
 
 
@@ -480,16 +490,6 @@ colnames(strata_table) = c("Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h
 # Create table in Latex instead, and produce the pdf there, much easier than grid.table
 print(xtable(strata_table, digits=c(0,2,2,0)),type = "latex",sanitize.text.function=function(x){x})
 
-# Calculate map bias and create accuracy table with margin of error, only for strata 2001-2016
-# Also print to latex to be converted to pdf
-
-# TODO: Fix this block, not working at all
-accuracies = as.data.frame(cbind(usr_acc, prod_acc))
-accuracy_table=cbind(accuracies[-11,], t(map_bias), t(margin_error['2016',]*100))
-colnames(accuracy_table) = c("User's accuracy", "Producer's accuracy", "Map bias", "Margin of error")
-rownames(accuracy_table) = orig_strata_names[-11]
-accuracy_table = format(accuracy_table, scientific = FALSE, big.mark = ",", digits=2)
-print(xtable(accuracy_table, digits=c(0,2,2,0,1)),type = "latex",sanitize.text.function=function(x){x})
 
 # Calculate reference sample count per year. Initialize zero matrix with year * class dims and proper row and column names
 ref_sample_count = matrix(0, nrow=length(years), ncol=length(ref_codes), dimnames=list(years, ref_codes))
@@ -693,14 +693,6 @@ bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
 #write.csv(bd_ratios_df, paste0(savepath, "LC_change_ratios_pathrow.csv"))
 #samples@data[,names(long_break_compare)] <- long_break_compare
 #writeOGR(samples, paste0(savepath, "sample_yearly_strata_break_analysis"), "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
-
-
-# Create confusion matrices per year between reference and map labels. USING FULL DATA HERE
-cm_list = list()
-for (y in 1:(length(years) - 1)){
-  cm_list[[y]] = calc_ct(samples[[map_names[y]]], samples[[ref_names[y]]], class_codes)
-}
-
 
 # Compare total breaks detected per years
 total_breaks = cbind(cm_breaks["total",], cm_breaks[,"total"])
