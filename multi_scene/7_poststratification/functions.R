@@ -272,7 +272,7 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
   return(list(area, ci, upper_ci, lower_ci, me))
 }
 
-#' Function to calculate accuracies and their standard errors.
+#' Function to calculate accuracies and their 95% confidence intervals.
 #' 
 #' 
 
@@ -316,12 +316,25 @@ calc_accuracies = function(strata_totals, sample_totals, rfcodes, totalarea_pix,
                                 (map_and_ref_var[,c] + (users_acc[c]^2)*(map_var[,c]) - 2*users_acc[c]*users_cov[,c]) / sample_totals[,2]))
     se_usr[c] = sqrt(vru)
     
-    # Producer's accuracy, higher than paper by 0.002
+    # Producer's accuracy, higher than Stehman's paper by 0.002
     vrp = 1/pparam[c]^2 * (sum(strata_totals[,2]^2 * corr_term * 
                                 (map_and_ref_var[,c] + (producers_acc[c]^2)*(ref_var[,c]) - 2*producers_acc[c]*producers_cov[,c]) / sample_totals[,2]))
     se_prod[c] = sqrt(vrp)
   }
-  return(list(overall_acc, se_overall, users_acc, se_usr, producers_acc, se_prod))
+  
+  # Calculate confidence intervals
+  
+  overall_acc_min = overall_acc - (overall_acc * 1.96 * se_overall)
+  overall_acc_max = overall_acc + (overall_acc * 1.96 * se_overall)
+  users_acc_min =  users_acc - (users_acc * 1.96 * se_usr)
+  users_acc_max =  users_acc + (users_acc * 1.96 * se_usr)
+  producers_acc_min =  producers_acc - (producers_acc * 1.96 * se_prod)
+  producers_acc_max =  producers_acc + (producers_acc * 1.96 * se_prod)
+  
+  
+  return(list(overall_acc, overall_acc_min, overall_acc_max,
+              users_acc, users_acc_min, users_acc_max,
+              producers_acc, producers_acc_min, producers_acc_max))
   
 }
 

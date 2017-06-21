@@ -4,6 +4,9 @@
 # sample file after samples have been interpreted. The output file is 
 # "snapped" to the  grid of the west zone in the same way it was done for 
 # the mosaics so that they can be merged easily and match the strata maps.
+# This is more of a legacy file, since this step was probably unnecesary
+# to begin with, because the interpreted table could have been joined
+# back to the original sample file.
 
 # cd to the corresponding class folder
 cd /projectnb/landsat/projects/Colombia/Mosaics/M3

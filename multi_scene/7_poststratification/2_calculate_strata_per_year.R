@@ -299,7 +299,8 @@ users_cov_list = list()
 producers_cov_list = list()
 filtered_ss = list()
 overall_accs = vector()
-overall_accs_se = vector()
+overall_accs_min = vector()
+overall_accs_max = vector()
 area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 # Initialize empty matrix to store standard error proportions (Step 2)
@@ -314,9 +315,11 @@ margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=
 
 # Initialize matrices for accuracies
 users_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-users_accs_se = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+users_accs_min = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+users_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 producers_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-producers_accs_se = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+producers_accs_min = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+producers_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
 
 #' Run all the calculations. Call the function for every reference year we want and get area proportions
 #' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
@@ -352,21 +355,24 @@ for (y in (1:(length(years)-1))){
   area_lower[y,] = areas_out[[4]]
   margin_error[y,] = areas_out[[5]]
   
-  # Step 4 - Calculate accuracies and their standard errors
-  #TODO Check if very low values are correct or a bug
+  # Step 4 - Calculate accuracies and their CI's (SE's not returned)
   accuracies_out = calc_accuracies(ss, strata_pixels, ref_codes, tot_area_pix,
                                    ref_prop_list[[y]], ref_var_list[[y]], map_prop_list[[y]], map_var_list[[y]],
                                    mapref_prop_list[[y]], mapref_var_list[[y]], 
                                    overall_acc_prop_list[[y]], overall_acc_var_list[[y]],
                                    users_cov_list[[y]], producers_cov_list[[y]])
   overall_accs[y] = accuracies_out[[1]]
-  overall_accs_se[y] = accuracies_out[[2]]
-  users_accs[y,] = accuracies_out[[3]]
-  users_accs_se[y,] = accuracies_out[[4]]
-  producers_accs[y,] = accuracies_out[[5]]
-  producers_accs_se[y,] = accuracies_out[[6]]
+  overall_accs_min[y] = accuracies_out[[2]]
+  overall_accs_max[y] = accuracies_out[[3]]
+  users_accs[y,] = accuracies_out[[4]]
+  users_accs_min[y,] = accuracies_out[[5]]
+  users_accs_max[y,] = accuracies_out[[6]]
+  producers_accs[y,] = accuracies_out[[7]]
+  producers_accs_min[y,] = accuracies_out[[8]]
+  producers_accs_max[y,] = accuracies_out[[9]]
   
 }
+
 
 # Calculate total area per stratum, and a filtered version with the reference
 # codes only
@@ -382,12 +388,13 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 #write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 #write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 
-#write.csv(overall_accs, file=paste0(savepath, "overall_accuracies", suffix))
-write.csv(overall_accs_se * 1.96 * overall_accs, file=paste0(savepath, "overall_accuracies_ci", suffix))
-write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
-write.csv(users_accs_se * 1.96 * users_accs , file=paste0(savepath, "users_accuracies_ci", suffix))
-write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
-write.csv(producers_accs_se * 1.96 * producers_accs, file=paste0(savepath, "producers_accuracies_ci", suffix))
+# write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
+# write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
+# write.csv(users_accs_min, file=paste0(savepath, "users_accuracies_min", suffix))
+# write.csv(users_accs_max, file=paste0(savepath, "users_accuracies_max", suffix))
+# write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
+# write.csv(producers_accs_min, file=paste0(savepath, "producers_accuracies_min", suffix))
+# write.csv(producers_accs_max, file=paste0(savepath, "producers_accuracies_max", suffix))
 
 
 ##############################################################################################################
@@ -460,7 +467,7 @@ multiplots = grid.arrange(grobs=allplots, ncol=4)
 
 
 ##############################################################################################################
-# 6) CREATE SOME USEFUL TABLES
+# 6) CREATE SOME USEFUL TABLES - NEEDS REWRITTING
 
 # Export table of  sample count, areas, percentages
 
@@ -626,7 +633,7 @@ cm_breaks = rbind(cm_breaks, total=colSums(cm_breaks))
 tt= ttheme_default(base_size=18)
 grid.newpage()
 grid.table(round(cm_breaks, digits=2), theme=tt)
-png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(cm_breaks, theme=tt); dev.off()
+#png("numchange_strata_ref.png", width=1000, height = 1000, units = "px"); grid.table(cm_breaks, theme=tt); dev.off()
 
 # Find records for any given set of map year (from 1 to 16) and change year and get comparison of labels for it
 # Eg show label distribution for BREAK OMISSION ERRORS. 
@@ -683,9 +690,9 @@ rownames(bd_ratios) = breakdif_count$Group.1
 bd_ratios_df = cbind(bd_ratios, total_ptrw_pts)
 
 # Write aggregated results to CSV and row results to shapefile
-write.csv(bd_ratios_df, paste0(savepath, "LC_change_ratios_pathrow.csv"))
-samples@data[,names(long_break_compare)] <- long_break_compare
-writeOGR(samples, paste0(savepath, "sample_yearly_strata_break_analysis"), "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
+#write.csv(bd_ratios_df, paste0(savepath, "LC_change_ratios_pathrow.csv"))
+#samples@data[,names(long_break_compare)] <- long_break_compare
+#writeOGR(samples, paste0(savepath, "sample_yearly_strata_break_analysis"), "sample_yearly_strata_break_analysis", driver="ESRI Shapefile", overwrite_layer = T)
 
 
 # Create confusion matrices per year between reference and map labels. USING FULL DATA HERE
