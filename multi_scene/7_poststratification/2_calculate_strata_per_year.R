@@ -327,8 +327,8 @@ producers_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dim
 
 for (y in (1:(length(years)-1))){
   # Compare year strata with year reference. Field names MUST start at 2002, hence i+1. Other indexed variables DO need to
-  # start at 1 though.
-  prop_out = calc_props_and_vars(samples[[orig_stratif]], samples[[ref_names[y+1]]], samples[[map_names[y]]], 
+  # start at 1 though.(JUST modified ref_names)
+  prop_out = calc_props_and_vars(samples[[orig_stratif]], samples[[ref_names[y]]], samples[[map_names[y]]], 
                             ss, strata_pixels, ref_codes) 
   
   # Assign outputs of Step 1 - Proportions and variances for areas and accuracies
