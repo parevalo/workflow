@@ -296,10 +296,12 @@ calc_accuracies = function(strata_totals, sample_totals, rfcodes, totalarea_pix,
   # Users's accuracy
   uparam = colSums(strata_totals[,2] * map_prop)
   users_acc = param1 / uparam
+  names(users_acc) = rfcodes
 
   # Producer's accuracy
   pparam = colSums(strata_totals[,2] * ref_prop)
   producers_acc = param1 / pparam
+  names(producers_acc) = rfcodes
 
   # Finite population correction term
   corr_term = (1 - sample_totals[,2]/strata_totals[,2])
