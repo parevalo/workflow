@@ -132,7 +132,8 @@ for (row in 1:rows){
 names(df) = ref_names
 names(df2) = ref_names
 
-# Recalculate "original stratification", needed when we use a LUT different than the original
+# Recalculate reference labels for the original stratification period, 
+# needed when we use a LUT different than the original
 strata = vector()
 for (row in 1:rows){
   strata[row] = calc_strata(samples@data["CODE1"][row,], samples@data[codelist[samples$endcodecol[row]]][row,], lut)
@@ -252,38 +253,37 @@ strata_pixels = aggregate(samples[[orig_stratif]], by=list(samples[[orig_stratif
 tot_area_pix = sum(ss$pixels) # Assummed to be the same for all maps
 str_weight = ss$pixels / tot_area_pix
 
-# Calculate area proportions for original strata (2001-2016). NEED to apply over MARGIN 2 (i.e. columns)
-aprop = apply(ct, 2, function(x) x * str_weight / strata_pixels$x)
-aprop_sum = rowSums(aprop)
-
-# Calculate accuracies
-tot_acc = sum(diag(aprop)) * 100
-usr_acc = diag(aprop) / rowSums(aprop) *100
-prod_acc = diag(aprop) / colSums(aprop) *100
-
-# Format and save tables
-nsamp = rowSums(ct)
-ct_save = cbind(ct, nsamp, str_weight)
-
-suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
-#write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
-#write.csv(aprop, file=paste0(savepath, "confusion_matrix_area_prop", suffix))
-#write.csv(cbind(usr_acc, prod_acc, tot_acc), file=paste0(savepath, "accuracies", suffix))
-
 # Calculate areas and margin of errors for ORIGINAL STRATIFICATION (2001-2016) and save
 # This is reusing the functions from the annual stratification bc they provide the same results
 
-prop_out_orig = calc_props_and_vars(samples[[orig_stratif]], strata, samples[[orig_stratif]],  ss, strata_pixels, ref_codes) 
+prop_out_orig = calc_props_and_vars(samples[[orig_stratif]], strata, samples[[orig_stratif]], ss, strata_pixels, ref_codes) 
 se_prop_orig = calc_se_prop(ss, strata_pixels, prop_out_orig[[2]], ref_codes, tot_area_pix)
 areas_out_orig = calc_unbiased_area(tot_area_pix, prop_out_orig[[11]], se_prop_orig)
 areas_orig = data.frame(t(sapply(areas_out_orig,c)))
 colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
 
+# Calculate accuracies of original stratification, in percentage
+acc_out_orig = calc_accuracies(ss, strata_pixels, ref_codes, tot_area_pix,
+                                 prop_out_orig[[1]], prop_out_orig[[2]], prop_out_orig[[3]], prop_out_orig[[4]],
+                                 prop_out_orig[[5]], prop_out_orig[[6]], 
+                                 prop_out_orig[[7]], prop_out_orig[[8]],
+                                 prop_out_orig[[9]], prop_out_orig[[10]])
+
+# Format and save tables
+nsamp = rowSums(ct)
+ct_save = cbind(ct, nsamp, str_weight)
 ss_filtered = ss[ss$stratum %in% ref_codes,]
 ss_filtered$area_ha = ss_filtered$pixels * 30^2 / 100^2
 areas_orig["map_bias",] = ss_filtered$area_ha - areas_orig["area_ha",]
-write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
+
+suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
+#write.csv(ct_save, file=paste0(savepath, "confusion_matrix_counts_and_weights", suffix))
+#write.csv(prop_out_orig[[11]], file=paste0(savepath, "confusion_matrix_area_prop", suffix))
+#write.csv(cbind(acc_out_orig[[4]], acc_out_orig[[7]], acc_out[[1]]), 
+#          col.names = c("users", "producers", "overall"),
+#          file=paste0(savepath, "accuracies", suffix))
+#write.csv(areas_orig,  file=paste0(savepath, "area_ha_orig_strata", add_samples_suffix, ".csv"))
 
 
 ##############################################################################################################
@@ -359,7 +359,7 @@ for (y in (1:(length(years)-1))){
   area_lower[y,] = areas_out[[4]]
   margin_error[y,] = areas_out[[5]]
   
-  # Step 4 - Calculate accuracies and their CI's (SE's not returned)
+  # Step 4 - Calculate accuracies and their CI's (SE's not returned) in percentage
   accuracies_out = calc_accuracies(ss, strata_pixels, ref_codes, tot_area_pix,
                                    ref_prop_list[[y]], ref_var_list[[y]], map_prop_list[[y]], map_var_list[[y]],
                                    mapref_prop_list[[y]], mapref_var_list[[y]], 

@@ -324,17 +324,17 @@ calc_accuracies = function(strata_totals, sample_totals, rfcodes, totalarea_pix,
   
   # Calculate confidence intervals
   
-  overall_acc_min = overall_acc - (overall_acc * 1.96 * se_overall)
-  overall_acc_max = overall_acc + (overall_acc * 1.96 * se_overall)
-  users_acc_min =  users_acc - (users_acc * 1.96 * se_usr)
-  users_acc_max =  users_acc + (users_acc * 1.96 * se_usr)
-  producers_acc_min =  producers_acc - (producers_acc * 1.96 * se_prod)
-  producers_acc_max =  producers_acc + (producers_acc * 1.96 * se_prod)
+  overall_acc_min = (overall_acc - (overall_acc * 1.96 * se_overall))*100
+  overall_acc_max = (overall_acc + (overall_acc * 1.96 * se_overall))*100
+  users_acc_min =  (users_acc - (users_acc * 1.96 * se_usr))*100
+  users_acc_max =  (users_acc + (users_acc * 1.96 * se_usr))*100
+  producers_acc_min =  (producers_acc - (producers_acc * 1.96 * se_prod))*100
+  producers_acc_max =  (producers_acc + (producers_acc * 1.96 * se_prod))*100
   
   
-  return(list(overall_acc, overall_acc_min, overall_acc_max,
-              users_acc, users_acc_min, users_acc_max,
-              producers_acc, producers_acc_min, producers_acc_max))
+  return(list(overall_acc*100, overall_acc_min, overall_acc_max,
+              users_acc*100, users_acc_min, users_acc_max,
+              producers_acc*100, producers_acc_min, producers_acc_max))
   
 }
 
