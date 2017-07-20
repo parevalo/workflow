@@ -39,38 +39,11 @@ for (y in 1:(length(years)-1)){
 
 }
 
-# Function to find duplicate ID's and return the whole row
-find_duplicates = function(sample_table){
-  duplicate_id = unique(sample_table$ID[duplicated(sample_table$ID)])
-  duplicate_ind = which(sample_table$ID %in% duplicate_id)
-  duplicate_rows = sample_table[duplicate_ind, ]
-
-  return(duplicate_rows)
-}
-
-# Find duplicates before we join to the original table in order to avoid further
-# duplication in the new table
-duplicates = lapply(csv_list, find_duplicates) # 01-03 has 2 duplicates, 13-15 has 1
-
-# Temporarily remove the duplicates in order to find the truly missing samples
-remove_ind1 = as.numeric(rownames(duplicates[[1]])[c(2,4)])
-csv_list[[1]] = csv_list[[1]][-remove_ind1, ]
-
-remove_ind7 = as.numeric(rownames(duplicates[[7]])[2])
-csv_list[[7]] = csv_list[[7]][-remove_ind7, ]
-
 # Get row count per sample file
 samples_nrows = as.data.frame(do.call(rbind, lapply(csv_list, nrow)))
 colnames(samples_nrows) = "count"
 samples_nrows$period = samples_names
 
-# Join csv's to shapefile table in order to find MISSING SAMPLES
-
-missing_samples = list()
-for (i in 1:length(csv_list)){
-  missing_samples[[i]] = anti_join(shp_list[[i]]@data, csv_list[[i]], by= "ID")
-  #shp_list[[i]]@data = full_join(shp_list[[i]]@data, csv_list[[i]], by= "ID")
-}
 
 
 # Temporary code to check if first interpretations match between interpreters
