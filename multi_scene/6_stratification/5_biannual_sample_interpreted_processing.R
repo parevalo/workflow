@@ -49,10 +49,17 @@ for (i in 1:(length(periods))){
 }
 
 
-# Get row count per sample file to verify
-samples_nrows = as.data.frame(do.call(rbind, lapply(csv_list, nrow)))
-colnames(samples_nrows) = "count"
-samples_nrows$period = samples_names
+# Get number of unique ID's per file to verify they add to 1050.
+samples_uniqueids = as.data.frame(do.call(rbind, lapply(csv_list, function(x) length(unique(x[,"ID"])))))
+colnames(samples_uniqueids) = "count"
+samples_uniqueids$period = samples_names
+if (all(samples_uniqueids$count == 1050)){
+  print("Unique ID count matches total number of samples")
+  }else{
+  errorcount = whichs(samples_uniqueids$count != 1050)
+  print(paste0(samples_uniqueids[errorcount, 'period'], "does not have 1050 unique ID's"))
+}
+
 
 # Fnc to calculate strata for each year, given that there may or may not be
 # land cover change in each period. Then do the calculation.
@@ -79,6 +86,26 @@ join_ref_map_strata = function(map_shp, refstrata_id){
 
 # Use mapply to use each corresponding element of the two lists
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
+
+# Temporary DEFORMODE. collapse ref and map labels, and pixcount 
+# apply_deformod = function(df){
+#   df$STRATUM[df$STRATUM == 9] = 8
+#   df$ref_strata[df$ref_strata == 9] = 8
+#   return(df)
+# }
+# 
+# apply_deformode2 = function(df){
+#   w8 = df[,1] == 8
+#   w9 = df[,1] == 9  
+#   df[w8, 2] = df[w8, 2] + df[w9, 2]
+#   df = df[-(which(w9)),]
+#   return(df)
+# }
+# 
+# # Overwrite files to avoid creating new calls to the functions below
+# pixcount_list = lapply(pixcount_list, apply_deformode2)
+# shp_list_ref = lapply(shp_list_ref, apply_deformod)
+
 
 # Get lists of ref and map codes per period. This can probably be simplified
 get_ref_codes = function(shp){
@@ -113,7 +140,8 @@ map_total_pix = as.data.frame(do.call(rbind, lapply(pixcount_list, colSums)))
 tot_area_pix = map_total_pix[1,2]
 
 # Create single variable with sample allocation
-strata_pixels = aggregate(shp_list[[1]]$STRATUM, by=list(shp_list[[1]]$STRATUM), length)
+strata_pixels = aggregate(shp_list_ref[[1]]$STRATUM, by=list(shp_list_ref[[1]]$STRATUM), length)
+
 
 # Calculate areas and accuracies, cant vectorize it the way the fncs are written
 prop_out = list()
@@ -142,6 +170,7 @@ usr_acc = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 4)))
 prod_acc = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 7)))
 
 area_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 1)))
+ci_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 2)))
 area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
@@ -154,7 +183,7 @@ allplots = list()
 for(i in 1:length(ref_codes_all)){
   
   # Define data and variables to use
-  tempdf <- as.data.frame(cbind(seq(1,7), area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
+  tempdf <- as.data.frame(cbind(seq(1,length(periods)), area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
   
   # Plot areas with CI
@@ -209,3 +238,32 @@ for(i in 1:length(ref_codes_all)){
 multiplots = grid.arrange(grobs=allplots, ncol=4)
 #ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
 
+
+
+# Fnc to extract and put together the same column name from multiples df on a list
+get_dflist_columns = function(df, colname){
+  subcols = as.data.frame(do.call(rbind, lapply(df, function(x) x[,colname])))
+  return(t(subcols))
+}
+
+fp_ref = get_dflist_columns(cm_list, '8')
+  
+# Calculate strata weights in percentage as an aid to interpret the area plots.
+strata_weights = as.data.frame(do.call(rbind, lapply(pixcount_list, function(x) (x[,2]/tot_area_pix)*100)))
+colnames(strata_weights) = map_codes_all
+strata_weights
+
+# Function to find the rows that meet a condition of map and reference labels for a given period
+# Useful to check them manually in TSTools and find errors.
+get_condition_rows = function(period, mapcode, refcode){
+  match_rows = which(shp_list_ref[[period]]@data[,"STRATUM"] == mapcode & shp_list_ref[[period]]@data[,"ref_strata"] == refcode)
+  match_ids = shp_list_ref[[period]]@data[match_rows, "ID"]
+  return(csv_list[[period]][csv_list[[period]]$ID %in% match_ids,])
+}
+
+get_condition_rows(1, 1, 8)
+
+# Determine what transitions are being calculated in the maps for class 0, and if most of them are forest to grassland
+# then add them to class 8 and see what happens. 
+
+  
