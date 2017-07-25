@@ -1,7 +1,7 @@
 # File with path to necessary files to run the area estimation analysis with the original parameters
 
 # Paths and suffixes/prefixes
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/results/for_nofor_buffer3B/"
+savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/for_nofor_buffer3B/"
 lutpath = "/home/paulo/workflow/multi_scene/data/for-nofor_lut_A.csv"
 lut_name = "lutA"
 orig_stratif = paste0("buffered3B_final_strata_01_16_UTM18N_", lut_name)

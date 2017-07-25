@@ -22,13 +22,9 @@ require(matrixcalc)
 #0) SET VARIABLES/FOLDERS
 
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
-wd = "C:/OneDrive/Lab/area_calculation/final_sample"
-auxpath = "C:/test/"
-
-if( .Platform$OS.type == "unix" )
-    wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/final_sample"
-    auxpath = "/media/paulo/785044BD504483BA/test/"
-    stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
+wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/final_sample"
+auxpath = "/media/paulo/785044BD504483BA/test/"
+stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))

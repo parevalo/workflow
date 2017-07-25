@@ -1,7 +1,7 @@
 # File with path to necessary files to run the area estimation analysis with the original parameters
 
 # Paths and suffixes/prefixes
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/results/defor/"
+savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/defor/"
 lutpath = "/home/paulo/workflow/multi_scene/data/defor_lut.csv"
 lut_name = "defor_lut"
 orig_stratif = "final_strata_01_16_UTM18N_defor_lut"

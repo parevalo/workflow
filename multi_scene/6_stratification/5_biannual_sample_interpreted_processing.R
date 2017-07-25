@@ -1,4 +1,5 @@
-# Script to join the tables of interpreted samples to the original shapefiles
+# Script to process the biannual samples and calculate area estimates and
+# accuracies
 
 require(tidyverse)
 require(rgdal)
@@ -9,7 +10,7 @@ require(gridExtra)
 
 # Set working directories and vars
 auxpath = "/media/paulo/785044BD504483BA/test/"
-setwd("/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/biannual_samples/")
+setwd("/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/biannual_sampling/")
 stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
 source(paste0(stratpath, "functions.R"))
 source(paste0(stratpath, "input_variables_original_buffer3B.R"))

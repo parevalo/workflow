@@ -1,7 +1,7 @@
 # File with path to necessary files to run the area estimation analysis with the original parameters
 
 # Paths and suffixes/prefixes
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/results/original_buffer1/"
+savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/original_buffer1/"
 lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
 lut_name = "original_lut"
 orig_stratif = "buffered1_final_strata_01_16_UTM18N"
