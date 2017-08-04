@@ -61,6 +61,11 @@ if (all(samples_uniqueids$count == 1050)){
   print(paste0(samples_uniqueids[errorcount, 'period'], "does not have 1050 unique ID's"))
 }
 
+# TEMPORARY, USE TO CHANGE CODES AND SEE THE RESULTS IN AREAS
+# chg_ids = get_condition_rows(1,14,8)$ID
+# ids = which(csv_list[[1]]$ID %in% chg_ids)
+# csv_list[[1]][ids, 'CODE1'] = 5
+
 
 # Fnc to calculate strata for each year, given that there may or may not be
 # land cover change in each period. Then do the calculation.
@@ -88,7 +93,7 @@ join_ref_map_strata = function(map_shp, refstrata_id){
 # Use mapply to use each corresponding element of the two lists
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 
-# Temporary DEFORMODE. collapse ref and map labels, and pixcount 
+# # TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
 #   df$STRATUM[df$STRATUM == 9] = 8
 #   df$ref_strata[df$ref_strata == 9] = 8
@@ -97,7 +102,7 @@ shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 # 
 # apply_deformode2 = function(df){
 #   w8 = df[,1] == 8
-#   w9 = df[,1] == 9  
+#   w9 = df[,1] == 9
 #   df[w8, 2] = df[w8, 2] + df[w9, 2]
 #   df = df[-(which(w9)),]
 #   return(df)
@@ -143,6 +148,10 @@ tot_area_pix = map_total_pix[1,2]
 # Create single variable with sample allocation
 strata_pixels = aggregate(shp_list_ref[[1]]$STRATUM, by=list(shp_list_ref[[1]]$STRATUM), length)
 
+# Calculate strata weights in percentage as an aid to interpret the area plots.
+strata_weights = as.data.frame(do.call(rbind, lapply(pixcount_list, function(x) (x[,2]/tot_area_pix)*100)))
+colnames(strata_weights) = map_codes_all
+
 
 # Calculate areas and accuracies, cant vectorize it the way the fncs are written
 prop_out = list()
@@ -178,6 +187,63 @@ margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
 
 ### PLOT AREAS
 
+plot_areas = function(xlabels, areaha, lower, upper, me){
+  #
+  tempdf <- as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, me))
+  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
+  
+  ind_area = which(tempdf$Area_ha < 0)
+  ind_lower = which(tempdf$Lower < 0)
+  
+  tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
+  tempdf[ind_lower, 'Lower'] = NA
+  tempdf[ind_lower, 'Upper'] = NA
+
+  
+  print(tempdf)
+  # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
+  # could also use geom_pointrange
+  
+  area_plot <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) +  
+    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8) +
+    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) +
+    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8) +
+    #geom_line(data=tempdf, aes(x=Years, y=Upper), color="deepskyblue4") +
+    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + geom_point(shape=3, size=4) +
+    scale_x_continuous(breaks=seq(1,length(periods)), labels=periods, minor_breaks = NULL) + 
+    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
+    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
+    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # Put plots together on a list and change some properties in order to save them together as a single plot
+  area_plot2 = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  
+  # Plot margin of error
+  me_plot <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
+    scale_x_continuous(breaks=seq(1,length(periods)), labels=periods, minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+  
+  # To remove grid and background add this:
+  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
+  
+  # Use gtable to stack plots together with matching extent and save  
+  # g1 <- ggplotGrob(area_plot)
+  # g2 <- ggplotGrob(me_plot)
+  # g <- rbind(g1, g2, size="first") # stack the two plots
+  # g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
+  # 
+  grid.newpage()
+  grid.draw(area_plot)
+  
+  filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  
+}
+
+
+testplot = plot_areas(periods, area_ha[,11], area_lower[,11], area_upper[,11], margin_error[,11])
+
+
 plot_mapped = F
 allplots = list()
 
@@ -187,9 +253,7 @@ for(i in 1:length(ref_codes_all)){
   tempdf <- as.data.frame(cbind(seq(1,length(periods)), area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
   
-  # Plot areas with CI
-  # Specify data, add "ribbon" with lower and higher CI and fill, then plot the estimated area with a line.
-  # Other custom settings for number of breaks, label formatting and title.
+  # Plot areas with CI. Add dashed lines on top of ribbon for places where CI <
   
   a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
     geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() +
@@ -226,9 +290,9 @@ for(i in 1:length(ref_codes_all)){
   grid.draw(g)
   
   if(plot_mapped == T){
-    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, "mapped_areas.png")
+    filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, "mapped_areas.png")
   } else {
-    filename = paste0(savepath, strata_names[[i]], "_areas_me_step", step, "_", lut_name, ".png")
+    filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, ".png")
   }
   #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
   
@@ -237,7 +301,12 @@ for(i in 1:length(ref_codes_all)){
 # Arrange plots into a single one to make it easier to compare differences between classes when a change is made
 # NOT YET WORKING WITH THE MAPPED AREAS FOR SOME REASON BUT INDIVIDUALLY PLOTS ARE CORRECT
 multiplots = grid.arrange(grobs=allplots, ncol=4)
-#ggsave(paste0(savepath, "ALL_step", step, "_", lut_name, add_samples_suffix, ".png"), plot=multiplots,  width = 20, height = 10) 
+#ggsave(paste0("plots/", "ALL_", lut_name, ".png"), plot=multiplots,  width = 20, height = 10) 
+
+
+
+
+
 
 
 
@@ -247,12 +316,16 @@ get_dflist_columns = function(df, colname){
   return(t(subcols))
 }
 
-fp_ref = get_dflist_columns(cm_list, '8')
+ref2 = get_dflist_columns(cm_list, '2')
+ref3 = get_dflist_columns(cm_list, '3')
+ref4 = get_dflist_columns(cm_list, '4')
+ref5 = get_dflist_columns(cm_list, '5')
+ref6 = get_dflist_columns(cm_list, '6')
+ref8 = get_dflist_columns(cm_list, '8')
+ref9 = get_dflist_columns(cm_list, '9')
+ref11 = get_dflist_columns(cm_list, '11')
+ref14 = get_dflist_columns(cm_list, '14')
   
-# Calculate strata weights in percentage as an aid to interpret the area plots.
-strata_weights = as.data.frame(do.call(rbind, lapply(pixcount_list, function(x) (x[,2]/tot_area_pix)*100)))
-colnames(strata_weights) = map_codes_all
-strata_weights
 
 # Function to find the rows that meet a condition of map and reference labels for a given period
 # Useful to check them manually in TSTools and find errors.
@@ -262,9 +335,16 @@ get_condition_rows = function(period, mapcode, refcode){
   return(csv_list[[period]][csv_list[[period]]$ID %in% match_ids,])
 }
 
-get_condition_rows(1, 1, 8)
+for(i in 1:length(periods)){
+  print(periods[i])
+  print(get_condition_rows(i, 5, 14))
+}
+
+get_condition_rows(2,4,9)
 
 # Determine what transitions are being calculated in the maps for class 0, and if most of them are forest to grassland
 # then add them to class 8 and see what happens. 
 
+# Change plots to be error bars with stars where there is an actual data point and nothing when the estimate is not different from zero. Connect
+# dots and the error bars with lines. Change the labels to show the middle year instead of the period
   
