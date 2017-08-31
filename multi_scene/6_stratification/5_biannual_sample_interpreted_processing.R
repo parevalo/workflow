@@ -40,7 +40,10 @@ for (i in 1:(length(periods))){
   shp_list[[i]] = readOGR(paste0(auxpath, "biannual_samples/"), samples_names[i])
 
   # Load csvs with reference strata
-  csv_list[[i]] <- read.csv(paste0(samples_names[i], ".csv"))
+  csv_list[[i]] <- read.csv(paste0("katelyn_revised/", samples_names[i], ".csv"))
+  
+  # Add period column to facilitate some operations
+  csv_list[[i]]$period = periods[[i]]
   
   # Load csvs with map pixel count
   fname = paste0("strata_buffered_", periods[i], "_pixcount.csv")
@@ -93,7 +96,7 @@ join_ref_map_strata = function(map_shp, refstrata_id){
 # Use mapply to use each corresponding element of the two lists
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 
-# # TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
+## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
 #   df$STRATUM[df$STRATUM == 9] = 8
 #   df$ref_strata[df$ref_strata == 9] = 8
@@ -111,6 +114,8 @@ shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 # # Overwrite files to avoid creating new calls to the functions below
 # pixcount_list = lapply(pixcount_list, apply_deformode2)
 # shp_list_ref = lapply(shp_list_ref, apply_deformod)
+
+## END of DEFORMODE
 
 
 # Get lists of ref and map codes per period. This can probably be simplified
@@ -144,6 +149,7 @@ map_sample_count = as.data.frame(do.call(rbind, lapply(cm_list, rowSums)))
 # Check all the maps have the same total area in pixels and use that value
 map_total_pix = as.data.frame(do.call(rbind, lapply(pixcount_list, colSums)))
 tot_area_pix = map_total_pix[1,2]
+tot_area_ha = tot_area_pix * 30^2 / 100^2
 
 # Create single variable with sample allocation
 strata_pixels = aggregate(shp_list_ref[[1]]$STRATUM, by=list(shp_list_ref[[1]]$STRATUM), length)
@@ -187,40 +193,64 @@ margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
 
 ### PLOT AREAS
 
-plot_areas = function(xlabels, areaha, lower, upper, me, miny, maxy, plot_title, pontusmode, biglabels){
-  #
+plot_areas = function(totareaha, xlabels, areaha, lower, upper, me, miny, maxy, plot_title, pontusmode, biglabels){
+  # Need two copies bc of the complexity of the graph
   tempdf <- as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, me))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
+  tempdf2 = tempdf
   
+  # Find rows where the CI or the area go below 0 and assign NA's
   ind_area = which(tempdf$Area_ha < 0)
   ind_lower = which(tempdf$Lower < 0)
   
-  if (pontusmode == T){
-    tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
-    tempdf[ind_lower, 'Lower'] = NA
-    tempdf[ind_lower, 'Upper'] = NA
-    yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}, limits=c(miny,maxy))
+  tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
+  tempdf[ind_lower, 'Lower'] = NA
+  tempdf[ind_lower, 'Upper'] = NA
+    
+  # Define breaks manually so that the two y axes grids match
+  bks = seq(miny, maxy, length.out = 5)
+  bks2 = bks / totareaha * 100
+  
+  # If we want to remove CI that cross 0
+  if (pontusmode == 1){
+    
+    yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}, breaks=bks, limits=c(miny,maxy), 
+                                sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=1)}))
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8)
+    ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
+  
+  # If we want to remove the fill but keep the lines. Not working yet...
+  } else if (pontusmode == 2) {
+    
+    yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}, breaks=bks, limits=c(miny,maxy), 
+                                sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=1)}))
+    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
+    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha), linetype=8)
+    ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
+    
   } else {
     yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) 
   }
     
   # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
-  
-  area_plot <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) +  
-    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8) +
-    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) +
-    geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8) +
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() + geom_point(shape=3, size=4) +
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + yscale +
-    ylab("Area and 95% CI [ha]") + ggtitle(plot_title)  + 
+  #data=tempdf, aes(x=Years, y=Area_ha)
+  area_plot <- ggplot() +  
+    lowerline + upperline + centerline + ribbon +
+    geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4) +
+    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
+    yscale + ylab("Area and 95% CI [ha]") +
+    ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.2) +
     theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
+
   # Put plots together on a list and change some properties in order to save them together as a single plot
   area_plot_small = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
   
   # Plot margin of error
   me_plot <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=seq(1,length(periods)), labels=periods, minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   if (pontusmode == T){
@@ -237,57 +267,87 @@ plot_areas = function(xlabels, areaha, lower, upper, me, miny, maxy, plot_title,
 
 }
 
-# Vector of max y axis values for pontus mode
-maxy_vect = c(12000, 45000000, 4500000, 100000, 4500000, 4500000, 4500000, 300000, 300000, 300000, 300000)
+# Vector of max and min y axis values for pontus modes
+maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 300000, 300000, 300000, 300000)
+maxy_vect2 = c(12000, 45000000, 4500000, 380000, 4500000, 4500000, 4500000, 380000, 380000, 380000, 380000)
+miny_vect2 = c(-1000, 0, 0, -80000, 0, 0, 0, -80000, -80000, -80000, -80000)
+
 
 # Create each plot in the original order
-plot_list = list()
-gpl = list()
-widths = list()
+plot_list1 = list()
+gpl1 = list()
+plot_list2 = list()
+gpl2 = list()
+widths1 = list()
+widths2 = list()
 plot_periods = seq(2002,2014,2)
 
-# Get plots in the original order
+# Get plots in the original order, pontusmode1
 for(i in 1:length(strata_names)){
-  plot_list[[i]] = plot_areas(plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
-                              0, maxy_vect[i], strata_names[i], pontusmode=T, biglabels=F)  
-  gpl[[i]] = ggplotGrob(plot_list[[i]][[1]])
-  widths[[i]] <- gpl[[i]]$widths[2:5]
+  plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
+                              0, maxy_vect[i], strata_names[i], pontusmode=1, biglabels=F)  
+  gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
+  widths1[[i]] <- gpl1[[i]]$widths[2:5]
 }
 
-# Calculate max width among all the grobs and use that value for all of them
+# Get plots in the original order, pontusmode2
+for(i in 1:length(strata_names)){
+  plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
+                              miny_vect2[i], maxy_vect2[i], strata_names[i], pontusmode=2, biglabels=F)  
+  gpl2[[i]] = ggplotGrob(plot_list2[[i]][[1]])
+  widths2[[i]] <- gpl[[i]]$widths[2:5]
+}
+
+
+# Calculate max width among all the grobs for each case and use that value for all of them
 # This ensures the plotted areas match despite different y axis widths.
-maxwidth <- do.call(grid::unit.pmax, widths)
-for (i in 1:length(gpl)){
-  gpl[[i]]$widths[2:5] <- as.list(maxwidth)
+maxwidth1 <- do.call(grid::unit.pmax, widths1)
+maxwidth2 <- do.call(grid::unit.pmax, widths1)
+
+for (i in 1:length(gpl1)){
+  gpl1[[i]]$widths[2:5] <- as.list(maxwidth1)
+  gpl2[[i]]$widths[2:5] <- as.list(maxwidth2)
 }
 
 # Arrange in the NEW grouping order.
-pontus_multiplot = grid.arrange(textGrob(""), gpl[[1]], gpl[[2]], gpl[[4]], 
-                         gpl[[3]], gpl[[5]], gpl[[6]], gpl[[7]],
-                         gpl[[8]], gpl[[9]], gpl[[10]], gpl[[11]],ncol=4)
+pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
+                         gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
+                         gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
+                         left="Area [ha]", right="Percentage of total area", bottom="Time")
+
+
+ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10) 
+
+pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
+                                 gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
+                                 gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
+                                 left="Area [ha]", right="Percentage of total area", bottom="Time")
+
+
+ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
 
 
-ggsave(paste0("plots/", "ALL_Pontus_", lut_name, ".png"), plot=pontus_multiplot,  width = 20, height = 10) 
-
+df <- data.frame()
+frame = ggplot(df) + geom_point() + xlim(0, 10) + ylim(0, 100)
 
 # Regular multiplot
 for(i in 1:length(strata_names)){
-  plot_list[[i]] = plot_areas(plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
-                              0, maxy_vect[i], strata_names[i], pontusmode=F, biglabels=F)  
+  plot_list[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
+                              0, maxy_vect[i], strata_names[i], pontusmode=3, biglabels=F)  
   gpl[[i]] = ggplotGrob(plot_list[[i]][[1]])
 }
 
 regular_multiplot = grid.arrange(grobs=gpl, ncol=4)
-ggsave(paste0("plots/", "ALL_regular_", lut_name, ".png"), plot=pontus_multiplot,  width = 20, height = 10) 
+ggsave(paste0("plots/post_katelyn/", "ALL_regular_", lut_name, ".png"), plot=regular_multiplot,  width = 20, height = 10) 
 
 # Individual regular sized figures for separate saving with margin of error
 ap = list()
 mep = list()
 
 for(i in 1:length(strata_names)){
-  plot_list[[i]] = plot_areas(plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
-                              0, maxy_vect[i], strata_names[i], pontusmode=F, biglabels=T)  
+  plot_list[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i], 
+                              0, maxy_vect[i], strata_names[i], pontusmode=3, biglabels=T)  
   ap[[i]] = ggplotGrob(plot_list[[i]][[1]])
   mep[[i]] = ggplotGrob(plot_list[[i]][[2]])
   g <- rbind(ap[[i]], mep[[i]], size="first") 
@@ -295,74 +355,9 @@ for(i in 1:length(strata_names)){
   grid.newpage()
   grid.draw(g)
   
-  filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  filename = paste0("plots/post_katelyn/", strata_names[[i]], "_areas_me_pontusmode_", lut_name, ".png")
   png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
 }
-
-
-
-####################
-plot_mapped = F
-allplots = list()
-
-for(i in 1:length(ref_codes_all)){
-  
-  # Define data and variables to use
-  tempdf <- as.data.frame(cbind(seq(1,length(periods)), area_ha[,i], area_lower[,i], area_upper[,i], margin_error[,i]))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Margin_error")
-  
-  # Plot areas with CI. Add dashed lines on top of ribbon for places where CI <
-  
-  a <- ggplot(data=tempdf, aes(x=Years, y=Area_ha)) + 
-    geom_ribbon(aes(ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3) + geom_line() +
-    scale_x_continuous(breaks=seq(1,length(periods)), labels=periods, minor_breaks = NULL) + 
-    scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) +
-    ylab("Area and 95% CI [ha]") + ggtitle(strata_names[[i]]) + expand_limits(y=0) +
-    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # Plot MAPPEd areas
-  if(plot_mapped == T){
-    m = geom_line(mapping = aes(x=Years, y=mapped_areas[,i]), linetype=2)
-    a = a+m
-  }
-  
-  # Put plots together on a list and change some properties in order to save them together as a single plot
-  a2 = a + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
-  allplots[[i]] = a2
-  
-  # Plot margin of error
-  b <- ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=seq(1,length(periods)), labels=periods, minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
-    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  # To remove grid and background add this:
-  #theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),panel.background = element_blank()
-  
-  # Use gtable to stack plots together with matching extent and save  
-  g1 <- ggplotGrob(a)
-  g2 <- ggplotGrob(b)
-  g <- rbind(g1, g2, size="first") # stack the two plots
-  g$widths <- unit.pmax(g1$widths, g2$widths) # use the largest widths
-  
-  grid.newpage()
-  grid.draw(g)
-  
-  if(plot_mapped == T){
-    filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, "mapped_areas.png")
-  } else {
-    filename = paste0("plots/", strata_names[[i]], "_areas_me_", lut_name, ".png")
-  }
-  #png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
-  
-}
-
-# Arrange plots into a single one to make it easier to compare differences between classes when a change is made
-# NOT YET WORKING WITH THE MAPPED AREAS FOR SOME REASON BUT INDIVIDUALLY PLOTS ARE CORRECT
-multiplots = grid.arrange(grobs=allplots, ncol=4)
-#ggsave(paste0("plots/", "ALL_", lut_name, ".png"), plot=multiplots,  width = 20, height = 10) 
-
-
-
 
 
 
@@ -372,6 +367,7 @@ get_dflist_columns = function(df, colname){
   return(t(subcols))
 }
 
+ref1 = get_dflist_columns(cm_list, '1')
 ref2 = get_dflist_columns(cm_list, '2')
 ref3 = get_dflist_columns(cm_list, '3')
 ref4 = get_dflist_columns(cm_list, '4')
@@ -391,16 +387,26 @@ get_condition_rows = function(period, mapcode, refcode){
   return(csv_list[[period]][csv_list[[period]]$ID %in% match_ids,])
 }
 
+tdf = data.frame()
 for(i in 1:length(periods)){
-  print(paste0("Period: ", periods[i]))
-  print(get_condition_rows(i, 1, 4)$ID)
+  print(get_condition_rows(i,1,4))
+  #tdf = rbind(tdf, get_condition_rows(i, 4, 5)[,c("ID", "PTRW", "period")])
 }
 
-get_condition_rows(4,2,3)$ID
+arrange(tdf, PTRW)
+
+
+get_condition_rows(2,1,2)
+
+# MODIFY ROWS, JUST FOR TESTING
+mc = 6
+rc = 3
+
+for(i in 1:length(periods)){
+  match_rows = which(shp_list_ref[[i]]@data[,"STRATUM"] == mc & shp_list_ref[[i]]@data[,"ref_strata"] == rc)
+  shp_list_ref[[i]]@data[match_rows, "ref_strata"] = mc
+}
+
 
 # Determine what transitions are being calculated in the maps for class 0, and if most of them are forest to grassland
 # then add them to class 8 and see what happens. 
-
-# Change plots to be error bars with stars where there is an actual data point and nothing when the estimate is not different from zero. Connect
-# dots and the error bars with lines. Change the labels to show the middle year instead of the period
-  
