@@ -8,6 +8,7 @@ require(rgeos)
 require(grid)
 require(gridExtra)
 require(reshape2)
+require(xtable)
 
 # Set working directories and vars
 auxpath = "/media/paulo/785044BD504483BA/test/"
@@ -31,6 +32,7 @@ shp_list = list()
 csv_list = list()
 short_years = substr(years, 3,4) # Get years in two digit format
 periods = paste0(short_years[-8], "_", short_years[-1])
+periods_long = paste0(years[-8], "-", years[-1])
 pixcount_list = list()
 mapped_areas = list()
 
@@ -191,8 +193,17 @@ for (p in 1:length(periods)){
 
 # Get some key results in a readable format
 
+overall_acc = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 1)))
+overall_acc_lower = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 2)))
+overall_acc_upper = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 3)))
+
 usr_acc = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 4)))
+usr_acc_lower = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 5)))
+usr_acc_upper = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 6)))
+
 prod_acc = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 7)))
+prod_acc_lower = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 8)))
+prod_acc_upper = as.data.frame(do.call(rbind, lapply(accuracies_out, '[[', 9)))
 
 area_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 1)))
 ci_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 2)))
@@ -264,7 +275,8 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   
   # Plot margin of error
   me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + expand_limits(y=0) + ylab("Margin of error [%]") +
+    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + ylim(0, 200) + 
+    ylab("Margin of error [%]") + ggtitle(plot_title) +
     theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
   
   if (plotmode == T){
@@ -295,12 +307,18 @@ plot_list3 = list()
 gpl1 = list()
 gpl2 = list()
 gpl3 = list()
+mep1 = list()
+mep2 = list()
+mep3 = list()
 widths1 = list()
 widths2 = list()
 widths3 = list()
+widths1me = list()
+widths2me = list()
+widths3me = list()
 plot_periods = seq(2002,2014,2)
 
-# Get plots in the original order, for both plot modes plus regular
+# Get AREA PLOTS  in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
                                margin_error[,i], 0, maxy_vect1[i], strata_names[i], plotmode=1, biglabels=F)  
@@ -312,9 +330,15 @@ for(i in 1:length(strata_names)){
   gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
   gpl2[[i]] = ggplotGrob(plot_list2[[i]][[1]])
   gpl3[[i]] = ggplotGrob(plot_list3[[i]][[1]])
+  mep1[[i]] = ggplotGrob(plot_list1[[i]][[2]])
+  mep2[[i]] = ggplotGrob(plot_list2[[i]][[2]])
+  mep3[[i]] = ggplotGrob(plot_list3[[i]][[2]])
   widths1[[i]] = gpl1[[i]]$widths[2:5]
   widths2[[i]] = gpl2[[i]]$widths[2:5]
   widths3[[i]] = gpl3[[i]]$widths[2:5]
+  widths1me[[i]] = mep1[[i]]$widths[2:5]
+  widths2me[[i]] = mep2[[i]]$widths[2:5]
+  widths3me[[i]] = mep3[[i]]$widths[2:5]
 }
 
 # Calculate max width among all the grobs for each case and use that value for all of them
@@ -322,14 +346,20 @@ for(i in 1:length(strata_names)){
 maxwidth1 = do.call(grid::unit.pmax, widths1)
 maxwidth2 = do.call(grid::unit.pmax, widths2)
 maxwidth3 = do.call(grid::unit.pmax, widths3)
+maxwidth1me = do.call(grid::unit.pmax, widths1me)
+maxwidth2me = do.call(grid::unit.pmax, widths2me)
+maxwidth3me = do.call(grid::unit.pmax, widths3me)
 
 for (i in 1:length(gpl1)){
   gpl1[[i]]$widths[2:5] = as.list(maxwidth1)
   gpl2[[i]]$widths[2:5] = as.list(maxwidth2)
   gpl3[[i]]$widths[2:5] = as.list(maxwidth3)
+  mep1[[i]]$widths[2:5] = as.list(maxwidth1me)
+  mep2[[i]]$widths[2:5] = as.list(maxwidth2me)
+  mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-# Arrange in the NEW grouping order and save multiplots
+# Arrange AREA PLOTS in the NEW grouping order and save multiplots
 pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
                          gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
@@ -350,6 +380,27 @@ regular_multiplot = grid.arrange(textGrob(""), gpl3[[1]], gpl3[[2]], gpl3[[4]],
                                  left="Area [ha]", right="Percentage of total area", bottom="Time")
 
 ggsave(paste0("plots/post_katelyn/", "ALL_regular_", lut_name, ".png"), plot=regular_multiplot,  width = 20, height = 10) 
+
+
+# Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
+pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]], 
+                                 mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
+                                 mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4)
+
+ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1me_", lut_name, ".png"), plot=pontus_multiplotme1,  width = 20, height = 10) 
+
+pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]], 
+                                 mep2[[3]], mep2[[5]], mep2[[6]], mep2[[7]],
+                                 mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4)
+
+ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
+
+regular_multiplot_me = grid.arrange(textGrob(""), mep3[[1]], mep3[[2]], mep3[[4]], 
+                                 mep3[[3]], mep3[[5]], mep3[[6]], mep3[[7]],
+                                 mep3[[8]], mep3[[9]], mep3[[10]], mep3[[11]],ncol=4)
+
+ggsave(paste0("plots/post_katelyn/", "ALL_regular_me_", lut_name, ".png"), plot=regular_multiplot_me,  width = 20, height = 10) 
+
 
 
 # Individual regular sized figures for separate saving with margin of error
@@ -412,9 +463,9 @@ cumsumvars$templossregr = cumsumvars$cumsum_area_ha - plot_vars$area_ha[plot_var
 # Can only show the full area, there is not way to represent the "gaps" in this type of plot
 regr_plot <- ggplot(regr_area, aes(x=year,y=area_ha,group=class,fill=class)) + 
   geom_area(position=position_stack(reverse = T), alpha=0.8) +
-  geom_line(data=regr_area[regr_area$class %in% c("Stable secondary forest"),], aes(x=year, y=area_lower), linetype=8) + 
-  geom_line(data=regr_area[regr_area$class %in% c("Stable secondary forest"),], aes(x=year, y=area_upper), linetype=8) +
-  geom_line(data=cumsumvars[cumsumvars$class == "Gain of secondary forest",], aes(x=year, y=templossregr), colour='red') +
+  #geom_line(data=regr_area[regr_area$class %in% c("Stable secondary forest"),], aes(x=year, y=area_lower), linetype=8) + 
+  #geom_line(data=regr_area[regr_area$class %in% c("Stable secondary forest"),], aes(x=year, y=area_upper), linetype=8) +
+  #geom_line(data=cumsumvars[cumsumvars$class == "Gain of secondary forest",], aes(x=year, y=templossregr), colour='red') +
   geom_point(data=cumsumvars[cumsumvars$zero == FALSE,], aes(x=year, y=cumsum_area_ha )) +
   #geom_errorbar(data=cumsumvars[cumsumvars$zero == FALSE & cumsumvars$class != "Stable secondary forest" ,], aes(x=year, ymin=area_lower, ymax=area_upper)) +
   scale_x_continuous(breaks=regr_area$year, labels = regr_area$year, minor_breaks = NULL)  + 
@@ -426,6 +477,8 @@ regr_plot <- ggplot(regr_area, aes(x=year,y=area_ha,group=class,fill=class)) +
 
 
 print(regr_plot)
+filename = paste0("plots/post_katelyn/", "secondary_forest_dynamics", ".png")
+ggsave(filename, plot=regr_plot, device="png")
 
 ##### DEFOR plot
 # Get only regrowth related classes and column with values != 0
@@ -453,6 +506,11 @@ defor_plot <- ggplot(defor_area, aes(x=year,y=area_ha,group=class,fill=class)) +
         legend.title=element_blank()) 
 
 print(defor_plot)
+filename = paste0("plots/post_katelyn/", "defor_plot", ".png")
+ggsave(filename, plot=defor_plot, device="png")
+
+
+
 
 ################### EXTRA SECTION TO AID IN SAMPLE REVISION
 
@@ -504,3 +562,30 @@ get_condition_rows(2,1,2)
 # }
 
 
+
+############## CREATE TABLES FOR PAPER
+
+# Joint table of areas and stratum percentages. May not be necessary!
+# Do calculations first, then assemble table.
+melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
+melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
+melted_pixcount$stratum_percentages=round(melted_pixcount$pixels / tot_area_pix * 100, digits=3) 
+pixcount_df = spread(dplyr::select(melted_pixcount, -c(area_ha, stratum_percentages)), L1, pixels)
+pixcount_area_ha = spread(dplyr::select(melted_pixcount, -c(pixels, stratum_percentages)), L1, area_ha)
+pixcount_stratum_percentages = spread(dplyr::select(melted_pixcount, -c(area_ha, pixels)), L1, stratum_percentages)
+
+fulldf = as.data.frame(matrix(nrow=nrow(pixcount_df), ncol=0))
+for (i in 2:ncol(pixcount_df)){
+  fulldf = cbind(fulldf, pixcount_area_ha[,i], pixcount_stratum_percentages[,i])
+}
+
+rownames(fulldf) = orig_strata_names 
+# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+## Table of producers accuracy
+rownames(prod_acc) = periods_long
+colnames(prod_acc) = strata_names
+print(xtable(t(prod_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
