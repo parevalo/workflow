@@ -71,7 +71,7 @@ samples_uniqueids$period = samples_names
 if (all(samples_uniqueids$count == 1050)){
   print("Unique ID count matches total number of samples")
   }else{
-  errorcount = whichs(samples_uniqueids$count != 1050)
+  errorcount = which(samples_uniqueids$count != 1050)
   print(paste0(samples_uniqueids[errorcount, 'period'], "does not have 1050 unique ID's"))
 }
 
@@ -510,7 +510,16 @@ filename = paste0("plots/post_katelyn/", "defor_plot", ".png")
 ggsave(filename, plot=defor_plot, device="png")
 
 
+# RATIO of 'Forest to secondary' to 'forest to pasture'. REDO AND CHECK THE VALUES ARE CORRECT
 
+fp = filter(defor_area, class == "Forest to pasture")
+fsf = filter(defor_area, class == "Forest to secondary forest")
+
+ratio = fsf$area_ha / fp$area_ha
+ratio_table = as.data.frame(cbind(fp$year, ratio, fp$zero + fsf$zero))
+colnames(ratio_table) = c("Year", "Ratio", "zero")
+ggplot(ratio_table) + geom_line(aes(x=Year, y=Ratio)) + 
+  geom_point(data=ratio_table[ratio_table$zero == 0,], aes(x=Year, y=Ratio), shape=3, size=3, stroke=1) 
 
 ################### EXTRA SECTION TO AID IN SAMPLE REVISION
 
@@ -565,7 +574,7 @@ get_condition_rows(2,1,2)
 
 ############## CREATE TABLES FOR PAPER
 
-# Joint table of areas and stratum percentages. May not be necessary!
+# TABLE OF AREAS
 # Do calculations first, then assemble table.
 melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
 melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
@@ -585,7 +594,44 @@ colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7)
 # Create table in Latex instead, and produce the pdf there, much easier than grid.table
 print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
 
-## Table of producers accuracy
+## TABLE OF USERS AND PRODUCERS ACCURACY
 rownames(prod_acc) = periods_long
 colnames(prod_acc) = strata_names
 print(xtable(t(prod_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+rownames(usr_acc) = periods_long
+colnames(usr_acc) = strata_names
+print(xtable(t(usr_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+## SAME but with confidence intervals, vals in parenthesis look weird...
+prod_acc_ci = prod_acc_upper - prod_acc
+prod_acc_ci_out = format(prod_acc_ci, digits=2)
+prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
+rownames(prod_acc_table) = periods_long
+colnames(prod_acc_table) = strata_names
+print(xtable(t(prod_acc_table),type = "latex",sanitize.text.function=function(x){x}))
+
+## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. How to prevent tables from being huge bc of labels?
+
+cm_out_colnames = c(orig_strata_names, "Sample size ($n_h$)", "Stratum weight ($W_h$)")
+cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
+cm_prop_list_out = cm_list_out
+
+for (i in 1:7){ # Couldn't get this to work with mapply!
+  cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_list_out[[i]]) = cm_out_colnames
+  rownames(cm_list_out[[i]]) = orig_strata_names
+  print(xtable(cm_list_out[[i]], type='latex', sanitize.text.function=function(x){x}))
+    
+  # Calculate proportions, ugly way
+  cm_prop_list_out[[i]][,1:13] = (cm_list_out[[i]][,1:13] * cm_list_out[[i]][,15]) / cm_list_out[[i]][,14]
+  cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_prop_list_out[[i]]) = cm_out_colnames
+  rownames(cm_prop_list_out[[i]]) = orig_strata_names
+  print(xtable(cm_prop_list_out[[i]], digits=4, type='latex', sanitize.text.function=function(x){x}))
+}
+
+
+
+
+
