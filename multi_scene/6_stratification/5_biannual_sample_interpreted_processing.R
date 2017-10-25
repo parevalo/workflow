@@ -44,7 +44,7 @@ for (i in 1:(length(periods))){
 
   # Load shapes with map strata
   samples_names[i] = fname
-  shp_list[[i]] = readOGR(paste0(auxpath, "biannual_samples/"), samples_names[i])
+  shp_list[[i]] = readOGR(paste0(auxpath, "biannual_samples/", samples_names[i], ".shp"), samples_names[i])
 
   # Load csvs with reference strata
   csv_list[[i]] = read.csv(paste0("katelyn_revised/", samples_names[i], ".csv"))
@@ -268,10 +268,10 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
     yscale + ylab("Area and 95% CI [ha]") +
     ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) +
-    theme(plot.title = element_text(size=19), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
+    theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
   
   # Put plots together on a list and change some properties in order to save them together as a single plot
-  area_plot_small = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=7), axis.text.y=element_text(size=10)) 
+  area_plot_small = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=11), axis.text.y=element_text(size=12)) 
   
   # Plot margin of error
   me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
@@ -317,11 +317,12 @@ widths1me = list()
 widths2me = list()
 widths3me = list()
 plot_periods = seq(2002,2014,2)
+plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
 # Get AREA PLOTS  in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
-                               margin_error[,i], 0, maxy_vect1[i], strata_names[i], plotmode=1, biglabels=F)  
+                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1, biglabels=F)  
   plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2, biglabels=F)  
   plot_list3[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
@@ -359,25 +360,29 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
+left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
+bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
 pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
                          gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
-                         left="Area [ha]", right="Percentage of total area", bottom="Time")
+                         left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10) 
+ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
-                                 left="Area [ha]", right="Percentage of total area", bottom="Time")
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
 ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
 regular_multiplot = grid.arrange(textGrob(""), gpl3[[1]], gpl3[[2]], gpl3[[4]], 
                                  gpl3[[3]], gpl3[[5]], gpl3[[6]], gpl3[[7]],
                                  gpl3[[8]], gpl3[[9]], gpl3[[10]], gpl3[[11]],ncol=4, 
-                                 left="Area [ha]", right="Percentage of total area", bottom="Time")
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
 ggsave(paste0("plots/post_katelyn/", "ALL_regular_", lut_name, ".png"), plot=regular_multiplot,  width = 20, height = 10) 
 
@@ -613,21 +618,30 @@ print(xtable(t(prod_acc_table),type = "latex",sanitize.text.function=function(x)
 
 ## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. How to prevent tables from being huge bc of labels?
 
-cm_out_colnames = c(orig_strata_names, "Sample size ($n_h$)", "Stratum weight ($W_h$)")
+
+orig_strata_names_short = c("Oth-Oth", "For.", "Grassl.", "Urban+", 
+                            "Past.", "Sec.For.", "Wat", "For.->Past.", 
+                            "For.->Sec.For", "Sec.For.Gain", "To Uncl.", "Sec.For.Loss", "Buffer")
+
+strata_names_short = c("Oth-Oth", "For.", "Grassl.", "Urban+", 
+                 "Past.", "Sec. For.", "Wat", "For.->Past.", 
+                 "For.->Sec.For", "Sec.For.Gain", "Sec.For.Loss")
+
+cm_out_colnames = c(orig_strata_names_short, "Sample size ($n_h$)", "Stratum weight ($W_h$)")
 cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
 cm_prop_list_out = cm_list_out
 
 for (i in 1:7){ # Couldn't get this to work with mapply!
   cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
   colnames(cm_list_out[[i]]) = cm_out_colnames
-  rownames(cm_list_out[[i]]) = orig_strata_names
+  rownames(cm_list_out[[i]]) = orig_strata_names_short
   print(xtable(cm_list_out[[i]], type='latex', sanitize.text.function=function(x){x}))
     
   # Calculate proportions, ugly way
   cm_prop_list_out[[i]][,1:13] = (cm_list_out[[i]][,1:13] * cm_list_out[[i]][,15]) / cm_list_out[[i]][,14]
   cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
   colnames(cm_prop_list_out[[i]]) = cm_out_colnames
-  rownames(cm_prop_list_out[[i]]) = orig_strata_names
+  rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
   print(xtable(cm_prop_list_out[[i]], digits=4, type='latex', sanitize.text.function=function(x){x}))
 }
 
