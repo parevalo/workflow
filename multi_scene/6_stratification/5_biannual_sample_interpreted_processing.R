@@ -176,9 +176,26 @@ se_prop = list()
 areas_out = list()
 accuracies_out = list()
 
+################ REMOVE BUFFER AND RUN THE CALCULATIONS TO SEE THE EFFECT
+# change buffer stratum to forest and merge buffer area with forest
+# for (i in 1:7){
+#   shp_list_ref[[i]]@data[shp_list_ref[[i]]$STRATUM == 16, 'STRATUM'] = 1
+#   buf_ind = which(pixcount_list[[i]]$stratum == 16)
+#   for_ind = which(pixcount_list[[i]]$stratum == 1)
+#   pixcount_list[[i]][for_ind, 'pixels'] = pixcount_list[[i]][for_ind, 'pixels'] + pixcount_list[[i]][buf_ind, 'pixels'] 
+#   pixcount_list[[i]] = pixcount_list[[i]][-buf_ind,]
+#   
+# }
+# 
+# strata_pixels[strata_pixels$Group.1 == 1, 'x'] = 
+#   strata_pixels[strata_pixels$Group.1 == 1, 'x'] + strata_pixels[buf_ind, 'x'] 
+# 
+# strata_pixels = strata_pixels[-buf_ind, ]
+
+  
 # ref_codes_all used to make sure output tables have same dimensions
 for (p in 1:length(periods)){
-  prop_out[[p]] = calc_props_and_vars(shp_list_ref[[p]]$STRATUM, shp_list_ref[[p]]$ref_strata, shp_list[[p]]$STRATUM, 
+  prop_out[[p]] = calc_props_and_vars(shp_list_ref[[p]]$STRATUM, shp_list_ref[[p]]$ref_strata, shp_list_ref[[p]]$STRATUM, 
                                   pixcount_list[[p]], strata_pixels, ref_codes_all)
   
   se_prop[[p]] = calc_se_prop(pixcount_list[[p]], strata_pixels, prop_out[[p]][[2]], ref_codes_all, tot_area_pix)
