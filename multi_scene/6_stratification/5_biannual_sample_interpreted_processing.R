@@ -176,23 +176,7 @@ se_prop = list()
 areas_out = list()
 accuracies_out = list()
 
-################ REMOVE BUFFER AND RUN THE CALCULATIONS TO SEE THE EFFECT
-# change buffer stratum to forest and merge buffer area with forest
-# for (i in 1:7){
-#   shp_list_ref[[i]]@data[shp_list_ref[[i]]$STRATUM == 16, 'STRATUM'] = 1
-#   buf_ind = which(pixcount_list[[i]]$stratum == 16)
-#   for_ind = which(pixcount_list[[i]]$stratum == 1)
-#   pixcount_list[[i]][for_ind, 'pixels'] = pixcount_list[[i]][for_ind, 'pixels'] + pixcount_list[[i]][buf_ind, 'pixels'] 
-#   pixcount_list[[i]] = pixcount_list[[i]][-buf_ind,]
-#   
-# }
-# 
-# strata_pixels[strata_pixels$Group.1 == 1, 'x'] = 
-#   strata_pixels[strata_pixels$Group.1 == 1, 'x'] + strata_pixels[buf_ind, 'x'] 
-# 
-# strata_pixels = strata_pixels[-buf_ind, ]
-
-  
+###### RUN WITH BUFFER
 # ref_codes_all used to make sure output tables have same dimensions
 for (p in 1:length(periods)){
   prop_out[[p]] = calc_props_and_vars(shp_list_ref[[p]]$STRATUM, shp_list_ref[[p]]$ref_strata, shp_list_ref[[p]]$STRATUM, 
@@ -228,6 +212,76 @@ area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
 
+# Create table with results for buffer class
+buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
+
+
+####### RUN WITHOUT BUFFER
+
+prop_out_nb = list()
+se_prop_nb = list()
+areas_out_nb = list()
+accuracies_out_nb = list()
+
+
+# Create copies of input data, changing buffer stratum to forest and merge buffer area with forest
+shp_list_ref_nb = shp_list_ref
+pixcount_list_nb = pixcount_list
+strata_pixels_nb = strata_pixels
+
+for (i in 1:7){
+  shp_list_ref_nb[[i]]@data[shp_list_ref_nb[[i]]$STRATUM == 16, 'STRATUM'] = 1
+  buf_ind = which(pixcount_list_nb[[i]]$stratum == 16)
+  for_ind = which(pixcount_list_nb[[i]]$stratum == 1)
+  pixcount_list_nb[[i]][for_ind, 'pixels'] = pixcount_list_nb[[i]][for_ind, 'pixels'] + pixcount_list_nb[[i]][buf_ind, 'pixels']
+  pixcount_list_nb[[i]] = pixcount_list_nb[[i]][-buf_ind,]
+  
+}
+
+strata_pixels_nb[strata_pixels_nb$Group.1 == 1, 'x'] =
+  strata_pixels_nb[strata_pixels_nb$Group.1 == 1, 'x'] + strata_pixels_nb[buf_ind, 'x']
+
+strata_pixels_nb = strata_pixels_nb[-buf_ind, ]
+
+# Run!
+for (p in 1:length(periods)){
+  prop_out_nb[[p]] = calc_props_and_vars(shp_list_ref_nb[[p]]$STRATUM, shp_list_ref_nb[[p]]$ref_strata, 
+                                            shp_list_ref_nb[[p]]$STRATUM, 
+                                            pixcount_list_nb[[p]], strata_pixels_nb, ref_codes_all)
+  
+  se_prop_nb[[p]] = calc_se_prop(pixcount_list_nb[[p]], strata_pixels_nb, prop_out_nb[[p]][[2]], ref_codes_all, tot_area_pix)
+  areas_out_nb[[p]] = calc_unbiased_area(tot_area_pix, prop_out_nb[[p]][[11]], se_prop_nb[[p]]) 
+  accuracies_out_nb[[p]] = calc_accuracies(pixcount_list_nb[[p]], strata_pixels_nb, ref_codes_all, tot_area_pix,
+                                        prop_out_nb[[p]][[1]], prop_out_nb[[p]][[2]], prop_out_nb[[p]][[3]], prop_out_nb[[p]][[4]],
+                                        prop_out_nb[[p]][[5]], prop_out_nb[[p]][[6]], 
+                                        prop_out_nb[[p]][[7]], prop_out_nb[[p]][[8]],
+                                        prop_out_nb[[p]][[9]], prop_out_nb[[p]][[10]])
+  
+}
+
+# Get some key results in a readable format
+
+overall_acc_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 1)))
+overall_acc_lower_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 2)))
+overall_acc_upper_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 3)))
+
+usr_acc_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 4)))
+usr_acc_lower_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 5)))
+usr_acc_upper_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 6)))
+
+prod_acc_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 7)))
+prod_acc_lower_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 8)))
+prod_acc_upper_nb = as.data.frame(do.call(rbind, lapply(accuracies_out_nb, '[[', 9)))
+
+area_ha_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 1)))
+ci_ha_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 2)))
+area_upper_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 3)))
+area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
+margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
+
+# Compare CI and accuracies between buffer and no buffer results
+ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
+plot(ci_compare$V8)
 
 ############################# PLOT AREAS
 
@@ -250,8 +304,8 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   bks2 = bks / totareaha * 100
   
   # Conditonals for pontus modes, yscale is shared for the two 
-  yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}, breaks=bks, limits=c(miny,maxy), 
-                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=1)}))
+  yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")},breaks=bks, limits=c(miny,maxy), 
+                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)}))
   ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
   
   # Remove CI and area when it intersects with zero
@@ -633,36 +687,64 @@ rownames(prod_acc_table) = periods_long
 colnames(prod_acc_table) = strata_names
 print(xtable(t(prod_acc_table),type = "latex",sanitize.text.function=function(x){x}))
 
-## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. How to prevent tables from being huge bc of labels?
+## TABLE OF STRATA DESCRIPTION
+
+strata_descript = c("Other transitions that are not relevant", "Stable forest", "Stable natural grassland",
+                    "Areas that show stable urban cover, as well as other bright surfces like exposed rock and sand",
+                    "Stable human introduced pasturelands and croplands", 
+                    "Areas that show sustained vegetation regrow over the course of two years or more",
+                    "Stable water bodies", "Areas that experienced conversion from forest to pastures or croplands",
+                    "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
+                    thereafter and display a regrowing trend", "Areas that experienced a conversion from pastures, 
+                    grasslands, urban, water and other to regrowing vegetation", "Areas that experienced a conversion
+                    to any other class, except to forest")
+
+strata_description_table = cbind(strata_names, strata_descript) 
+colnames(strata_description_table) = c("Stratum name", "Description")
+strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
+print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
 
 
-orig_strata_names_short = c("Oth-Oth", "For.", "Grassl.", "Urban+", 
-                            "Past.", "Sec.For.", "Wat", "For.->Past.", 
-                            "For.->Sec.For", "Sec.For.Gain", "To Uncl.", "Sec.For.Loss", "Buffer")
+## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
+orig_strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                            "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                            "For. to Sec. For", "Sec. For. Gain", "To Uncl.", "Sec. For. Loss", "Buff")
 
-strata_names_short = c("Oth-Oth", "For.", "Grassl.", "Urban+", 
-                 "Past.", "Sec. For.", "Wat", "For.->Past.", 
-                 "For.->Sec.For", "Sec.For.Gain", "Sec.For.Loss")
+strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                       "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                       "For. to Sec. For", "Sec. For. Gain", "Sec. For. Loss")
 
-cm_out_colnames = c(orig_strata_names_short, "Sample size ($n_h$)", "Stratum weight ($W_h$)")
+
+# I'm removing TO UNCLASS and BUFFER from ref labels bc they only exist for the
+# strata, and that also saves space in the table.
+
+cm_out_colnames = c(orig_strata_names_short[-c(11,13)], "Samp, size ($n_h$)", "Strat. weight ($W_h$)")
 cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
+
+cm_list_out = lapply(cm_list_out, function(x){x[,-c(11,13)]})
+
 cm_prop_list_out = cm_list_out
+col_digits1 = c(rep(0, 13), 2)
+col_digits2 = c(0, rep(4, 11), 0,2)
+
+bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
 
 for (i in 1:7){ # Couldn't get this to work with mapply!
   cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
   colnames(cm_list_out[[i]]) = cm_out_colnames
   rownames(cm_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_list_out[[i]], type='latex', sanitize.text.function=function(x){x}))
+  print(xtable(cm_list_out[[i]], digits = col_digits1, 
+               caption=paste0("Confusion matrix in sample counts for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
     
   # Calculate proportions, ugly way
-  cm_prop_list_out[[i]][,1:13] = (cm_list_out[[i]][,1:13] * cm_list_out[[i]][,15]) / cm_list_out[[i]][,14]
+  cm_prop_list_out[[i]][,1:11] = (cm_list_out[[i]][,1:11] * cm_list_out[[i]][,13]) / cm_list_out[[i]][,12]
   cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
   colnames(cm_prop_list_out[[i]]) = cm_out_colnames
   rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_prop_list_out[[i]], digits=4, type='latex', sanitize.text.function=function(x){x}))
+  print(xtable(cm_prop_list_out[[i]], digits = col_digits2,
+               caption=paste0("Confusion matrix in area proportions for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
 }
-
-
-
-
-
