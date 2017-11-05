@@ -285,7 +285,7 @@ plot(ci_compare$V8)
 
 ############################# PLOT AREAS
 
-plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode, biglabels){
+plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode){
   # Need two copies bc of the complexity of the graph
   tempdf = as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, mappedarea, me))
   names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped_area", "Margin_error")
@@ -303,10 +303,13 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   bks = seq(miny, maxy, length.out = 6)
   bks2 = bks / totareaha * 100
   
-  # Conditonals for pontus modes, yscale is shared for the two 
+  # Global options for all plots, unless overrriden below
   yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")},breaks=bks, limits=c(miny,maxy), 
-                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)}))
+                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)},
+                                                  name="Percentage of total area\n"))
   ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
+  markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=1)
+  map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red")
   
   # Remove CI and area when it intersects with zero
   if (plotmode == 1){
@@ -322,46 +325,44 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
     upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
     centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha), linetype=8)
   
-  # Or keep the simplified original with changes in axes or data
-  } else {
-    lowerline = geom_blank()
-    upperline = geom_blank()
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha))
-    yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) 
-    ribbon = geom_ribbon(data=tempdf2, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
-  }
+  # Or keep plotmode1 format but make labels and markers bigger
+  } else if (plotmode == 3) {
     
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8, size=1.1)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8, size=1.1) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8, size=1.1)
+    markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=2)
+    map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red", size=1.2) 
+  }
+  
+  
   # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
+  regular_theme = theme(plot.title = element_text(size=18), axis.text=element_text(size=18),
+                        axis.title=element_text(size=18)) 
+  
   area_plot = ggplot() +  
-    lowerline + upperline + centerline + ribbon +
-    geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red") + 
-    geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=1) +
+    lowerline + upperline + centerline + ribbon + map_area + markers +
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
-    yscale + ylab("Area and 95% CI [ha]") +
-    ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) +
-    theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
-  
-  # Put plots together on a list and change some properties in order to save them together as a single plot
-  area_plot_small = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=11), axis.text.y=element_text(size=12)) 
-  
+    yscale + ylab("Area and 95% CI [ha]\n") + xlab("\nTime") +
+    ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) + regular_theme
+    
   # Plot margin of error
   me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + ylim(0, 200) + 
-    ylab("Margin of error [%]") + ggtitle(plot_title) +
-    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
+    ylab("Margin of error [%]\n") + xlab("\nTime") + ggtitle(plot_title) + regular_theme
   
-  if (plotmode == T){
-      return_list = list(area_plot_small, me_plot)
-  } else {
-    if (biglabels == T){
-      return_list = list(area_plot + expand_limits(y=0), me_plot)
-    } else {
-      return_list = list(area_plot_small + expand_limits(y=0), me_plot)
-    }
+  # Change fontsize if labels biglabels is False
+  small_theme = theme(axis.title=element_blank(), axis.text.x=element_text(size=11), axis.text.y=element_text(size=12)) 
+  area_plot_small = area_plot + small_theme
+  me_plot_small = me_plot + small_theme
+  
+  if (plotmode == 1 | plotmode == 2){
+    return_list = list(area_plot_small, me_plot_small)
+  } else if (plotmode == 3) {
+    return_list = list(area_plot, me_plot)
   }
 
   return(return_list)
-
 }
 
 # Vector of max and min y axis values for pontus modes
@@ -393,11 +394,11 @@ plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 # Get AREA PLOTS  in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1, biglabels=F)  
+                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
   plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
-                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2, biglabels=F)  
+                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
   plot_list3[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
-                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=3, biglabels=F)  
+                               margin_error[,i], 0, maxy_vect2[i], strata_names[i], plotmode=3)  
   
   gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
   gpl2[[i]] = ggplotGrob(plot_list2[[i]][[1]])
@@ -450,13 +451,6 @@ pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]],
 
 ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
-regular_multiplot = grid.arrange(textGrob(""), gpl3[[1]], gpl3[[2]], gpl3[[4]], 
-                                 gpl3[[3]], gpl3[[5]], gpl3[[6]], gpl3[[7]],
-                                 gpl3[[8]], gpl3[[9]], gpl3[[10]], gpl3[[11]],ncol=4, 
-                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
-
-ggsave(paste0("plots/post_katelyn/", "ALL_regular_", lut_name, ".png"), plot=regular_multiplot,  width = 20, height = 10) 
-
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
 pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]], 
@@ -471,13 +465,6 @@ pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]]
 
 ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
 
-regular_multiplot_me = grid.arrange(textGrob(""), mep3[[1]], mep3[[2]], mep3[[4]], 
-                                 mep3[[3]], mep3[[5]], mep3[[6]], mep3[[7]],
-                                 mep3[[8]], mep3[[9]], mep3[[10]], mep3[[11]],ncol=4)
-
-ggsave(paste0("plots/post_katelyn/", "ALL_regular_me_", lut_name, ".png"), plot=regular_multiplot_me,  width = 20, height = 10) 
-
-
 
 # Individual regular sized figures for separate saving with margin of error
 ap = list()
@@ -488,11 +475,9 @@ for(i in 1:length(strata_names)){
   mep[[i]] = ggplotGrob(plot_list3[[i]][[2]])
   g = rbind(ap[[i]], mep[[i]], size="first") 
   g$widths = unit.pmax(ap[[i]]$widths, mep[[i]]$widths)
-  grid.newpage()
-  grid.draw(g)
   
   filename = paste0("plots/post_katelyn/", strata_names[[i]], "_areas_me_", lut_name, ".png")
-  png(filename, width=1000, height = 1000, units = "px"); plot(g); dev.off()
+  ggsave(filename, plot=g, width=12, height = 15, units = "in")
 }
 
 
@@ -648,7 +633,7 @@ get_condition_rows(2,1,2)
 
 
 
-############## CREATE TABLES FOR PAPER
+############## CREATE TABLES FOR PAPER AND PRESENTATIONS
 
 # TABLE OF AREAS
 # Do calculations first, then assemble table.
@@ -748,3 +733,23 @@ for (i in 1:7){ # Couldn't get this to work with mapply!
         type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
         caption.placement="top")
 }
+
+### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
+
+# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
+
+# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
+ss = ss[!(ss$stratum %in% cr),] 
+
+# Calculate original strata weights and area proportions 
+orig_strata_weight = ss$pixels / tot_area_pix
+orig_strata_area = ss$pixels * 30^2 / 100^2
+orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
+colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
+orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
+align(orig_strata_table_out) = "llrcc"
+print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
+      sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
+
+
