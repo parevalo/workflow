@@ -169,6 +169,12 @@ strata_pixels = aggregate(shp_list_ref[[1]]$STRATUM, by=list(shp_list_ref[[1]]$S
 strata_weights = as.data.frame(do.call(rbind, lapply(pixcount_list, function(x) (x[,2]/tot_area_pix)*100)))
 colnames(strata_weights) = map_codes_all
 
+# Calculate optimal sample allocation, had we used one of the confusion matrices to
+# minimize the uncertainty in accuracies and areas of one of the change classes
+# e.g. forest to pastures. Given just as a reference.
+cm_prop_square = as.data.frame.matrix(cm_list[[1]] * as.vector(t(strata_weights[1,]/100)) / strata_pixels$x)
+opt_alloc = calc_optimal_sample_alloc(cm_prop_square, 8, 1050)
+
 
 # Calculate areas and accuracies, cant vectorize it the way the fncs are written
 prop_out = list()
@@ -743,10 +749,10 @@ ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum"
 ss = ss[!(ss$stratum %in% cr),] 
 
 # Calculate original strata weights and area proportions 
-orig_strata_weight = ss$pixels / tot_area_pix
+orig_strata_weight = (ss$pixels / tot_area_pix) *100
 orig_strata_area = ss$pixels * 30^2 / 100^2
 orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
-colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area / $W_h$ [\\%]", "Sample size ($n_h$)") 
+colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area $W_h$ [\\%]", "Sample size ($n_h$)") 
 orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
 align(orig_strata_table_out) = "llrcc"
 print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},

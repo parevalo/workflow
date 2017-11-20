@@ -262,6 +262,12 @@ areas_orig = data.frame(t(sapply(areas_out_orig,c)))
 colnames(areas_orig) = ref_codes
 rownames(areas_orig) = c("area_ha", "area_ci", "area_upper", "area_lower", "margin_error")
 
+# Calculate optimal allocation that could have been used had we had the confusion matrix in advance.
+# This would have helped reduce uncertainty in accuracies and areas of the forest to pasture class.
+# Given just for reference
+cm_prop_square = as.data.frame.matrix(ct * as.vector(str_weight) / strata_pixels$x)
+calc_optimal_sample_alloc(cm_prop_square, 8, 1050)
+
 # Calculate accuracies of original stratification, in percentage
 acc_out_orig = calc_accuracies(ss, strata_pixels, ref_codes, tot_area_pix,
                                  prop_out_orig[[1]], prop_out_orig[[2]], prop_out_orig[[3]], prop_out_orig[[4]],
