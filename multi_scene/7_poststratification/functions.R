@@ -374,7 +374,7 @@ calc_ct = function(v1, v2, code_levels){
 #' @param n: Total sample size
 
 calc_optimal_sample_alloc = function(cm, i, n){
-  if(sum(colSums(cm)) != 1){stop("Confusion matrix does not add to 1")}
+  if(1/sum(cm) < 0.99){stop("Confusion matrix does not add to 1")}
      
   # Calc variances and sort them according to position of
   # class of interest (i.e. 'i')
