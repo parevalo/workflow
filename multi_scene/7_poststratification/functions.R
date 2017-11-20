@@ -15,7 +15,6 @@
 #' @return Vector of equal lenght than the original with the replaced values. If
 #' values in the vector are not found in the codes to be searched for, NA is
 #' returned.
-
 reclass_codes <- function(vector, lut){
   temp = vector(mode = "integer", length = length(vector))
   temp[!(vector %in% lut[,1])] = NA
@@ -366,10 +365,69 @@ calc_ct = function(v1, v2, code_levels){
 }
 
 
-#' Function to read a list of csv's with the class codes and pixel counts
-#' (e.g. 'pixcount' files) and create a table with years
-#' 
+#' Function to calculate optimal sample size for an expected confusion matrix
+#' Taken from the Excel spreadsheet provided in Wagner and Stehman 2015. Test
+#' data taken from the 4x4 spreadsheet
+#' @param cm: Confusion matrix, in proportions. Must be square. Classes in rows 
+#' and cols must be in the same order.
+#' @param i: Column/row number to be used as the target for the estimation
+#' @param n: Total sample size
 
-# to get the pair of years we are reading
-#regmatches(map_names[[1]],regexpr('[0-9]{2}_[0-9]{2}', map_names[[1]]))
+calc_optimal_sample_alloc = function(cm, i, n){
+  try(if(sum(colSums(cm)) != 1) 
+      stop("Confusion matrix does not add to 1"))
+  
+  # Calc variances and sort them according to position of
+  # class of interest (i.e. 'i')
+  csum = sum(cm[,i])
+  var_user = (cm[i,i] * (sum(cm[i,-i]))) / (sum(cm[i,]))^2
+  
+  var_prod_class = (sum(cm[-i,i])^2 * cm[i,i] * (sum(cm[i, -i]))) / 
+        csum^4
+  var_prod_others = (cm[i,i]^2 * cm[-i,i] * rowSums(cm[-i,-i])) / 
+        csum^4
+  
+  var_prod = vector(length = length(cm))
+  var_prod[i] = var_prod_class
+  var_prod[-i] = var_prod_others
+  
+  var_parea =  cm[,i] * (rowSums(cm[, -i]))
+  
+  # Calculate K's and min K =! 0
+  k = vector(length = length(cm))
+  k[-i] = var_prod[-i] + var_parea[-i]
+  k[i] = var_user + var_prod[i] + var_parea[i]
+  mink = min(k[k>0])
+  
+  # Calc theoretical smallest sample size
+  nhat = (k / mink)^0.5
+  
+  # Calc optimal sample size
+  nh = (nhat / sum(nhat)) * n
+  
+  # Calc standard errors
+  if (nh[i] == 0){
+    se_user = 0
+  } else {
+    se_user = sqrt(var_user / nh[i])
+  }
+  
+  se_prod = sum(var_prod[nh > 0] / nh[nh > 0])^0.5
+  se_parea = sum(var_parea[nh > 0] / nh[nh > 0])^0.5
+
+  out = list(sample_alloc=nh, 
+             se_user=se_user,
+             se_prod=se_prod,
+             se_parea=se_parea)
+
+  return(out)
+}
+
+# Test data for the previous function. 
+testcm = data.frame(c(0.01400, 0.00100, 0.00200, 0.00400), 
+                    c(0.00000,0.00900, 0.00000, 0.00200),
+                    c(0.00300, 0.00250, 0.28800, 0.02500),
+                    c(0.00300, 0.00250, 0.03000, 0.61400))
+colnames(testcm) = c("1", "2", "3", "4")
+
 
