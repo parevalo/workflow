@@ -368,15 +368,14 @@ calc_ct = function(v1, v2, code_levels){
 #' Function to calculate optimal sample size for an expected confusion matrix
 #' Taken from the Excel spreadsheet provided in Wagner and Stehman 2015. Test
 #' data taken from the 4x4 spreadsheet
-#' @param cm: Confusion matrix, in proportions. Must be square. Classes in rows 
-#' and cols must be in the same order.
+#' @param cm: Confusion matrix as a dataframe, in proportions. Must be square. 
+#' Classes in rows and cols must be in the same order.
 #' @param i: Column/row number to be used as the target for the estimation
 #' @param n: Total sample size
 
 calc_optimal_sample_alloc = function(cm, i, n){
-  try(if(sum(colSums(cm)) != 1) 
-      stop("Confusion matrix does not add to 1"))
-  
+  if(sum(colSums(cm)) != 1){stop("Confusion matrix does not add to 1")}
+     
   # Calc variances and sort them according to position of
   # class of interest (i.e. 'i')
   csum = sum(cm[,i])
