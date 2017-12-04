@@ -10,7 +10,7 @@ import csv
 @click.argument('raster2', metavar='<raster 2>', nargs=1, type=click.Path(exists=True, resolve_path=True))
 @click.argument('csvfile', metavar='<lut>', nargs=1, type=click.Path(exists=True, resolve_path=True))
 @click.argument('output', metavar='<output raster>', nargs=1, type=click.Path(resolve_path=True))
-@click.option('--header', metavar='', type=bool, default=True, show_default=True, help='Does CVS have header?')
+@click.option('--header', metavar='', type=bool, default=True, show_default=True, help='Does CSV have header?')
 @click.option('--delim', metavar='', type=str, default=',', show_default=True, help='CSV Text delimiter')
 @click.option('--quote', metavar='', type=str, default='"', show_default=True, help='CSV quote character')
 @click.option('--format', metavar='', type=str, default='GTiff', show_default=True, help='Output file format')
