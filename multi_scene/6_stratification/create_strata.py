@@ -1,11 +1,7 @@
 #!/usr/bin/env python
 import click
 import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import rasterio
-import fiona
-import os
 import csv
 
 
