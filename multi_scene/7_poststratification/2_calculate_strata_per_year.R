@@ -574,6 +574,17 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
 
 ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
+# Save forest to pasture plot separately for the paper
+y1_label = textGrob("Area and 95% CI [ha]", gp=gpar(fontsize=14), rot=90)
+y2_label = textGrob("Percentage of total area", gp=gpar(fontsize=14), rot=-90)
+x_label = textGrob("Time", gp=gpar(fontsize=14))
+
+f2p = plot_list1[[8]][[1]] + ylab("") + xlab("") + ggtitle("") +
+  theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
+f2p_plot = grid.arrange(ggplotGrob(f2p), left=y1_label, right=y2_label, bottom=x_label)
+ggsave(paste0(savepath, "f2p_for_paper", step, "_", lut_name, ".png"), plot=f2p_plot,  width = 10, height = 5) 
+
+
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
