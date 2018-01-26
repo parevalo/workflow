@@ -104,8 +104,15 @@ join_ref_map_strata = function(map_shp, refstrata_id){
   return(map_shp)
 }
 
-# Use mapply to use each corresponding element of the two lists
+# Use mapply to use each corresponding element of the two lists and save
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
+
+for(n in 1:length(samples_names)){
+  outname = paste0(samples_names[n], "_labels")
+  writeOGR(shp_list_ref[[n]], paste0("shp/",outname), outname, 
+           driver="ESRI Shapefile", overwrite_layer = T)
+}
+
 
 ## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
