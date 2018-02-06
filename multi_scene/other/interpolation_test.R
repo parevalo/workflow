@@ -5,6 +5,7 @@ library(gstat)
 library(caret)
 library(pROC)
 library(tidyverse)
+library(parallel)
 
 
 setwd("/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/biannual_sampling/")
@@ -51,6 +52,7 @@ run_cv <- function(fold_list, input_data, nn, idp_val){
   auc_list = list()
   
   for (i in 1:length(fold_list)) {
+    print(paste0("Iterating with fold ", i, " out of ", length(fold_list)))
     sel = fold_list[[i]]
     train = input_data[-sel,]
     test = input_data[sel,]
@@ -72,8 +74,8 @@ run_cv <- function(fold_list, input_data, nn, idp_val){
 #' doing proportional sampling
 create_partitions = function(group_vect, id_vect, npart,fraction){
   class_folds = list()
+  df = as.data.frame(cbind(group_vect, id_vect))
   for (k in 1:npart){
-    df = as.data.frame(cbind(group_vect, id_vect))
     sfrac = df %>% group_by(group_vect) %>% sample_frac(., size=fraction)
     class_folds[[k]] = which(df$id_vect %in% sfrac$id_vect)
   }
@@ -85,12 +87,12 @@ create_partitions = function(group_vect, id_vect, npart,fraction){
 #' so that the single occurrence gets included in every sample we take. 
 
 nsamples = 10
-nb = seq(from = 5, to = 6 , by = 1)
+nb = seq(from = 5, to = 30 , by = 1)
 sample_frac = 0.6
+idp = 0.5
 cv_results = list()
 class_results = list()
 shp_results = list()
-class_folds = list()
 set.seed(1512)
 
 for (i in 1:length(shp_list)){
@@ -102,7 +104,7 @@ for (i in 1:length(shp_list)){
     
     # Iterate over multiple neighbors to find the one with the smallest AUC
     for (k in 1:length(nb)){
-      cv_results[[k]] = run_cv(class_folds, class_ds, nb[[k]])
+      cv_results[[k]] = run_cv(class_folds, class_ds, nb[[k]], idp)
     }
     
     names(cv_results) = sprintf("%02d",nb)
@@ -113,94 +115,73 @@ for (i in 1:length(shp_list)){
 }
 
 
-# Or run for a single period-class instead: (COMPLETE!)
-subset_ds = shp_list[[1]][shp_list[[1]]$map_strata == ref_class_list[[i]][[j]],]
-testpart = create_partitions(subset_ds@data$binmatch, subset_ds@data$ID, 10, 0.6)
+# Or run for a single period-class instead: (e.g. 09-11)
 
-# Format and reshape to make it easier to plot
-auc_list = as.data.frame(do.call(cbind, lapply(shp_results[[1]]$`8`, function(x){x[[2]]})))
-auc_tidy = gather(auc_list, neigh, auc)
-auc_boxp <- ggplot(auc_tidy, aes(x = neigh, y = auc)) + geom_boxplot()
-auc_boxp
+class_results = list()
+for (i in 1:length(ref_class_list[[5]])){
+  print(paste0("Iterating with map class ", ref_class_list[[5]][[i]]))
+  subset_ds = shp_list[[5]][shp_list[[5]]$map_strata == ref_class_list[[5]][[i]],]
+  test_part = create_partitions(subset_ds@data$binmatch, subset_ds@data$ID, 10, 0.6)
+  
+  # Iterate over multiple neighbors to find the one with the smallest AUC
+  # for (k in 1:length(nb)){
+  #   print(paste0("Iterating with map class ", ref_class_list[[5]][[i]], ", neighbor ", nb[[k]]))
+  #   cv_results[[k]] = run_cv(test_part, subset_ds, nb[[k]], idp)
+  # }
+  
+  # Or better use parallel apply to speed up!
+  cv_results = mclapply(nb, run_cv, fold_list=test_part, input_data=subset_ds, idp_val=idp)
+  
+  names(cv_results) = sprintf("%02d",nb)
+  class_results[[i]] = cv_results
+}
 
-# Select highest mean AUC
-mean_auc = auc_tidy %>% group_by(neigh) %>% summarise(avg=mean(auc))
-max_nn = as.numeric(mean_auc$neigh[mean_auc$avg == max(mean_auc$avg)])
+# Store AUC results per class/partition/neighbor in lists and create boxplots with them.
+# Also select highest AUC automatically to input into the interpolation
+# Done here for period 09-11
+
+class_auc = list()
+auc_boxplot = list()
+mean_auc = list()
+max_nn = list()
+for (i in 1:length(ref_class_list[[5]])){
+  
+  # Extract AUCs per partition per neighbor
+  auc_list_nb = as.data.frame(do.call(cbind, lapply(class_results[[i]], function(x){x[[2]]})))
+  class_auc[[i]] = gather(auc_list_nb, neigh, auc)
+  auc_boxplot[[i]] <- ggplot(class_auc[[i]], aes(x = neigh, y = auc)) + geom_boxplot()
+  
+  # Select highest mean AUC
+  mean_auc[[i]] = class_auc[[i]] %>% group_by(neigh) %>% summarise(avg=mean(auc))
+  max_nn[[i]] = as.numeric(mean_auc[[i]]$neigh[mean_auc[[i]]$avg == max(mean_auc[[i]]$avg)])
+}
+  
 
 # Load rasters where interpolation will be performed
 testraster = raster("/media/paulo/785044BD504483BA/test/final_strata_annual_09_11_UTM18N.tif")
 # Crop to be able to test locally
 cropped_raster = crop(testraster, y=extent(testraster, 10000, 14000, 10000, 14000))
 cropped_raster[cropped_raster == 15] = NA # To set actual NA's
-cropped_raster[cropped_raster < 1 | cropped_raster > 1 ] = NA # Or to interpolate for a single class only
 
-# Convert to spatialpixels, required for idw
 crs_string ="+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
-area_sp = SpatialPixels(SpatialPoints(coordinates(cropped_raster)[!is.na(values(cropped_raster)),]),
-                        proj4string = CRS(crs_string))
 
-# Convert to spatialpixels and run the interpolation
-
-testidw = idw(shp_list[[5]]@data$binmatch~1, locations=shp_list[[5]], 
-              newdata=area_sp, idp=1, nmax=max_nn)
-testplot = raster(testidw["var1.pred"])
-writeRaster(testplot, "testraster_forest_09-11.tif", format="GTiff", overwrite=TRUE)
-
-
-
-
-
-
-
-# ###################### TEST DATA
-# data(meuse)
-# data("meuse.grid")
-# 
-# coordinates(meuse) = ~x+y
-# coordinates(meuse.grid) = ~x+y
-# 
-# # Convert from Spatialpoints to Spatialpixels
-# gridded(meuse.grid) = TRUE
-# 
-# # Way 1
-# idw2 = idw(formula=zinc~1, locations=meuse, newdata=meuse.grid, idp=1, nmax=7)
-# spplot(idw2["var1.pred"])
-# 
-# 
-# # Way 2
-# meuse.gstat <- gstat(id = "lime", formula = lime~1,
-#                      data = meuse, nmax = 7,
-#                      set = list(idp = 1))
-# z <- predict(meuse.gstat, meuse.grid)
-# spplot(z["lime.pred"])
-# 
-# # Cross-validation to calculate ROCAUC
-# # Need to iterate to select multiple NN values
-# 
-# set.seed(1010)
-# meuse.gstat.cv = gstat.cv(meuse.gstat, nfold=10)
-# #Or from scratch without referring to an object
-# meuse.idw_cv <- krige.cv(zinc~1, meuse, nmax = 7, nfold=5, set = list(idp = 1))
-# 
-# # Using variable numbers of NN
-# # Nmax has to be different for each class
-# nb = seq(from = 3, to = 30 , by = 1)
-# results_cv=list()
-# 
-# for(n in nb){
-#   # Saving only the CV results
-#   results_cv[[n]] = krige.cv(lime~1, meuse, nmax = n, set = list(idp = 1))
-# }
-# 
-# 
-# #ROCAUC, values need to be binary
-# category <- c(1, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0)
-# prediction <- rev(seq_along(category))
-# prediction[9:10] <- mean(prediction[9:10])
-# roc_obj <- roc(category, prediction)
-# auc_test = auc(roc_obj)
-# 
-# 
-# #####################
+for (i in 1:length(ref_class_list[[5]])){
+  iraster = cropped_raster
+  # Set other classes as NA to interpolate on that class only
+  iraster[iraster < ref_class_list[[5]][[i]] | iraster > ref_class_list[[5]][[i]]] = NA
+  
+  # Convert to spatialpixels, required for IDW
+  area_sp = SpatialPixels(SpatialPoints(coordinates(iraster)[!is.na(values(iraster)),]),
+                          proj4string = CRS(crs_string))
+  
+  # Convert to spatialpixels and run the interpolation
+  print(paste0("Running interpolation for class ", ref_class_list[[5]][[i]]))
+  class_idw = idw(shp_list[[5]]@data$binmatch~1, locations=shp_list[[5]], 
+                newdata=area_sp, idp=idp, nmax=max_nn[[i]])
+  class_interp = raster(class_idw["var1.pred"])
+  rast_name = paste0("IDW_class_", ref_class_list[[5]][[i]], "_nn", max_nn[[i]], 
+                     "_idp", idp, "_09-11.tif")
+  writeRaster(class_interp, rast_name, format="GTiff", overwrite=TRUE)
+}
 
 
