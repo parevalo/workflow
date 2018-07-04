@@ -41,7 +41,7 @@ calc_strata <- function(year1, year2, lut){
   if (length(year1) != length(year2)){
     stop("Lengths of the two years are different")
   } else {
-    temp = vector(mode = "integer", length = length(year1))
+    temp = vector(mode = "any", length = length(year1))
     temp[!(year1 %in% lut[,1]) | !(year2 %in% lut[,2])] = NA
     for(i in 1:dim(lut)[1]){
       temp[(year1 == lut[i,1]) & (year2 == lut[i,2])] = lut[i,3] 
