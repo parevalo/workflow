@@ -25,26 +25,29 @@ reclass_codes <- function(vector, lut){
 }
 
 
-#' Calculate strata between two years using a lookup table
+#' Calculate new code from element-wise comparison of two vectors 
+#' using a lookup table
 #'
-#' @param year1 Vector or integer number corresponding to the first year
-#' @param year2 Vector or integer number corresponding to the second year
+#' @param v1 First vector of values
+#' @param v2 Second vector of values
 #' @param lut matrix or dataframe with three columns: the first two holding the 
-#' first and second land cover values that year1 and year2 will be compared
-#' against, respectively, and the third with the strata code to be assigned.
-#' @return Vector of equal lenght than the original with the strata values. If
+#' first and second values that v1 and v2 will be compared
+#' against, respectively, and the third with the new code to be assigned.
+#' @return Vector of equal lenght than the original with the new values. If
 #' values in the vector are not found in the codes to be searched for, NA is
 #' returned.
 #' 
 
-calc_strata <- function(year1, year2, lut){
-  if (length(year1) != length(year2)){
+calc_strata <- function(v1, v2, lut){
+  if (length(v1) != length(v2)){
     stop("Lengths of the two years are different")
   } else {
-    temp = vector(mode = "any", length = length(year1))
-    temp[!(year1 %in% lut[,1]) | !(year2 %in% lut[,2])] = NA
+    # Get data type from first element of the new values to be assigned
+    type_of = typeof(lut[1,3])
+    temp = vector(mode=type_of, length = length(v1))
+    temp[!(v1 %in% lut[,1]) | !(v2 %in% lut[,2])] = NA
     for(i in 1:dim(lut)[1]){
-      temp[(year1 == lut[i,1]) & (year2 == lut[i,2])] = lut[i,3] 
+      temp[(v1 == lut[i,1]) & (v2 == lut[i,2])] = lut[i,3] 
     }
   }
   return(temp)
