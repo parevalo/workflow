@@ -104,9 +104,26 @@ join_ref_map_strata = function(map_shp, refstrata_id){
   return(map_shp)
 }
 
-# Use mapply to use each corresponding element of the two lists and save
+# Use mapply to use each corresponding element of the two lists 
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 
+# Read basic LUT to compare strata and reference labels and run the comparison
+strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/6_stratification/lut_strata_ref_match.csv",
+                          as.is = c(3))
+
+for(i in 1:length(shp_list_ref)){
+  match_comparison= calc_strata(shp_list_ref[[i]]$STRATUM, 
+                                 shp_list_ref[[i]]$ref_strata, 
+                                 strata_ref_lut)
+  # Add condition for reference = 13 and forest vs any other class except 1,8,9
+  match_comparison[shp_list_ref[[i]]$STRATUM == 13] = "to_unclass"
+  temp_cond = shp_list_ref[[i]]$STRATUM == 1 & !(shp_list_ref[[i]]$ref_strata %in% c(1,8,9)) 
+  match_comparison[temp_cond] = "forest_misclass"
+  match_comparison[match_comparison == ""] = "other_missclass"
+  shp_list_ref[[i]]@data$match_comp = match_comparison
+}
+
+# Save updated shapefiles for analysis
 for(n in 1:length(samples_names)){
   outname = paste0(samples_names[n], "_labels")
   writeOGR(shp_list_ref[[n]], paste0("shp/",outname), outname, 
