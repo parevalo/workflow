@@ -94,6 +94,7 @@ calculate_strata_old <- function(year1, year2){
 #' stratification of each sample
 #' @param ref_label Vector with numeric codes representing the reference label 
 #' for that year/map
+#' @param map_label Vector with numeric codes representing the map labels 
 #' @param strata_totals Dataframe with two columns and number of rows equal to 
 #' the total number of classes in the original strata. The first column must 
 #' have the same codes found in the original stratification and the second must 
@@ -103,10 +104,6 @@ calculate_strata_old <- function(year1, year2){
 #' have the same codes found in the original stratification, and the second must
 #' have the total number of SAMPLE UNITS of each class collected from that 
 #' original strata map. 
-#' @param class_codes Vector with all the unique numerical classes present in 
-#' BOTH the maps and reference data. This is required to facilitate the 
-#' calculations for multiple maps/years when not all the reference/maps classes 
-#' are present in every map, and to simplify the calculations of accuracies. 
 #' @param rfcodes Vector with numeric values representing the reference codes
 #' present in ALL of the periods. 
 #' @return List with: dataframe with proportion (mean) of reference labels 
@@ -115,8 +112,10 @@ calculate_strata_old <- function(year1, year2){
 #' on each sample strata class (map_prop), and dataframe with its variance 
 #' (map_var), dataframe with proportion (mean) of matching reference and map 
 #' labels present on each sample strata class (map_and_ref_prop) and dataframe 
-#' with its variance (map_and_ref_var), dataframees associated with users's 
-#' and producer's covariance (users_cov, producers_cov), vector of area 
+#' with its variance (map_and_ref_var), dataframe with proportion of all map 
+#' labels equal to reference labels present in stratum (overall_acc_prop) and 
+#' dataframe with its variance (overall_acc_var) and dataframes associated with 
+#  users's and producer's covariance (users_cov, producers_cov), vector of area 
 #' proportions per class (class_prop).
 #' @export
 
@@ -313,8 +312,46 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
 }
 
 #' Function to calculate accuracies and their 95% confidence intervals.
-#' 
-#' 
+#'
+#' @param strata_totals Dataframe with two columns and number of rows equal to 
+#' the total number of classes in the original strata. The first column must 
+#' have the same codes found in the original stratification and the second must 
+#' have the total number of PIXELS of each class in that original strata map.
+#' @param sample_totals Dataframe with two columns and number of rows equal to 
+#' the total number of classes in the original strata. The first column must 
+#' have the same codes found in the original stratification, and the second must
+#' have the total number of SAMPLE UNITS of each class collected from that 
+#' original strata map. 
+#' @param rfcodes Vector with numeric values representing the reference codes
+#' present in ALL of the periods. 
+#' @param totalarea_pix Integer with the total number of pixels present in the 
+#' original stratification map. Assumed to be Landsat (i.e 30 m x 30 m)
+#' @param ref_prop Dataframe with proportions (mean) of reference labels 
+#' (columns) present on each sample strata class (rows)
+#' @param ref_var Dataframe of variances of reference labels (columns)
+#' present on each sample strata class (rows)
+#' @param map_prop Dataframe of proportions (mean) of map labels (columns)
+#' present on each sample strata class (rows)
+#' @param map_var Dataframe of variances of map labels (columns) present on each
+#' sample strata class (rows)
+#' @param map_and_ref_prop Dataframe of proportions (mean) of matching reference
+#' and map labels (columns) present on each sample strata class (rows)
+#' @param map_and_ref_var Dataframe of variances of matching reference and 
+#' map labels (columns) present on each sample strata class (rows) 
+#' @param overall_acc_prop Vector of proportions of all map labels equal to 
+#' reference labels present in stratum 
+#' @param overall_acc_var Vector of variances of all map labels equal to 
+#' reference labels present in stratum. 
+#' @param users_cov Dataframe of user's accuracy covariances per strata
+#' @param producers_cov Dataframe of producer's accuracy covariances per strata
+
+
+#' with its variance (map_and_ref_var), dataframe with proportion of all map 
+#' labels equal to reference labels present in stratum (overall_acc_prop) and 
+#' dataframe with its variance (overall_acc_var) and dataframes associated with 
+#  users's and producer's covariance (users_cov, producers_cov), vector of area 
+#' proportions per class (class_prop).
+#' @export
 
 calc_accuracies = function(strata_totals, sample_totals, rfcodes, totalarea_pix,
                            ref_prop, ref_var, map_prop, map_var, 
