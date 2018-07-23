@@ -111,6 +111,7 @@ shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/6_stratification/lut_strata_ref_match.csv",
                           as.is = c(3))
 
+shp_list_centroid = list()
 for(i in 1:length(shp_list_ref)){
   match_comparison= calc_strata(shp_list_ref[[i]]$STRATUM, 
                                  shp_list_ref[[i]]$ref_strata, 
@@ -121,15 +122,21 @@ for(i in 1:length(shp_list_ref)){
   match_comparison[temp_cond] = "forest_misclass"
   match_comparison[match_comparison == ""] = "other_missclass"
   shp_list_ref[[i]]@data$match_comp = match_comparison
+  
+  # Create point version of shapefiles
+  temp_centroid = gCentroid(shp_list_ref[[i]], byid=T)
+  shp_list_centroid[[i]] = SpatialPointsDataFrame(temp_centroid, shp_list_ref[[i]]@data)
 }
 
-# Save updated shapefiles for analysis
+# Save updated poly and point shapefiles for analysis
 for(n in 1:length(samples_names)){
-  outname = paste0(samples_names[n], "_labels")
-  writeOGR(shp_list_ref[[n]], paste0("shp/",outname), outname, 
+  outname1 = paste0(samples_names[n], "_labels")
+  outname2 = paste0(samples_names[n], "_labels_pts")
+  writeOGR(shp_list_ref[[n]], paste0("shp/",outname1), outname1,
+           driver="ESRI Shapefile", overwrite_layer = T)
+  writeOGR(shp_list_centroid[[n]], paste0("shp/",outname2), outname2,
            driver="ESRI Shapefile", overwrite_layer = T)
 }
-
 
 ## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
