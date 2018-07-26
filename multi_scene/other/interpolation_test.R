@@ -278,3 +278,41 @@ max_nn_idp15 = calc_max_nn(ref_class_list[[5]], class_results15, idp)
 # Run with TRAIN points per class only, only way to test final AUCROC
 interpolate_fnc(cropped_raster, train_ds, ref_class_list[[5]], max_nn_idp15, idp, "_train_09-11.tif")
 auroc15 = calculate_final_aucroc(ref_class_list[[5]], max_nn_idp15, idp, test_ds)
+
+
+################## Linear and logistic regression 
+
+data(meuse)
+coordinates(meuse) = ~x+y
+data(meuse.grid)
+gridded(meuse.grid) = ~x+y
+
+meuse.lm <- krige(log(zinc) ~ sqrt(dist) + soil + ffreq, meuse, meuse.grid)
+spplot(meuse.lm)
+
+library(spatstat)
+library(maptools)
+library(mgcv)
+
+new_meuse = meuse
+meuse_coords = coordinates(meuse)
+
+meuse_grid_coords = coordinates(meuse.grid)
+meuse.grid$x1 = meuse_grid_coords[,1]
+meuse.grid$x2 = meuse_grid_coords[,2]
+
+new_meuse$bin = (meuse$zinc > 500)*1
+new_meuse$x1 = meuse_coords[,1]
+new_meuse$x2 = meuse_coords[,2]
+gam_logit = gam(bin~1+dist+soil+s(x1,x2), data=new_meuse, family=binomial)
+gam_predict = as.data.frame(predict(gam_logit, newdata=meuse.grid, type="response"))
+gam_predict$values = as.vector(gam_predict$`predict(gam_logit, newdata = meuse.grid, type = "response")`)
+gam_predict$x = meuse_grid_coords[,1]
+gam_predict$y = meuse_grid_coords[,2]
+coordinates(gam_predict) = ~x+y
+gam_predict_pixels = SpatialPixelsDataFrame(gam_predict, data = gam_predict@data)
+spplot(gam_predict_pixels)
+
+summary(gam_logit)
+plot(gam_logit)
+plot(gam_predict)
