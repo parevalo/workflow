@@ -23,7 +23,7 @@ ref_class_list = list()
 
 # Read shapefiles with reference and map labels
 for (i in 1:(length(periods))){
-  samples_names[i] = paste0("sample_", periods[i], "_labels")
+  samples_names[i] = paste0("sample_", periods[i], "_labels_pts")
   # Load shapes with map strata
   shp_list[[i]] = readOGR(paste0("shp/",  samples_names[i], "/", samples_names[i], ".shp"), samples_names[i])
 }
@@ -316,3 +316,95 @@ spplot(gam_predict_pixels)
 summary(gam_logit)
 plot(gam_logit)
 plot(gam_predict)
+
+################### Indicator krigging!!
+meuse$indicator = (meuse$zinc > 600) *1
+ind_vg = variogram(indicator~x+y, meuse)
+plot(ind_vg)
+ind_vmod = fit.variogram(ind_vg, model=vgm(0.11, 'Exp', 750, nugget=0.23))
+plot(ind_vg, model=ind_vmod)
+
+local_nb = krige(indicator~x+y, meuse, meuse.grid, model=ind_vmod)
+spplot(local_nb)
+
+
+# Using my own data
+# Read example shp with map and ref labels, omission and commission data
+testfile = "sample_05_07_om-com_class_05-06-07_info"
+# Load shapes with map strata
+testshp = readOGR(paste0("shp/",  "sample_05_07_labels_pts", "/", testfile, ".shp"), testfile)
+
+
+# Create new column indicating perfect label match or not and get classes per shp
+# Remove class 0 bc it creates problems for the ROC calculation
+
+testshp@data$map_strata = testshp@data$STRATUM 
+testshp@data$map_strata[testshp@data$map_strata == 16] = 1
+testshp@data$binmatch = (testshp@data$map_strata == testshp@data$ref_strata)*1
+cl_temp = sort(unique(testshp$ref_strata))
+test_class_list = cl_temp[!(cl_temp %in% 0)]
+
+# Load raster where interpolation will be performed
+testraster = raster("/media/paulo/785044BD504483BA/test/final_strata_annual_09_11_UTM18N.tif")
+# Crop to be able to test locally
+cropped_raster = testraster #crop(testraster, y=extent(470000, 570000, 145000, 220000))
+NAvalue(cropped_raster) = 15
+plot(cropped_raster)
+
+interpolate_fnc = function(cat_raster, train_shp, class_list){
+  vg_list = list()
+  # Needed to convert to SpatialPixels
+  crs_string ="+proj=utm +zone=18 +datum=WGS84 +units=m +no_defs +ellps=WGS84 +towgs84=0,0,0"
+  for (i in 1:length(class_list[1])){
+    iraster = cat_raster
+    # Set other classes as NA to interpolate on that class only
+    iraster[iraster < class_list[[i]] | iraster > class_list[[i]]] = NA
+    # Use points inside the class we need
+    subset_shp = train_shp[train_shp$map_strata == class_list[[i]],]
+    coords = coordinates(subset_shp)
+    subset_shp$x = coords[,1]
+    subset_shp$y = coords[,2]
+    
+    # Convert raster to spatialpixels, required for IDW
+    area_sp = SpatialPixels(SpatialPoints(coordinates(iraster)[!is.na(values(iraster)),]),
+                            proj4string = CRS(crs_string))
+    
+    # Convert to spatialpixels and run the interpolation
+    print(paste0("Running interpolation for class ", class_list[[i]]))
+    
+    vg_list[[i]] = variogram(binmatch~x+y+om_swir+cprob_05, subset_shp, subset_shp)
+    # ind_vmod = fit.variogram(ind_vg, model=vgm(0.11, 'Exp', 750, nugget=0.23))
+    # plot(ind_vg, model=ind_vmod)
+    # 
+    # local_nb = krige(indicator~x+y, meuse, meuse.grid, model=ind_vmod)
+    # spplot(local_nb)
+    # 
+    # 
+    # class_idw = idw(subset_shp@data$binmatch~1, locations=subset_shp, 
+    #                 newdata=area_sp, idp=idp_val, nmax=nn[[i]])
+    # class_interp = raster(class_idw["var1.pred"])
+    # 
+    # rast_name = paste0("interpolation/IDW_class_", class_list[[i]], "_nn", nn[[i]], 
+    #                    "_idp", idp_val, nsuffix)
+    # 
+    # writeRaster(class_interp, rast_name, format="GTiff", overwrite=TRUE)
+  }
+  return(vg_list)
+}
+
+# The semivariograms are really not showing any clear autocorrelation, with or without
+# a linear trend. There's no point in modelling this way if no relationship is found. 
+# Even doing it for 859 only using extra regressors (e.g. omission, class proba)
+# there seems to be no clear trend!!
+new_shp = testshp[!is.na(testshp$cprob_05),]
+
+coords = coordinates(new_shp)
+new_shp$x = coords[,1]
+new_shp$y = coords[,2]
+class = 1
+subshp = new_shp[new_shp$map_strata == test_class_list[[class]],]
+testvar = variogram(binmatch~x+y+om_swir, subshp, subshp)
+plot(testvar)
+
+out_vg = interpolate_fnc(cropped_raster, new_shp, test_class_list[[class]])
+plot(out_vg[[1]])
