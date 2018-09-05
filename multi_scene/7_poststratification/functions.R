@@ -252,8 +252,8 @@ calc_props_and_vars = function(orig_strata, ref_label, map_label,
 #' @param sample_totals Dataframe with two columns and number of rows equal to 
 #' the total number of classes in the original strata. The first column must 
 #' have the same codes found in the original stratification, and the second must
-#' have the total number of SAMPLES of each class collected from that original 
-#' strata map.
+#' have the total number of SAMPLE UNITS  of each class collected from that 
+#' original strata map.
 #' @param ref_var Dataframe with reference class variance for (column) per 
 #' original strata class (row).
 #' @param rfcodes Vector with all the unique numerical classes present in the 
@@ -344,8 +344,6 @@ calc_unbiased_area = function(totarea_pix, class_prop, se){
 #' reference labels present in stratum. 
 #' @param users_cov Dataframe of user's accuracy covariances per strata
 #' @param producers_cov Dataframe of producer's accuracy covariances per strata
-
-
 #' with its variance (map_and_ref_var), dataframe with proportion of all map 
 #' labels equal to reference labels present in stratum (overall_acc_prop) and 
 #' dataframe with its variance (overall_acc_var) and dataframes associated with 
