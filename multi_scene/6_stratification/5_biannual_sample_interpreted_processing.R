@@ -1,7 +1,8 @@
-# Script to process the biannual samples and calculate area estimates and
-# accuracies
+# SCRIPT TO CALCULATE AREAS AND ACCURACIES PER BIANNUAL PERIOD
+# USING INDIVIDUALLY COLLECTED SAMPLES.
 
-require(tidyverse)
+require(ggplot2)
+require(dplyr)
 require(rgdal)
 require(raster)
 require(rgeos)
@@ -248,11 +249,43 @@ ci_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 2)))
 area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
-se_prop_df = as.data.frame(do.call(rbind, se_prop))
+se_area_ha = as.data.frame(do.call(rbind, se_prop))* tot_area_ha
 
 # Create table with results for buffer class
 buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
 
+# Add column and row names
+df_list = list(usr_acc, usr_acc_lower, usr_acc_upper,
+            prod_acc, prod_acc_lower, prod_acc_upper,
+            area_ha, area_upper, area_lower, 
+            ci_ha, margin_error, se_area_ha)
+
+df_names = c("usr_acc", "usr_acc_lower", "usr_acc_upper",
+             "prod_acc", "prod_acc_lower", "prod_acc_upper",
+             "area_ha", "area_upper", "area_lower", 
+             "ci_ha", "margin_error", "se_area_ha")
+
+add_names = function(df, cnames, rnames){
+  colnames(df) = cnames
+  rownames(df) = rnames
+  return(df)
+}
+
+named_df = lapply(df_list, add_names, cnames=strata_names, rnames=periods_long)
+names(named_df) = df_names
+
+# Save tables
+save_tables = function(df, savepath, f_suffix, names){
+  write.csv(df, file=paste0(savepath, names, f_suffix))
+}
+
+suffix = paste0("_", lut_name,  "_buffered_3B.csv")
+table_savepath = "results/post_katelyn/tables/"
+
+mapply(save_tables, named_df, savepath=table_savepath, suf=suffix, names=df_names)
+
+write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
+          file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
 
 ####### RUN WITHOUT BUFFER
 
@@ -316,11 +349,30 @@ ci_ha_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 2)))
 area_upper_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 3)))
 area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
 margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
-se_prop_df = as.data.frame(do.call(rbind, se_prop_nb))
+se_area_ha_nb = as.data.frame(do.call(rbind, se_prop_nb))* tot_area_ha
 
 # Compare CI and accuracies between buffer and no buffer results
 ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
-plot(ci_compare$V8)
+#plot(ci_compare$V8)
+
+# Add column and row names
+df_list_nb = list(usr_acc_nb, usr_acc_lower_nb, usr_acc_upper_nb,
+               prod_acc_nb, prod_acc_lower_nb, prod_acc_upper_nb,
+               area_ha_nb, area_upper_nb, area_lower_nb, 
+               ci_ha_nb, margin_error_nb, se_area_ha_nb)
+
+df_names_nb = c("usr_acc_nb", "usr_acc_lower_nb", "usr_acc_upper_nb",
+                "prod_acc_nb", "prod_acc_lower_nb", "prod_acc_upper_nb",
+                "area_ha_nb", "area_upper_nb", "area_lower_nb", 
+                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb")
+
+named_df_nb = lapply(df_list_nb, add_names, cnames=strata_names, rnames=periods_long)
+names(named_df_nb) = df_names_nb
+
+mapply(save_tables, named_df_nb, savepath=table_savepath, suf=suffix, names=df_names_nb)
+
+write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
+          file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
 
 ############################# PLOT AREAS
 
@@ -481,14 +533,14 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
@@ -496,13 +548,13 @@ pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]]
                                  mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
                                  mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1me_", lut_name, ".png"), plot=pontus_multiplotme1,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_", lut_name, ".png"), plot=pontus_multiplotme1,  width = 20, height = 10) 
 
 pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]], 
                                  mep2[[3]], mep2[[5]], mep2[[6]], mep2[[7]],
                                  mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
 
 
 # Individual regular sized figures for separate saving with margin of error
@@ -515,7 +567,7 @@ for(i in 1:length(strata_names)){
   g = rbind(ap[[i]], mep[[i]], size="first") 
   g$widths = unit.pmax(ap[[i]]$widths, mep[[i]]$widths)
   
-  filename = paste0("plots/post_katelyn/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_", lut_name, ".png")
   ggsave(filename, plot=g, width=12, height = 15, units = "in")
 }
 
@@ -577,7 +629,7 @@ regr_plot <- ggplot(regr_area, aes(x=year,y=area_ha,group=class,fill=class)) +
 
 
 print(regr_plot)
-filename = paste0("plots/post_katelyn/", "secondary_forest_dynamics", ".png")
+filename = paste0("results/post_katelyn/figures/", "secondary_forest_dynamics", ".png")
 ggsave(filename, plot=regr_plot, device="png")
 
 ##### DEFOR plot
@@ -606,7 +658,7 @@ defor_plot <- ggplot(defor_area, aes(x=year,y=area_ha,group=class,fill=class)) +
         legend.title=element_blank()) 
 
 print(defor_plot)
-filename = paste0("plots/post_katelyn/", "defor_plot", ".png")
+filename = paste0("results/post_katelyn/figures/", "defor_plot", ".png")
 ggsave(filename, plot=defor_plot, device="png")
 
 
@@ -695,18 +747,13 @@ colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7)
 print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
 
 ## TABLE OF USERS AND PRODUCERS ACCURACY
-rownames(usr_acc) = periods_long
-colnames(usr_acc) = strata_names
-print(xtable(t(usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
 
-rownames(prod_acc) = periods_long
-colnames(prod_acc) = strata_names
-print(xtable(t(prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
-
-## SAME but with confidence intervals, vals in parenthesis look weird...
-prod_acc_ci = prod_acc_upper - prod_acc
+## Test printing same table but with confidence intervals in parenthesis, looks weird...
+prod_acc_ci = named_df$prod_acc_upper - named_df$prod_acc_lower
 prod_acc_ci_out = format(prod_acc_ci, digits=0)
-prod_acc_out = format(prod_acc, digits=0)
+prod_acc_out = format(named_df$prod_acc, digits=0)
 prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
 rownames(prod_acc_table) = periods_long
 colnames(prod_acc_table) = strata_names

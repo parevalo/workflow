@@ -1,3 +1,7 @@
+# SCRIPT TO CALCULATE AREAS AND ACCURACIES PER PERIOD
+# (E.G. ANNUALLY, BIANNUALLY, ETC) USING A SINGLE SAMPLE AND INDICATOR 
+# FUNCTIONS AS DESCRIBED IN STEHMAN ET AL. 2014.
+
 ### This script has seven main sections:
 ### 0) Set global variables
 ### 1) Read reference strata shapefile and calculate labels per year
@@ -25,6 +29,7 @@ require(matrixcalc)
 wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/final_sample"
 auxpath = "/media/paulo/785044BD504483BA/test/"
 stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
+savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/original_buffer3B/"
     
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
