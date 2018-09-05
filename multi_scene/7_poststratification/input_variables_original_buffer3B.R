@@ -1,7 +1,6 @@
 # File with path to necessary files to run the area estimation analysis with the original parameters
 
 # Paths and suffixes/prefixes
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/original_buffer3B/"
 lutpath = "/home/paulo/workflow/multi_scene/data/original_lut.csv"
 lut_name = "original_lut"
 orig_stratif = "buffered3B_final_strata_01_16_UTM18N"
@@ -22,7 +21,7 @@ orig_strata_names = c("Other to other", "Stable forest", "Stable grassland", "St
                       "Forest to secondary forest", "Gain of secondary forest", "All to unclassified", "Loss of secondary forest", "Buffer")
 
 cr = c(7, 10, 12, 15) # Classes to ignore from the loaded area count tables
-step = 1  # Number of years to do the analysis over
+step = 2  # Number of years to do the analysis over
 
 # Run estimation with additional number of rows with perfect forest classification
 add_samples = FALSE 

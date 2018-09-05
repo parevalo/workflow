@@ -129,14 +129,14 @@ for(i in 1:length(shp_list_ref)){
 }
 
 # Save updated poly and point shapefiles for analysis
-for(n in 1:length(samples_names)){
-  outname1 = paste0(samples_names[n], "_labels")
-  outname2 = paste0(samples_names[n], "_labels_pts")
-  writeOGR(shp_list_ref[[n]], paste0("shp/",outname1), outname1,
-           driver="ESRI Shapefile", overwrite_layer = T)
-  writeOGR(shp_list_centroid[[n]], paste0("shp/",outname2), outname2,
-           driver="ESRI Shapefile", overwrite_layer = T)
-}
+# for(n in 1:length(samples_names)){
+#   outname1 = paste0(samples_names[n], "_labels")
+#   outname2 = paste0(samples_names[n], "_labels_pts")
+#   writeOGR(shp_list_ref[[n]], paste0("shp/",outname1), outname1,
+#            driver="ESRI Shapefile", overwrite_layer = T)
+#   writeOGR(shp_list_centroid[[n]], paste0("shp/",outname2), outname2,
+#            driver="ESRI Shapefile", overwrite_layer = T)
+# }
 
 ## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
@@ -248,6 +248,7 @@ ci_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 2)))
 area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
+se_prop_df = as.data.frame(do.call(rbind, se_prop))
 
 # Create table with results for buffer class
 buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
@@ -315,6 +316,7 @@ ci_ha_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 2)))
 area_upper_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 3)))
 area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
 margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
+se_prop_df = as.data.frame(do.call(rbind, se_prop_nb))
 
 # Compare CI and accuracies between buffer and no buffer results
 ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
@@ -693,21 +695,22 @@ colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7)
 print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
 
 ## TABLE OF USERS AND PRODUCERS ACCURACY
-rownames(prod_acc) = periods_long
-colnames(prod_acc) = strata_names
-print(xtable(t(prod_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
-
 rownames(usr_acc) = periods_long
 colnames(usr_acc) = strata_names
-print(xtable(t(usr_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+
+rownames(prod_acc) = periods_long
+colnames(prod_acc) = strata_names
+print(xtable(t(prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
 
 ## SAME but with confidence intervals, vals in parenthesis look weird...
 prod_acc_ci = prod_acc_upper - prod_acc
-prod_acc_ci_out = format(prod_acc_ci, digits=2)
+prod_acc_ci_out = format(prod_acc_ci, digits=0)
+prod_acc_out = format(prod_acc, digits=0)
 prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
 rownames(prod_acc_table) = periods_long
 colnames(prod_acc_table) = strata_names
-print(xtable(t(prod_acc_table),type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(prod_acc_table), digits=0, type = "latex",sanitize.text.function=function(x){x}))
 
 ## TABLE OF STRATA DESCRIPTION
 
