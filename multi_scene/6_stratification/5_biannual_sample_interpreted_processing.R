@@ -456,6 +456,8 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   return(return_list)
 }
 
+########## AREA PLOTS USING RESULTS WITH BUFFER
+
 # Vector of max and min y axis values for pontus modes
 # Selected to guarantee that one of the breaks (6 total) is zero
 maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 300000, 300000, 300000, 300000)
@@ -482,7 +484,7 @@ widths3me = list()
 plot_periods = seq(2002,2014,2)
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
-# Get AREA PLOTS  in the original order, for both plot modes plus regular
+# Get AREA PLOTS in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
                                margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
@@ -533,14 +535,16 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_", lut_name, ".png"), 
+       plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_", lut_name, ".png"), 
+       plot=pontus_multiplot2,  width = 20, height = 10) 
 
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
@@ -548,26 +552,135 @@ pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]]
                                  mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
                                  mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_", lut_name, ".png"), plot=pontus_multiplotme1,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_", lut_name, ".png"), 
+       plot=pontus_multiplotme1,  width = 20, height = 10) 
 
 pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]], 
                                  mep2[[3]], mep2[[5]], mep2[[6]], mep2[[7]],
                                  mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_", lut_name, ".png"), 
+       plot=pontus_multiplotme2,  width = 20, height = 10) 
+
+
+########## AREA PLOTS USING RESULTS WITHOUT BUFFER
+
+# Vector of max and min y axis values for pontus modes
+# Selected to guarantee that one of the breaks (6 total) is zero
+maxy_vect1_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 2500000, 2500000, 2500000, 2500000)
+maxy_vect2_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 2500000, 2500000, 2500000, 2500000)
+miny_vect2_nb = c(-85000, 0, 0, -100000, 0, 0, 0, 0, -100000, -100000, -100000)
+
+
+# Create each plot in the original order
+plot_list1_nb = list()
+plot_list2_nb = list()
+plot_list3_nb = list()
+gpl1_nb = list()
+gpl2_nb = list()
+gpl3_nb = list()
+mep1_nb = list()
+mep2_nb = list()
+mep3_nb = list()
+widths1_nb = list()
+widths2_nb = list()
+widths3_nb = list()
+widths1me_nb = list()
+widths2me_nb = list()
+widths3me_nb = list()
+plot_periods = seq(2002,2014,2)
+plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
+
+# Get AREA PLOTS in the original order, for both plot modes plus regular
+for(i in 1:length(strata_names)){
+  plot_list1_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
+                               margin_error_nb[,i], 0, maxy_vect1_nb[i], plot_labels[i], plotmode=1)  
+  plot_list2_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
+                               margin_error_nb[,i], miny_vect2[i], maxy_vect2_nb[i], strata_names[i], plotmode=2)  
+  plot_list3_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
+                               margin_error_nb[,i], 0, maxy_vect2_nb[i], strata_names[i], plotmode=3)  
+  
+  gpl1_nb[[i]] = ggplotGrob(plot_list1_nb[[i]][[1]])
+  gpl2_nb[[i]] = ggplotGrob(plot_list2_nb[[i]][[1]])
+  gpl3_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[1]])
+  mep1_nb[[i]] = ggplotGrob(plot_list1_nb[[i]][[2]])
+  mep2_nb[[i]] = ggplotGrob(plot_list2_nb[[i]][[2]])
+  mep3_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[2]])
+  widths1_nb[[i]] = gpl1_nb[[i]]$widths[2:5]
+  widths2_nb[[i]] = gpl2_nb[[i]]$widths[2:5]
+  widths3_nb[[i]] = gpl3_nb[[i]]$widths[2:5]
+  widths1me_nb[[i]] = mep1_nb[[i]]$widths[2:5]
+  widths2me_nb[[i]] = mep2_nb[[i]]$widths[2:5]
+  widths3me_nb[[i]] = mep3_nb[[i]]$widths[2:5]
+}
+
+# Calculate max width among all the grobs for each case and use that value for all of them
+# This ensures the plotted areas match despite different y axis widths.
+maxwidth1_nb = do.call(grid::unit.pmax, widths1_nb)
+maxwidth2_nb = do.call(grid::unit.pmax, widths2_nb)
+maxwidth3_nb = do.call(grid::unit.pmax, widths3_nb)
+maxwidth1me_nb = do.call(grid::unit.pmax, widths1me_nb)
+maxwidth2me_nb = do.call(grid::unit.pmax, widths2me_nb)
+maxwidth3me_nb = do.call(grid::unit.pmax, widths3me_nb)
+
+for (i in 1:length(gpl1_nb)){
+  gpl1_nb[[i]]$widths[2:5] = as.list(maxwidth1_nb)
+  gpl2_nb[[i]]$widths[2:5] = as.list(maxwidth2_nb)
+  gpl3_nb[[i]]$widths[2:5] = as.list(maxwidth3_nb)
+  mep1_nb[[i]]$widths[2:5] = as.list(maxwidth1me_nb)
+  mep2_nb[[i]]$widths[2:5] = as.list(maxwidth2me_nb)
+  mep3_nb[[i]]$widths[2:5] = as.list(maxwidth3me_nb)
+}
+
+left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
+bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+
+# Arrange AREA PLOTS in the NEW grouping order and save multiplots
+pontus_multiplot1_nb = grid.arrange(textGrob(""), gpl1_nb[[1]], gpl1_nb[[2]], gpl1_nb[[4]], 
+                                 gpl1_nb[[3]], gpl1_nb[[5]], gpl1_nb[[6]], gpl1_nb[[7]],
+                                 gpl1_nb[[8]], gpl1_nb[[9]], gpl1_nb[[10]], gpl1_nb[[11]],ncol=4, 
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_nb_", lut_name, ".png"), 
+       plot=pontus_multiplot1_nb,  width = 20, height = 10, units='in') 
+
+pontus_multiplot2_nb = grid.arrange(textGrob(""), gpl2_nb[[1]], gpl2_nb[[2]], gpl2_nb[[4]], 
+                                 gpl2_nb[[3]], gpl2_nb[[5]], gpl2_nb[[6]], gpl2_nb[[7]],
+                                 gpl2_nb[[8]], gpl2_nb[[9]], gpl2_nb[[10]], gpl2_nb[[11]],ncol=4, 
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_nb_", lut_name, ".png"), 
+       plot=pontus_multiplot2_nb,  width = 20, height = 10) 
+
+
+# Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
+pontus_multiplotme1_nb = grid.arrange(textGrob(""), mep1_nb[[1]], mep1_nb[[2]], mep1_nb[[4]], 
+                                   mep1_nb[[3]], mep1_nb[[5]], mep1_nb[[6]], mep1_nb[[7]],
+                                   mep1_nb[[8]], mep1_nb[[9]], mep1_nb[[10]], mep1_nb[[11]],ncol=4)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_nb_", lut_name, ".png"), 
+       plot=pontus_multiplotme1_nb,  width = 20, height = 10) 
+
+pontus_multiplotme2_nb = grid.arrange(textGrob(""), mep2_nb[[1]], mep2_nb[[2]], mep2_nb[[4]], 
+                                   mep2_nb[[3]], mep2_nb[[5]], mep2_nb[[6]], mep2_nb[[7]],
+                                   mep2_nb[[8]], mep2_nb[[9]], mep2_nb[[10]], mep2_nb[[11]],ncol=4)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_nb_", lut_name, ".png"), 
+       plot=pontus_multiplotme2_nb,  width = 20, height = 10) 
 
 
 # Individual regular sized figures for separate saving with margin of error
-ap = list()
-mep = list()
+ap_nb = list()
+mep_nb = list()
 
 for(i in 1:length(strata_names)){
-  ap[[i]] = ggplotGrob(plot_list3[[i]][[1]])
-  mep[[i]] = ggplotGrob(plot_list3[[i]][[2]])
-  g = rbind(ap[[i]], mep[[i]], size="first") 
-  g$widths = unit.pmax(ap[[i]]$widths, mep[[i]]$widths)
+  ap_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[1]])
+  mep_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[2]])
+  g = rbind(ap_nb[[i]], mep_nb[[i]], size="first") 
+  g$widths = unit.pmax(ap_nb[[i]]$widths, mep_nb[[i]]$widths)
   
-  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_nb_", lut_name, ".png")
   ggsave(filename, plot=g, width=12, height = 15, units = "in")
 }
 
