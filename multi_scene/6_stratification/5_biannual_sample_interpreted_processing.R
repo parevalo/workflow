@@ -251,6 +251,13 @@ area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
 se_area_ha = as.data.frame(do.call(rbind, se_prop))* tot_area_ha
 
+# Areas in kha, for article tables and figures
+area_kha = area_ha / 1000
+ci_kha = ci_ha /1000
+area_upper_kha = area_upper / 1000
+area_lower_kha = area_lower / 1000
+se_area_kha = se_area_ha / 1000
+
 # Create table with results for buffer class
 buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
 
@@ -258,12 +265,14 @@ buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,]))
 df_list = list(usr_acc, usr_acc_lower, usr_acc_upper,
             prod_acc, prod_acc_lower, prod_acc_upper,
             area_ha, area_upper, area_lower, 
-            ci_ha, margin_error, se_area_ha)
+            ci_ha, margin_error, se_area_ha,
+            area_kha, ci_kha, area_upper_kha, area_lower_kha, se_area_kha)
 
 df_names = c("usr_acc", "usr_acc_lower", "usr_acc_upper",
              "prod_acc", "prod_acc_lower", "prod_acc_upper",
              "area_ha", "area_upper", "area_lower", 
-             "ci_ha", "margin_error", "se_area_ha")
+             "ci_ha", "margin_error", "se_area_ha",
+             "area_kha", "ci_kha", "area_upper_kha", "area_lower_kha", "se_area_kha")
 
 add_names = function(df, cnames, rnames){
   colnames(df) = cnames
@@ -284,9 +293,9 @@ table_savepath = "results/post_katelyn/tables/"
 
 mapply(save_tables, named_df, savepath=table_savepath, suf=suffix, names=df_names)
 
-write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
-          file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
-
+# write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
+#           file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
+# 
 ####### RUN WITHOUT BUFFER
 
 prop_out_nb = list()
@@ -351,6 +360,13 @@ area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
 margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
 se_area_ha_nb = as.data.frame(do.call(rbind, se_prop_nb))* tot_area_ha
 
+# Areas in kha, for article tables and figures
+area_kha_nb = area_ha_nb / 1000
+ci_kha_nb = ci_ha_nb /1000
+area_upper_kha_nb = area_upper_nb / 1000
+area_lower_kha_nb = area_lower_nb / 1000
+se_area_kha_nb = se_area_ha_nb / 1000
+
 # Compare CI and accuracies between buffer and no buffer results
 ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
 #plot(ci_compare$V8)
@@ -359,34 +375,38 @@ ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb
 df_list_nb = list(usr_acc_nb, usr_acc_lower_nb, usr_acc_upper_nb,
                prod_acc_nb, prod_acc_lower_nb, prod_acc_upper_nb,
                area_ha_nb, area_upper_nb, area_lower_nb, 
-               ci_ha_nb, margin_error_nb, se_area_ha_nb)
+               ci_ha_nb, margin_error_nb, se_area_ha_nb,
+               area_kha_nb, ci_kha_nb, area_upper_kha_nb, area_lower_kha_nb, 
+               se_area_kha_nb)
 
 df_names_nb = c("usr_acc_nb", "usr_acc_lower_nb", "usr_acc_upper_nb",
                 "prod_acc_nb", "prod_acc_lower_nb", "prod_acc_upper_nb",
                 "area_ha_nb", "area_upper_nb", "area_lower_nb", 
-                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb")
+                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb",
+                "area_kha_nb", "ci_kha_nb", "area_upper_kha_nb", "area_lower_kha_nb", 
+                "se_area_kha_nb")
 
 named_df_nb = lapply(df_list_nb, add_names, cnames=strata_names, rnames=periods_long)
 names(named_df_nb) = df_names_nb
 
 mapply(save_tables, named_df_nb, savepath=table_savepath, suf=suffix, names=df_names_nb)
-
-write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
-          file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
+# 
+# write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
+#           file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
 
 ############################# PLOT AREAS
 
-plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode){
+plot_areas = function(totareaha, xlabels, area, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode){
   # Need two copies bc of the complexity of the graph
-  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, mappedarea, me))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped_area", "Margin_error")
+  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), area, lower, upper, mappedarea, me))
+  names(tempdf) = c("Years", "Area", "Lower", "Upper", "Mapped_area", "Margin_error")
   tempdf2 = tempdf
   
   # Find rows where the CI or the area go below 0 and assign NA's
-  ind_area = which(tempdf$Area_ha < 0)
+  ind_area = which(tempdf$Area < 0)
   ind_lower = which(tempdf$Lower < 0)
   
-  tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
+  tempdf[union(ind_area, ind_lower), 'Area'] = NA
   tempdf[ind_lower, 'Lower'] = NA
   tempdf[ind_lower, 'Upper'] = NA
     
@@ -399,30 +419,30 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
                               sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)},
                                                   name="Percentage of total area\n"))
   ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
-  markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=1)
+  markers = geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=4, stroke=1)
   map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red")
   
   # Remove CI and area when it intersects with zero
   if (plotmode == 1){
     
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8)
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8)
   
   # Or keep the original outlines but remove the fill
   } else if (plotmode == 2) {
     
     lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
     upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha), linetype=8)
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8)
   
   # Or keep plotmode1 format but make labels and markers bigger
   } else if (plotmode == 3) {
     
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8, size=1.1)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8, size=1.1) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8, size=1.1)
-    markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=2)
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8, size=1.1)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8, size=1.1) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8, size=1.1)
+    markers = geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=4, stroke=2)
     map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red", size=1.2) 
   }
   
@@ -434,7 +454,7 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   area_plot = ggplot() +  
     lowerline + upperline + centerline + ribbon + map_area + markers +
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
-    yscale + ylab("Area and 95% CI [ha]\n") + xlab("\nTime") +
+    yscale + ylab("Area and 95% CI [kha]\n") + xlab("\nTime") +
     ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) + regular_theme
     
   # Plot margin of error
@@ -464,6 +484,10 @@ maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 3000
 maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 400000, 400000, 400000, 400000)
 miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
+# Limits in kha
+maxy_vect1 = maxy_vect1 / 1000
+maxy_vect2 = maxy_vect2 / 1000
+miny_vect2 = miny_vect2 / 1000
 
 # Create each plot in the original order
 plot_list1 = list()
@@ -484,13 +508,19 @@ widths3me = list()
 plot_periods = seq(2002,2014,2)
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
+tot_area_kha = tot_area_ha / 1000
+mapped_areas_kha = mapped_areas / 1000
+
 # Get AREA PLOTS in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
-  plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
+                               area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
-  plot_list3[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
+                               area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], 0, maxy_vect2[i], strata_names[i], plotmode=3)  
   
   gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
@@ -525,7 +555,7 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
 bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
 
@@ -535,7 +565,7 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".png"), 
        plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
@@ -543,7 +573,7 @@ pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_", lut_name, ".png"), 
        plot=pontus_multiplot2,  width = 20, height = 10) 
 
 
@@ -552,14 +582,14 @@ pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]]
                                  mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
                                  mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_kha_", lut_name, ".png"), 
        plot=pontus_multiplotme1,  width = 20, height = 10) 
 
 pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]], 
                                  mep2[[3]], mep2[[5]], mep2[[6]], mep2[[7]],
                                  mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_kha_", lut_name, ".png"), 
        plot=pontus_multiplotme2,  width = 20, height = 10) 
 
 
@@ -570,6 +600,11 @@ ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_", lut_name, ".png
 maxy_vect1_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 2500000, 2500000, 2500000, 2500000)
 maxy_vect2_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 2500000, 2500000, 2500000, 2500000)
 miny_vect2_nb = c(-85000, 0, 0, -100000, 0, 0, 0, 0, -100000, -100000, -100000)
+
+# Limits in kha
+maxy_vect1_nb = maxy_vect1_nb / 1000 
+maxy_vect2_nb = maxy_vect2_nb / 1000
+miny_vect2_nb = miny_vect2_nb / 1000
 
 
 # Create each plot in the original order
@@ -593,12 +628,15 @@ plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
 # Get AREA PLOTS in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
-                               margin_error_nb[,i], 0, maxy_vect1_nb[i], plot_labels[i], plotmode=1)  
-  plot_list2_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
-                               margin_error_nb[,i], miny_vect2[i], maxy_vect2_nb[i], strata_names[i], plotmode=2)  
-  plot_list3_nb[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha_nb[,i], area_lower_nb[,i], area_upper_nb[,i], mapped_areas[,i],
-                               margin_error_nb[,i], 0, maxy_vect2_nb[i], strata_names[i], plotmode=3)  
+  plot_list1_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas_kha[,i],
+                                  margin_error_nb[,i], 0, maxy_vect1_nb[i], plot_labels[i], plotmode=1)  
+  plot_list2_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas[,i],
+                                  margin_error_nb[,i], miny_vect2[i], maxy_vect2_nb[i], strata_names[i], plotmode=2)  
+  plot_list3_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas[,i],
+                                  margin_error_nb[,i], 0, maxy_vect2_nb[i], strata_names[i], plotmode=3)  
   
   gpl1_nb[[i]] = ggplotGrob(plot_list1_nb[[i]][[1]])
   gpl2_nb[[i]] = ggplotGrob(plot_list2_nb[[i]][[1]])
@@ -632,7 +670,7 @@ for (i in 1:length(gpl1_nb)){
   mep3_nb[[i]]$widths[2:5] = as.list(maxwidth3me_nb)
 }
 
-left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
 bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
 
@@ -642,7 +680,7 @@ pontus_multiplot1_nb = grid.arrange(textGrob(""), gpl1_nb[[1]], gpl1_nb[[2]], gp
                                  gpl1_nb[[8]], gpl1_nb[[9]], gpl1_nb[[10]], gpl1_nb[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_nb_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_nb_", lut_name, ".png"), 
        plot=pontus_multiplot1_nb,  width = 20, height = 10, units='in') 
 
 pontus_multiplot2_nb = grid.arrange(textGrob(""), gpl2_nb[[1]], gpl2_nb[[2]], gpl2_nb[[4]], 
@@ -650,7 +688,7 @@ pontus_multiplot2_nb = grid.arrange(textGrob(""), gpl2_nb[[1]], gpl2_nb[[2]], gp
                                  gpl2_nb[[8]], gpl2_nb[[9]], gpl2_nb[[10]], gpl2_nb[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_nb_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_nb_", lut_name, ".png"), 
        plot=pontus_multiplot2_nb,  width = 20, height = 10) 
 
 
@@ -659,14 +697,14 @@ pontus_multiplotme1_nb = grid.arrange(textGrob(""), mep1_nb[[1]], mep1_nb[[2]], 
                                    mep1_nb[[3]], mep1_nb[[5]], mep1_nb[[6]], mep1_nb[[7]],
                                    mep1_nb[[8]], mep1_nb[[9]], mep1_nb[[10]], mep1_nb[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_nb_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_kha_nb_", lut_name, ".png"), 
        plot=pontus_multiplotme1_nb,  width = 20, height = 10) 
 
 pontus_multiplotme2_nb = grid.arrange(textGrob(""), mep2_nb[[1]], mep2_nb[[2]], mep2_nb[[4]], 
                                    mep2_nb[[3]], mep2_nb[[5]], mep2_nb[[6]], mep2_nb[[7]],
                                    mep2_nb[[8]], mep2_nb[[9]], mep2_nb[[10]], mep2_nb[[11]],ncol=4)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_nb_", lut_name, ".png"), 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_kha_nb_", lut_name, ".png"), 
        plot=pontus_multiplotme2_nb,  width = 20, height = 10) 
 
 
@@ -839,7 +877,7 @@ get_condition_rows(2,1,2)
 
 ############## CREATE TABLES FOR PAPER AND PRESENTATIONS
 
-# TABLE OF AREAS
+# TABLE OF STRATA AREAS AND PROPORTIONS
 # Do calculations first, then assemble table.
 melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
 melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
@@ -858,6 +896,16 @@ rownames(fulldf) = orig_strata_names
 colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
 # Create table in Latex instead, and produce the pdf there, much easier than grid.table
 print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLES OF AREAS AND STANDARD ERRORS
+# With buffer
+print(xtable(t(named_df$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Without buffer
+print(xtable(t(named_df_nb$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df_nb$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
 
 ## TABLE OF USERS AND PRODUCERS ACCURACY
 print(xtable(t(named_df$usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
