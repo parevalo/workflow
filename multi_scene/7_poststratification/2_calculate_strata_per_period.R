@@ -28,12 +28,14 @@ require(matrixcalc)
 # Working directory and result (aux) files from the cluster. Move them to Onedrive and exclude from sync!
 wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/final_sample"
 auxpath = "/media/paulo/785044BD504483BA/test/"
-stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
+strata_config = "/home/paulo/workflow/multi_scene/7_poststratification/strata_calc_config/"
+funcs_path = "/home/paulo/workflow/multi_scene/R_functions/"
 
 setwd(wd)
-source(paste0(stratpath, "functions.R"))
-source(paste0(stratpath, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
-#source(paste0(stratpath, "input_variables_original.R"))
+source(paste0(funcs_path, "area_estimation_fncs.R"))
+source(paste0(funcs_path, "plotting_fncs.R"))
+source(paste0(strata_config, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
+
 
 # Set up important global variables
 start = 2001
@@ -431,89 +433,12 @@ se_area_kha = se_area_ha / 1000
 ##############################################################################################################
 # 5) PLOT AREAS AND MARGINS OF ERROR
 
-plot_areas = function(totareaha, xlabels, area, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode, biglabels){
-  # Need two copies bc of the complexity of the graph
-  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), area, lower, upper, mappedarea, me))
-  names(tempdf) = c("Years", "Area", "Lower", "Upper", "Mapped_area", "Margin_error")
-  tempdf2 = tempdf
-  
-  # Find rows where the CI or the area go below 0 and assign NA's
-  ind_area = which(tempdf$Area < 0)
-  ind_lower = which(tempdf$Lower < 0)
-  
-  tempdf[union(ind_area, ind_lower), 'Area'] = NA
-  tempdf[ind_lower, 'Lower'] = NA
-  tempdf[ind_lower, 'Upper'] = NA
-  
-  # Define breaks manually so that the two y axes grids match
-  bks = seq(miny, maxy, length.out = 6)
-  bks2 = bks / totareaha * 100
-  
-  # Conditonals for pontus modes, yscale is shared for the two 
-  yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")},breaks=bks, limits=c(miny,maxy), 
-                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)}))
-  ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
-  
-  # Remove CI and area when it intersects with zero
-  if (plotmode == 1){
-    
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8)
-    
-    # Or keep the original outlines but remove the fill
-  } else if (plotmode == 2) {
-    
-    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8)
-    
-    # Or keep the simplified original with changes in axes or data
-  } else {
-    lowerline = geom_blank()
-    upperline = geom_blank()
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area))
-    yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) 
-    ribbon = geom_ribbon(data=tempdf2, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
-  }
-  
-  # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
-  area_plot = ggplot() +  
-    lowerline + upperline + centerline + ribbon +
-    geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red") + 
-    geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=4, stroke=1) +
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
-    yscale + ylab("Area and 95% CI [ha]") +
-    ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) +
-    theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
-  
-  # Put plots together on a list and change some properties in order to save them together as a single plot
-  area_plot_small = area_plot + theme(axis.title=element_blank(), axis.text.x=element_text(size=11), axis.text.y=element_text(size=12)) 
-  
-  # Plot margin of error
-  me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + ylim(0, 200) + 
-    ylab("Margin of error [%]") + ggtitle(plot_title) +
-    theme(axis.title=element_text(size=16), axis.text=element_text(size=16))
-  
-  if (plotmode == T){
-    return_list = list(area_plot_small, me_plot)
-  } else {
-    if (biglabels == T){
-      return_list = list(area_plot + expand_limits(y=0), me_plot)
-    } else {
-      return_list = list(area_plot_small + expand_limits(y=0), me_plot)
-    }
-  }
-  
-  return(return_list)
-  
-}
-
 # Vector of max and min y axis values for pontus modes
 # Selected to guarantee that one of the breaks (6 total) is zero
-maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 300000, 300000, 300000, 300000)
-maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 400000, 400000, 400000, 400000)
+maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 
+               300000, 300000, 300000, 300000)
+maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 
+               400000, 400000, 400000, 400000)
 miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
 # Limits in kha
@@ -546,12 +471,15 @@ mapped_areas_kha = mapped_areas / 1000
 
 # Get AREA PLOTS  in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1, biglabels=F)  
-  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2, biglabels=F)  
-  plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=3, biglabels=T)  
+  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
+                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
+  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
+                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
+  plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
+                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=3)  
 
   
   gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
@@ -596,7 +524,27 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                                  gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".png"), 
+       plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+
+pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
+                                 gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
+                                 gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+
+ggsave(paste0(savepath, "ALL_Pontus2_step", step, "_kha_", lut_name, ".png"), 
+       plot=pontus_multiplot2,  width = 20, height = 10) 
+
+# Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
+left_axlabel_me = textGrob("Margin of error [%]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]], 
+                                   mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
+                                   mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4,
+                                   left=left_axlabel_me,  bottom=bottom_axlabel)
+
+ggsave(paste0(savepath, "ALL_Pontus1me_step", step, "_kha_", lut_name, ".png"), 
+       plot=pontus_multiplotme1,  width = 20, height = 10) 
+
 
 # Save forest to pasture plot separately for the paper
 y1_label = textGrob("Area and 95% CI [kha]", gp=gpar(fontsize=14), rot=90)
@@ -607,14 +555,6 @@ f2p = plot_list1[[8]][[1]] + ylab("") + xlab("") + ggtitle("") +
   theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
 f2p_plot = grid.arrange(ggplotGrob(f2p), left=y1_label, right=y2_label, bottom=x_label)
 ggsave(paste0(savepath, "f2p_for_paper", step, "_", lut_name, ".png"), plot=f2p_plot,  width = 10, height = 5) 
-
-
-pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
-                                 gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
-                                 gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
-                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
-
-ggsave(paste0(savepath, "ALL_Pontus2_step", step, "_kha_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
 # Save individual plots with margin of error
 ap = list()
