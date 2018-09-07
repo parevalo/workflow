@@ -29,18 +29,18 @@ require(matrixcalc)
 wd = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/final_sample"
 auxpath = "/media/paulo/785044BD504483BA/test/"
 stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-savepath = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/original_sampling/results/original_buffer3B/"
-    
+
 setwd(wd)
 source(paste0(stratpath, "functions.R"))
 source(paste0(stratpath, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
-
+#source(paste0(stratpath, "input_variables_original.R"))
 
 # Set up important global variables
 start = 2001
 end = 2016
 
 years = seq(start, end, step) 
+periods_long = paste0(years[-length(years)], "-", years[-1])
 ref_names = paste("ref_", years, sep="")
 
 # Grid table theme, only used to display some ancillary tables
@@ -315,25 +315,27 @@ filtered_ss = list()
 overall_accs = vector()
 overall_accs_min = vector()
 overall_accs_max = vector()
-area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+
+matrix_names = list(periods_long, strata_names)
+area_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
 
 # Initialize empty matrix to store standard error proportions (Step 2)
-se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+se_prop = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
 
 # Initialize matrices for area calculations (Step 3)
-area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+area_ha = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+area_ci = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+area_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+area_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+margin_error = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
 
 # Initialize matrices for accuracies
-users_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-users_accs_min = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-users_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-producers_accs = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-producers_accs_min = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
-producers_accs_max = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=list(years[2:length(years)], ref_codes))
+usr_acc = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+usr_acc_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+usr_acc_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+prod_acc = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+prod_acc_lower = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
+prod_acc_upper = matrix(0, nrow=length(years)-1, ncol=length(ref_codes), dimnames=matrix_names)
 
 #' Run all the calculations. Call the function for every reference year we want and get area proportions
 #' and sample variance, then standard errors on proportions, then areas and their confidence intervals and
@@ -359,7 +361,9 @@ for (y in (1:(length(years)-1))){
   area_prop[y,] = prop_out[[11]]
 
   # Run step two - Calculate standard error of area proportions
-  se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], ref_codes, tot_area_pix)
+  se_prop[y,] = calc_se_prop(ss, strata_pixels, ref_var_list[[y]], 
+                             ref_codes, tot_area_pix)
+  se_area_ha = se_prop * tot_area_ha
   
   # Run and assign outputs of Step 3 - Area estimation and margin of error
   areas_out = calc_unbiased_area(tot_area_pix, area_prop[y,], se_prop[y,]) 
@@ -378,12 +382,12 @@ for (y in (1:(length(years)-1))){
   overall_accs[y] = accuracies_out[[1]]
   overall_accs_min[y] = accuracies_out[[2]]
   overall_accs_max[y] = accuracies_out[[3]]
-  users_accs[y,] = accuracies_out[[4]]
-  users_accs_min[y,] = accuracies_out[[5]]
-  users_accs_max[y,] = accuracies_out[[6]]
-  producers_accs[y,] = accuracies_out[[7]]
-  producers_accs_min[y,] = accuracies_out[[8]]
-  producers_accs_max[y,] = accuracies_out[[9]]
+  usr_acc[y,] = accuracies_out[[4]]
+  usr_acc_lower[y,] = accuracies_out[[5]]
+  usr_acc_upper[y,] = accuracies_out[[6]]
+  prod_acc[y,] = accuracies_out[[7]]
+  prod_acc_lower[y,] = accuracies_out[[8]]
+  prod_acc_upper[y,] = accuracies_out[[9]]
   
 }
 
@@ -398,39 +402,46 @@ for (y in 1:(length(years) - 1)){
 # Calculate map biases per period, filter only classes of interest
 
 map_bias = mapped_areas[, as.character(ref_codes)] - area_ha
-
+colnames(map_bias) = strata_names
 
 # Write results to csv (areas and accuracies)
 
 suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
-write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
-write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
-write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
-write.csv(map_bias, file=paste0(savepath, "map_bias", suffix))
+# write.csv(area_ha, file=paste0(savepath, "area_ha", suffix))
+# write.csv(area_ci, file=paste0(savepath, "area_ci", suffix))
+# write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
+# write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
+# write.csv(map_bias, file=paste0(savepath, "map_bias", suffix))
+write.csv(se_area_ha, file=paste0(savepath, "se_area_ha", suffix))
+# write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
+# write.csv(usr_acc , file=paste0(savepath, "users_accuracies", suffix))
+# write.csv(usr_acc_lower, file=paste0(savepath, "users_accuracies_min", suffix))
+# write.csv(usr_acc_upper, file=paste0(savepath, "users_accuracies_max", suffix))
+# write.csv(prod_acc , file=paste0(savepath, "producers_accuracies", suffix))
+# write.csv(prod_acc_lower, file=paste0(savepath, "producers_accuracies_min", suffix))
+# write.csv(prod_acc_upper, file=paste0(savepath, "producers_accuracies_max", suffix))
 
-write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
-write.csv(users_accs , file=paste0(savepath, "users_accuracies", suffix))
-write.csv(users_accs_min, file=paste0(savepath, "users_accuracies_min", suffix))
-write.csv(users_accs_max, file=paste0(savepath, "users_accuracies_max", suffix))
-write.csv(producers_accs , file=paste0(savepath, "producers_accuracies", suffix))
-write.csv(producers_accs_min, file=paste0(savepath, "producers_accuracies_min", suffix))
-write.csv(producers_accs_max, file=paste0(savepath, "producers_accuracies_max", suffix))
+# Calculate areas in kha for plots and tables
+area_kha = area_ha / 1000
+area_upper_kha = area_upper / 1000
+area_lower_kha = area_lower / 1000
+se_area_kha = se_area_ha / 1000
 
 
 ##############################################################################################################
 # 5) PLOT AREAS AND MARGINS OF ERROR
 
-plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode, biglabels){
+plot_areas = function(totareaha, xlabels, area, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode, biglabels){
   # Need two copies bc of the complexity of the graph
-  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, mappedarea, me))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped_area", "Margin_error")
+  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), area, lower, upper, mappedarea, me))
+  names(tempdf) = c("Years", "Area", "Lower", "Upper", "Mapped_area", "Margin_error")
   tempdf2 = tempdf
   
   # Find rows where the CI or the area go below 0 and assign NA's
-  ind_area = which(tempdf$Area_ha < 0)
+  ind_area = which(tempdf$Area < 0)
   ind_lower = which(tempdf$Lower < 0)
   
-  tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
+  tempdf[union(ind_area, ind_lower), 'Area'] = NA
   tempdf[ind_lower, 'Lower'] = NA
   tempdf[ind_lower, 'Upper'] = NA
   
@@ -446,22 +457,22 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   # Remove CI and area when it intersects with zero
   if (plotmode == 1){
     
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8)
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8)
     
     # Or keep the original outlines but remove the fill
   } else if (plotmode == 2) {
     
     lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
     upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha), linetype=8)
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8)
     
     # Or keep the simplified original with changes in axes or data
   } else {
     lowerline = geom_blank()
     upperline = geom_blank()
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha))
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area))
     yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")}) 
     ribbon = geom_ribbon(data=tempdf2, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
   }
@@ -470,7 +481,7 @@ plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, 
   area_plot = ggplot() +  
     lowerline + upperline + centerline + ribbon +
     geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red") + 
-    geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=1) +
+    geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=4, stroke=1) +
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
     yscale + ylab("Area and 95% CI [ha]") +
     ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) +
@@ -505,6 +516,11 @@ maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 3000
 maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 400000, 400000, 400000, 400000)
 miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
+# Limits in kha
+maxy_vect1 = maxy_vect1 / 1000
+maxy_vect2 = maxy_vect2 / 1000
+miny_vect2 = miny_vect2 / 1000
+
 
 # Create each plot in the original order
 plot_list1 = list()
@@ -522,16 +538,19 @@ widths3 = list()
 widths1me = list()
 widths2me = list()
 widths3me = list()
-plot_periods = seq(2002,2014,2)
+plot_periods = years[-1]
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
+
+tot_area_kha = tot_area_ha / 1000
+mapped_areas_kha = mapped_areas / 1000
 
 # Get AREA PLOTS  in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1, biglabels=F)  
-  plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2, biglabels=F)  
-  plot_list3[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=3, biglabels=T)  
 
   
@@ -567,7 +586,7 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
 bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
 
@@ -577,10 +596,10 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                                  gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
 
 # Save forest to pasture plot separately for the paper
-y1_label = textGrob("Area and 95% CI [ha]", gp=gpar(fontsize=14), rot=90)
+y1_label = textGrob("Area and 95% CI [kha]", gp=gpar(fontsize=14), rot=90)
 y2_label = textGrob("Percentage of total area", gp=gpar(fontsize=14), rot=-90)
 x_label = textGrob("Time", gp=gpar(fontsize=14))
 
@@ -595,7 +614,7 @@ pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0(savepath, "ALL_Pontus2_step", step, "_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
+ggsave(paste0(savepath, "ALL_Pontus2_step", step, "_kha_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
 
 # Save individual plots with margin of error
 ap = list()
@@ -613,6 +632,12 @@ for(i in 1:length(strata_names)){
 
 
 ##############################################################################################################
+### CREATE TABLES FOR PAPER
+
+# TABLES OF AREAS AND STANDARD ERRORS
+print(xtable(t(area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
 # 6) CREATE SOME USEFUL TABLES - NEEDS REWRITTING
 
 # Export table of  sample count, areas, percentages
