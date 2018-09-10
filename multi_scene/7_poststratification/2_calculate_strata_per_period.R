@@ -415,6 +415,7 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 # write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 # write.csv(map_bias, file=paste0(savepath, "map_bias", suffix))
 write.csv(se_area_ha, file=paste0(savepath, "se_area_ha", suffix))
+write.csv(margin_error, file=paste0(savepath, "margin_error", suffix))
 # write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
 # write.csv(usr_acc , file=paste0(savepath, "users_accuracies", suffix))
 # write.csv(usr_acc_lower, file=paste0(savepath, "users_accuracies_min", suffix))
@@ -574,9 +575,10 @@ for(i in 1:length(strata_names)){
 ##############################################################################################################
 ### CREATE TABLES FOR PAPER
 
-# TABLES OF AREAS AND STANDARD ERRORS
+# TABLES OF AREAS, STANDARD ERRORS AND MARGINS OF ERROR
 print(xtable(t(area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
 print(xtable(t(se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(margin_error*100), digits=1,type = "latex",sanitize.text.function=function(x){x}))
 
 # 6) CREATE SOME USEFUL TABLES - NEEDS REWRITTING
 
