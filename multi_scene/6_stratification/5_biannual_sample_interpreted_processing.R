@@ -253,6 +253,9 @@ ci_ha = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 2)))
 area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
+
+area_prop = as.data.frame(do.call(rbind, lapply(prop_out, '[[', 11)))
+se_simple_rnd_sampling_area_ha = sqrt(area_prop*(1-area_prop)/1050) * tot_area_ha
 se_area_ha = as.data.frame(do.call(rbind, se_prop))* tot_area_ha
 
 # Areas in kha, for article tables and figures
@@ -261,6 +264,7 @@ ci_kha = ci_ha /1000
 area_upper_kha = area_upper / 1000
 area_lower_kha = area_lower / 1000
 se_area_kha = se_area_ha / 1000
+se_simple_rnd_sampling_kha = se_simple_rnd_sampling_area_ha / 1000
 
 # Create table with results for buffer class
 buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
@@ -269,14 +273,16 @@ buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,]))
 df_list = list(usr_acc, usr_acc_lower, usr_acc_upper,
             prod_acc, prod_acc_lower, prod_acc_upper,
             area_ha, area_upper, area_lower, 
-            ci_ha, margin_error, se_area_ha,
-            area_kha, ci_kha, area_upper_kha, area_lower_kha, se_area_kha)
+            ci_ha, margin_error, se_area_ha, se_simple_rnd_sampling_area_ha,
+            area_kha, ci_kha, area_upper_kha, area_lower_kha, 
+            se_area_kha, se_simple_rnd_sampling_kha)
 
 df_names = c("usr_acc", "usr_acc_lower", "usr_acc_upper",
              "prod_acc", "prod_acc_lower", "prod_acc_upper",
              "area_ha", "area_upper", "area_lower", 
-             "ci_ha", "margin_error", "se_area_ha",
-             "area_kha", "ci_kha", "area_upper_kha", "area_lower_kha", "se_area_kha")
+             "ci_ha", "margin_error", "se_area_ha", "se_simple_rnd_sampling_area_ha",
+             "area_kha", "ci_kha", "area_upper_kha", "area_lower_kha", 
+             "se_area_kha", "se_simple_rnd_sampling_kha")
 
 add_names = function(df, cnames, rnames){
   colnames(df) = cnames
@@ -295,7 +301,7 @@ save_tables = function(df, savepath, f_suffix, names){
 suffix = paste0("_", lut_name,  "_buffered_3B.csv")
 table_savepath = "results/post_katelyn/tables/"
 
-mapply(save_tables, named_df, savepath=table_savepath, suf=suffix, names=df_names)
+mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
 
 # write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
 #           file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
@@ -362,7 +368,10 @@ ci_ha_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 2)))
 area_upper_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 3)))
 area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
 margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
+
+area_prop_nb = as.data.frame(do.call(rbind, lapply(prop_out_nb, '[[', 11)))
 se_area_ha_nb = as.data.frame(do.call(rbind, se_prop_nb))* tot_area_ha
+se_simple_rnd_sampling_area_ha_nb = sqrt(area_prop_nb*(1-area_prop_nb)/1050) * tot_area_ha
 
 # Areas in kha, for article tables and figures
 area_kha_nb = area_ha_nb / 1000
@@ -370,33 +379,36 @@ ci_kha_nb = ci_ha_nb /1000
 area_upper_kha_nb = area_upper_nb / 1000
 area_lower_kha_nb = area_lower_nb / 1000
 se_area_kha_nb = se_area_ha_nb / 1000
-
-# Compare CI and accuracies between buffer and no buffer results
-ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
-#plot(ci_compare$V8)
+se_simple_rnd_sampling_kha_nb = se_simple_rnd_sampling_area_ha_nb / 1000
 
 # Add column and row names
 df_list_nb = list(usr_acc_nb, usr_acc_lower_nb, usr_acc_upper_nb,
                prod_acc_nb, prod_acc_lower_nb, prod_acc_upper_nb,
                area_ha_nb, area_upper_nb, area_lower_nb, 
-               ci_ha_nb, margin_error_nb, se_area_ha_nb,
+               ci_ha_nb, margin_error_nb, se_area_ha_nb, se_simple_rnd_sampling_area_ha_nb,
                area_kha_nb, ci_kha_nb, area_upper_kha_nb, area_lower_kha_nb, 
-               se_area_kha_nb)
+               se_area_kha_nb, se_simple_rnd_sampling_kha_nb)
 
 df_names_nb = c("usr_acc_nb", "usr_acc_lower_nb", "usr_acc_upper_nb",
                 "prod_acc_nb", "prod_acc_lower_nb", "prod_acc_upper_nb",
                 "area_ha_nb", "area_upper_nb", "area_lower_nb", 
-                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb",
+                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb", "se_simple_rnd_sampling_area_ha_nb",
                 "area_kha_nb", "ci_kha_nb", "area_upper_kha_nb", "area_lower_kha_nb", 
-                "se_area_kha_nb")
+                "se_area_kha_nb", "se_simple_rnd_sampling_kha_nb")
 
 named_df_nb = lapply(df_list_nb, add_names, cnames=strata_names, rnames=periods_long)
 names(named_df_nb) = df_names_nb
 
-mapply(save_tables, named_df_nb, savepath=table_savepath, suf=suffix, names=df_names_nb)
+mapply(save_tables, named_df_nb, savepath=table_savepath, f_suffix=suffix, names=df_names_nb)
 # 
 # write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
 #           file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
+
+# Compare buffer vs no buffer
+ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb * 100
+colnames(ci_compare) = strata_names
+rownames(ci_compare) = periods_long
+  
 
 ############################# PLOT AREAS
 ########## AREA PLOTS USING RESULTS WITH BUFFER
@@ -652,8 +664,143 @@ for(i in 1:length(strata_names)){
   ggsave(filename, plot=g, width=12, height = 15, units = "in")
 }
 
+############## CREATE TABLES FOR PAPER AND PRESENTATIONS
 
-###### OTHER PLOTS
+# TABLE OF STRATA AREAS AND PROPORTIONS
+# Do calculations first, then assemble table.
+melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
+melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
+melted_pixcount$stratum_percentages=round(melted_pixcount$pixels / tot_area_pix * 100, digits=3) 
+pixcount_df = spread(dplyr::select(melted_pixcount, -c(area_ha, stratum_percentages)), L1, pixels)
+pixcount_area_ha = spread(dplyr::select(melted_pixcount, -c(pixels, stratum_percentages)), L1, area_ha)
+pixcount_stratum_percentages = spread(dplyr::select(melted_pixcount, -c(area_ha, pixels)), L1, stratum_percentages)
+
+fulldf = as.data.frame(matrix(nrow=nrow(pixcount_df), ncol=0))
+for (i in 2:ncol(pixcount_df)){
+  fulldf = cbind(fulldf, pixcount_area_ha[,i], pixcount_stratum_percentages[,i])
+}
+
+rownames(fulldf) = orig_strata_names 
+# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLES OF AREAS, STANDARD ERRORS, CI COMPARISON, MARGINS OF ERROR
+# With buffer, biannual samples
+print(xtable(t(named_df$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# SE With buffer, simulating simple random sampling
+print(xtable(t(named_df$se_simple_rnd_sampling_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Without buffer, biannual samples
+print(xtable(t(named_df_nb$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df_nb$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Comparison of ci, buffer vs no buffer
+print(xtable(t(ci_compare), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Margins of error
+print(xtable(t(named_df$margin_error*100), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF USERS AND PRODUCERS ACCURACY
+print(xtable(t(named_df$usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+
+## Test printing accuracies with confidence intervals in parenthesis, looks weird...
+prod_acc_ci = named_df$prod_acc_upper - named_df$prod_acc_lower
+prod_acc_ci_out = format(prod_acc_ci, digits=0)
+prod_acc_out = format(named_df$prod_acc, digits=0)
+prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
+rownames(prod_acc_table) = periods_long
+colnames(prod_acc_table) = strata_names
+print(xtable(t(prod_acc_table), digits=0, type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF STRATA DESCRIPTION
+
+strata_descript = c("Other transitions that are not relevant", "Stable forest", "Stable natural grassland",
+                    "Areas that show stable urban cover, as well as other bright surfces like exposed rock and sand",
+                    "Stable human introduced pasturelands and croplands", 
+                    "Areas that show sustained vegetation regrow over the course of two years or more",
+                    "Stable water bodies", "Areas that experienced conversion from forest to pastures or croplands",
+                    "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
+                    thereafter and display a regrowing trend", "Areas that experienced a conversion from pastures, 
+                    grasslands, urban, water and other to regrowing vegetation", "Areas that experienced a conversion
+                    to any other class, except to forest")
+
+strata_description_table = cbind(strata_names, strata_descript) 
+colnames(strata_description_table) = c("Stratum name", "Description")
+strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
+print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
+
+
+## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
+orig_strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                            "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                            "For. to Sec. For", "Sec. For. Gain", "To Uncl.", "Sec. For. Loss", "Buff")
+
+strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                       "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                       "For. to Sec. For", "Sec. For. Gain", "Sec. For. Loss")
+
+
+# I'm removing TO UNCLASS and BUFFER from ref labels bc they only exist for the
+# strata, and that also saves space in the table.
+
+cm_out_colnames = c(orig_strata_names_short[-c(11,13)], "Samp, size ($n_h$)", "Strat. weight ($W_h$)")
+cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
+
+cm_list_out = lapply(cm_list_out, function(x){x[,-c(11,13)]})
+
+cm_prop_list_out = cm_list_out
+col_digits1 = c(rep(0, 13), 2)
+col_digits2 = c(0, rep(4, 11), 0,2)
+
+bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
+
+for (i in 1:7){ # Couldn't get this to work with mapply!
+  cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_list_out[[i]]) = cm_out_colnames
+  rownames(cm_list_out[[i]]) = orig_strata_names_short
+  print(xtable(cm_list_out[[i]], digits = col_digits1, 
+               caption=paste0("Confusion matrix in sample counts for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
+  
+  # Calculate proportions, ugly way
+  cm_prop_list_out[[i]][,1:11] = (cm_list_out[[i]][,1:11] * cm_list_out[[i]][,13]) / cm_list_out[[i]][,12]
+  cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_prop_list_out[[i]]) = cm_out_colnames
+  rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
+  print(xtable(cm_prop_list_out[[i]], digits = col_digits2,
+               caption=paste0("Confusion matrix in area proportions for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
+}
+
+### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
+
+# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
+
+# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
+ss = ss[!(ss$stratum %in% cr),] 
+
+# Calculate original strata weights and area proportions 
+orig_strata_weight = (ss$pixels / tot_area_pix) *100
+orig_strata_area = ss$pixels * 30^2 / 100^2
+orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
+colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area $W_h$ [\\%]", "Sample size ($n_h$)") 
+orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
+align(orig_strata_table_out) = "llrcc"
+print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
+      sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
+
+
+
+
+######################## OTHER PLOTS
 
 # Create a single big tidy df to facilitate creating the complex plots
 list_vars = list(area_ha, ci_ha, area_upper, area_lower, margin_error)
@@ -803,131 +950,5 @@ get_condition_rows(2,1,2)
 #   shp_list_ref[[i]]@data[match_rows, "ref_strata"] = mc
 # }
 
-
-
-############## CREATE TABLES FOR PAPER AND PRESENTATIONS
-
-# TABLE OF STRATA AREAS AND PROPORTIONS
-# Do calculations first, then assemble table.
-melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
-melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
-melted_pixcount$stratum_percentages=round(melted_pixcount$pixels / tot_area_pix * 100, digits=3) 
-pixcount_df = spread(dplyr::select(melted_pixcount, -c(area_ha, stratum_percentages)), L1, pixels)
-pixcount_area_ha = spread(dplyr::select(melted_pixcount, -c(pixels, stratum_percentages)), L1, area_ha)
-pixcount_stratum_percentages = spread(dplyr::select(melted_pixcount, -c(area_ha, pixels)), L1, stratum_percentages)
-
-fulldf = as.data.frame(matrix(nrow=nrow(pixcount_df), ncol=0))
-for (i in 2:ncol(pixcount_df)){
-  fulldf = cbind(fulldf, pixcount_area_ha[,i], pixcount_stratum_percentages[,i])
-}
-
-rownames(fulldf) = orig_strata_names 
-# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
-colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
-# Create table in Latex instead, and produce the pdf there, much easier than grid.table
-print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
-
-## TABLES OF AREAS AND STANDARD ERRORS
-# With buffer
-print(xtable(t(named_df$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
-print(xtable(t(named_df$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
-
-# Without buffer
-print(xtable(t(named_df_nb$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
-print(xtable(t(named_df_nb$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
-
-
-## TABLE OF USERS AND PRODUCERS ACCURACY
-print(xtable(t(named_df$usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
-print(xtable(t(named_df$prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
-
-## Test printing same table but with confidence intervals in parenthesis, looks weird...
-prod_acc_ci = named_df$prod_acc_upper - named_df$prod_acc_lower
-prod_acc_ci_out = format(prod_acc_ci, digits=0)
-prod_acc_out = format(named_df$prod_acc, digits=0)
-prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
-rownames(prod_acc_table) = periods_long
-colnames(prod_acc_table) = strata_names
-print(xtable(t(prod_acc_table), digits=0, type = "latex",sanitize.text.function=function(x){x}))
-
-## TABLE OF STRATA DESCRIPTION
-
-strata_descript = c("Other transitions that are not relevant", "Stable forest", "Stable natural grassland",
-                    "Areas that show stable urban cover, as well as other bright surfces like exposed rock and sand",
-                    "Stable human introduced pasturelands and croplands", 
-                    "Areas that show sustained vegetation regrow over the course of two years or more",
-                    "Stable water bodies", "Areas that experienced conversion from forest to pastures or croplands",
-                    "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
-                    thereafter and display a regrowing trend", "Areas that experienced a conversion from pastures, 
-                    grasslands, urban, water and other to regrowing vegetation", "Areas that experienced a conversion
-                    to any other class, except to forest")
-
-strata_description_table = cbind(strata_names, strata_descript) 
-colnames(strata_description_table) = c("Stratum name", "Description")
-strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
-print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
-
-
-## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
-orig_strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
-                            "Past.", "Sec. For.", "Wat", "For. to Past.", 
-                            "For. to Sec. For", "Sec. For. Gain", "To Uncl.", "Sec. For. Loss", "Buff")
-
-strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
-                       "Past.", "Sec. For.", "Wat", "For. to Past.", 
-                       "For. to Sec. For", "Sec. For. Gain", "Sec. For. Loss")
-
-
-# I'm removing TO UNCLASS and BUFFER from ref labels bc they only exist for the
-# strata, and that also saves space in the table.
-
-cm_out_colnames = c(orig_strata_names_short[-c(11,13)], "Samp, size ($n_h$)", "Strat. weight ($W_h$)")
-cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
-
-cm_list_out = lapply(cm_list_out, function(x){x[,-c(11,13)]})
-
-cm_prop_list_out = cm_list_out
-col_digits1 = c(rep(0, 13), 2)
-col_digits2 = c(0, rep(4, 11), 0,2)
-
-bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
-
-for (i in 1:7){ # Couldn't get this to work with mapply!
-  cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
-  colnames(cm_list_out[[i]]) = cm_out_colnames
-  rownames(cm_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_list_out[[i]], digits = col_digits1, 
-               caption=paste0("Confusion matrix in sample counts for period ", periods_long[i])), 
-        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
-        caption.placement="top")
-    
-  # Calculate proportions, ugly way
-  cm_prop_list_out[[i]][,1:11] = (cm_list_out[[i]][,1:11] * cm_list_out[[i]][,13]) / cm_list_out[[i]][,12]
-  cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
-  colnames(cm_prop_list_out[[i]]) = cm_out_colnames
-  rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_prop_list_out[[i]], digits = col_digits2,
-               caption=paste0("Confusion matrix in area proportions for period ", periods_long[i])), 
-        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
-        caption.placement="top")
-}
-
-### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
-
-# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
-ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
-
-# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
-ss = ss[!(ss$stratum %in% cr),] 
-
-# Calculate original strata weights and area proportions 
-orig_strata_weight = (ss$pixels / tot_area_pix) *100
-orig_strata_area = ss$pixels * 30^2 / 100^2
-orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
-colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area $W_h$ [\\%]", "Sample size ($n_h$)") 
-orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
-align(orig_strata_table_out) = "llrcc"
-print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
-      sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
 
 
