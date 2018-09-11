@@ -21,6 +21,9 @@ require(grid)
 require(gridExtra)
 require(xtable)
 require(matrixcalc)
+require(extrafont)
+
+loadfonts()
 
 ##############################################################################################################
 #0) SET VARIABLES/FOLDERS
@@ -414,8 +417,8 @@ suffix = paste0("_step", step, "_", lut_name, add_samples_suffix, ".csv")
 # write.csv(area_lower, file=paste0(savepath, "area_lower", suffix))
 # write.csv(area_upper, file=paste0(savepath, "area_upper", suffix))
 # write.csv(map_bias, file=paste0(savepath, "map_bias", suffix))
-write.csv(se_area_ha, file=paste0(savepath, "se_area_ha", suffix))
-write.csv(margin_error, file=paste0(savepath, "margin_error", suffix))
+# write.csv(se_area_ha, file=paste0(savepath, "se_area_ha", suffix))
+# write.csv(margin_error, file=paste0(savepath, "margin_error", suffix))
 # write.csv(cbind(overall_accs, overall_accs_min, overall_accs_max), file=paste0(savepath, "overall_accuracies_minmax", suffix))
 # write.csv(usr_acc , file=paste0(savepath, "users_accuracies", suffix))
 # write.csv(usr_acc_lower, file=paste0(savepath, "users_accuracies_min", suffix))
@@ -447,7 +450,6 @@ maxy_vect1 = maxy_vect1 / 1000
 maxy_vect2 = maxy_vect2 / 1000
 miny_vect2 = miny_vect2 / 1000
 
-
 # Create each plot in the original order
 plot_list1 = list()
 plot_list2 = list()
@@ -465,6 +467,7 @@ widths1me = list()
 widths2me = list()
 widths3me = list()
 plot_periods = years[-1]
+plot_periods = seq(2,14,2)
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
 tot_area_kha = tot_area_ha / 1000
@@ -515,9 +518,12 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
-right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+gpar_settings = gpar(fontsize=7, 
+                     fontfamily="Times New Roman", 
+                     fontface="bold")
+left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
+bottom_axlabel = textGrob("Time", gp=gpar_settings)
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
 pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
@@ -525,8 +531,10 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                                  gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".png"), 
-       plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+# Formatted for article
+outfile=paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot1,  width = 190, height = 120, units='mm') 
+embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
@@ -548,14 +556,17 @@ ggsave(paste0(savepath, "ALL_Pontus1me_step", step, "_kha_", lut_name, ".png"),
 
 
 # Save forest to pasture plot separately for the paper
-y1_label = textGrob("Area and 95% CI [kha]", gp=gpar(fontsize=14), rot=90)
-y2_label = textGrob("Percentage of total area", gp=gpar(fontsize=14), rot=-90)
-x_label = textGrob("Time", gp=gpar(fontsize=14))
-
-f2p = plot_list1[[8]][[1]] + ylab("") + xlab("") + ggtitle("") +
-  theme(plot.title = element_text(size=16), axis.title=element_text(size=16), axis.text=element_text(size=16)) 
+y1_label = textGrob("Area and 95% CI [kha]", gp=gpar_settings, rot=90)
+y2_label = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
+x_label = textGrob("Time", gp=gpar_settings)
+ 
+# Override xlabels to show full years
+f2p = plot_list1[[8]][[1]] + ylab("") + xlab("") + ggtitle("") + 
+  scale_x_continuous(breaks=seq(1,length(years[-1] -1)), labels=years[-1] -1, minor_breaks = NULL)
 f2p_plot = grid.arrange(ggplotGrob(f2p), left=y1_label, right=y2_label, bottom=x_label)
-ggsave(paste0(savepath, "f2p_for_paper", step, "_", lut_name, ".png"), plot=f2p_plot,  width = 10, height = 5) 
+outfile=paste0(savepath, "f2p_for_paper", step, "_", lut_name, ".pdf")
+ggsave(outfile, plot=f2p_plot,  width = 90, height = 90, units="mm") 
+embed_fonts(outfile)
 
 # Save individual plots with margin of error
 ap = list()

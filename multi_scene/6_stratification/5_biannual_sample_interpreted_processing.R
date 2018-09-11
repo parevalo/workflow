@@ -10,6 +10,9 @@ require(grid)
 require(gridExtra)
 require(reshape2)
 require(xtable)
+require(extrafont)
+
+loadfonts() #(device="postscript")
 
 # Set working directories and vars
 auxpath = "/media/paulo/785044BD504483BA/test/"
@@ -301,7 +304,7 @@ save_tables = function(df, savepath, f_suffix, names){
 suffix = paste0("_", lut_name,  "_buffered_3B.csv")
 table_savepath = "results/post_katelyn/tables/"
 
-mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
+#mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
 
 # write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
 #           file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
@@ -399,7 +402,7 @@ df_names_nb = c("usr_acc_nb", "usr_acc_lower_nb", "usr_acc_upper_nb",
 named_df_nb = lapply(df_list_nb, add_names, cnames=strata_names, rnames=periods_long)
 names(named_df_nb) = df_names_nb
 
-mapply(save_tables, named_df_nb, savepath=table_savepath, f_suffix=suffix, names=df_names_nb)
+#mapply(save_tables, named_df_nb, savepath=table_savepath, f_suffix=suffix, names=df_names_nb)
 # 
 # write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
 #           file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
@@ -442,7 +445,8 @@ widths3 = list()
 widths1me = list()
 widths2me = list()
 widths3me = list()
-plot_periods = seq(2002,2014,2)
+#plot_periods = seq(2002,2014,2)
+plot_periods = seq(2,14,2)
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
 tot_area_kha = tot_area_ha / 1000
@@ -450,9 +454,9 @@ mapped_areas_kha = mapped_areas / 1000
 
 # Get AREA PLOTS in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i],
                                area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
+                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)
   plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
                                area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
@@ -492,9 +496,12 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
-right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+gpar_settings = gpar(fontsize=7, 
+                     fontfamily="Times New Roman", 
+                     fontface="bold")
+left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
+bottom_axlabel = textGrob("Time", gp=gpar_settings)
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
 pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
@@ -502,8 +509,10 @@ pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]],
                          gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".png"), 
-       plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+# Formatted for article
+outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot1,  width = 190, height = 120, units='mm') 
+embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
