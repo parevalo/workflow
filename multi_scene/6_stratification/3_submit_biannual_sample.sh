@@ -8,7 +8,7 @@
 cd /projectnb/landsat/projects/Colombia/biannual_samples_june2017
 
 inpath=/projectnb/landsat/projects/Colombia/Mosaics/M3
-spath=/projectnb/landsat/projects/Colombia/workflow/multi_scene/6_stratification
+spath=/projectnb/landsat/projects/Colombia/workflow/multi_scene/6_stratification/helper_scripts
 seed_base=10000
 
 # Set year and step info

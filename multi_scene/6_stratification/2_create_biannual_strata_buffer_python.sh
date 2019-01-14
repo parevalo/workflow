@@ -46,7 +46,7 @@ for yr in $(seq -w $fy $step $ly); do
 
     # Create buffered version of the stratification
     qsub -j y -b y -V -N poststrat -l mem_total=94G -hold_jid buff_$yr \
-     $spath/6_stratification/create_strata.py \
+     $spath/6_stratification/helper_scripts/create_strata.py \
       $bname".tif" $out_buff".tif" $spath/data/$lut $out_strata
 done
 
