@@ -116,7 +116,7 @@ join_ref_map_strata = function(map_shp, refstrata_id){
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 
 # Read basic LUT to compare strata and reference labels and run the comparison
-strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/6_stratification/lut_strata_ref_match.csv",
+strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/data/lut_strata_ref_match.csv",
                           as.is = c(3))
 
 shp_list_centroid = list()
