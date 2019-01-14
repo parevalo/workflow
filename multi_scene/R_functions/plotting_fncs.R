@@ -48,15 +48,15 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
                                                   labels=function(n){format(n, digits=2)},
                                                   name="Percentage of total area\n"))
   ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3, size=0.5)
-  markers = geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=1, stroke=0.5)
-  map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red", size=0.2)
+  markers = geom_point(data=tempdf, aes(x=Years, y=Area), shape=3, size=2, stroke=0.8)
+  map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red", size=0.3)
   
   # Remove CI and area when it intersects with zero
   if (plotmode == 1){
     
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8, size=0.2)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8, size=0.2) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8, size=0.2)
+    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Lower), linetype=8, size=0.3)
+    upperline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Upper), linetype=8, size=0.3) 
+    centerline = geom_line(data=tempdf[!is.na(tempdf$Area),], aes(x=Years, y=Area), linetype=8, size=0.3)
     
     # Or keep the original outlines but remove the fill
   } else if (plotmode == 2) {
@@ -77,19 +77,19 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
   
   
   # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
-  regular_theme = theme(plot.title = element_text(size=7), axis.text=element_text(size=7),
-                        axis.title=element_text(size=7)) 
+  regular_theme = theme(plot.title = element_text(size=14), axis.text=element_text(size=14),
+                        axis.title=element_text(size=14)) 
   
   area_plot = ggplot() +  
     lowerline + upperline + centerline + ribbon + map_area + markers +
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
-    yscale + ylab("Area and 95% CI [kha]\n") + xlab("\nTime") +
+    yscale + ylab("Area and 95% CI [kha]\n") + xlab("\nYear") +
     ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.1) + regular_theme
   
   # Plot margin of error
   me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
     scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + ylim(0, 200) + 
-    ylab("Margin of error [%]\n") + xlab("\nTime") + ggtitle(plot_title) + regular_theme
+    ylab("Margin of error [%]\n") + xlab("\nYear") + ggtitle(plot_title) + regular_theme
   
   # Change fontsize if labels biglabels is False
   small_theme = theme(axis.title=element_blank(), 
