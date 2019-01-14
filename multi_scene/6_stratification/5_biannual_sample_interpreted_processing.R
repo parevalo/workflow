@@ -297,9 +297,9 @@ named_df = lapply(df_list, add_names, cnames=strata_names, rnames=periods_long)
 names(named_df) = df_names
 
 # Save tables
-save_tables = function(df, savepath, f_suffix, names){
-  write.csv(df, file=paste0(savepath, names, f_suffix))
-}
+# save_tables = function(df, savepath, f_suffix, names){
+#   write.csv(df, file=paste0(savepath, names, f_suffix))
+# }
 
 suffix = paste0("_", lut_name,  "_buffered_3B.csv")
 table_savepath = "results/post_katelyn/tables/"
@@ -418,14 +418,16 @@ rownames(ci_compare) = periods_long
 
 # Vector of max and min y axis values for pontus modes
 # Selected to guarantee that one of the breaks (6 total) is zero
-maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 
-               300000, 300000, 300000, 300000)
+maxy_vect1 = c(10, 44000000, 4500000, 90000, 4500000, 1000000, 1000000, 
+               300000, 90000, 60000, 60000)
 maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 
                400000, 400000, 400000, 400000)
-miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
+miny_vect1 = c(0,39000000,0,0,0,0,0,0,0,0,0)
+miny_vect2 = c(-3000, 38000000, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
 # Limits in kha
 maxy_vect1 = maxy_vect1 / 1000
+miny_vect1 = miny_vect1 / 1000
 maxy_vect2 = maxy_vect2 / 1000
 miny_vect2 = miny_vect2 / 1000
 
@@ -447,7 +449,13 @@ widths2me = list()
 widths3me = list()
 #plot_periods = seq(2002,2014,2)
 plot_periods = seq(2,14,2)
-plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
+# Need a slightly difference letter order to create the full figure in order. 
+
+label_letters = c("a", "b", "d", "c", "e", "f", "g", "h", "i", "j", "k")
+# Other to other was removed from paper figures
+label_letters2 = c("a", "a", "c", "b", "d", "e", "f", "g", "h", "i", "j")
+plot_labels = mapply(paste0, label_letters, ") ", strata_names)
+plot_labels2 = mapply(paste0, label_letters2, ") ", strata_names)
 
 tot_area_kha = tot_area_ha / 1000
 mapped_areas_kha = mapped_areas / 1000
@@ -456,7 +464,7 @@ mapped_areas_kha = mapped_areas / 1000
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i],
                                area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)
+                               margin_error[,i], miny_vect1[i], maxy_vect1[i], plot_labels2[i], plotmode=1)
   plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
                                area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
@@ -501,17 +509,17 @@ gpar_settings = gpar(fontsize=7,
                      fontface="bold")
 left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar_settings)
+bottom_axlabel = textGrob("Year", gp=gpar_settings)
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
-pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
+pontus_multiplot1 = grid.arrange(gpl1[[2]], gpl1[[4]], 
                          gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
-                         gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
+                         gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=2, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
 # Formatted for article
 outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".pdf")
-ggsave(outfile, plot=pontus_multiplot1,  width = 190, height = 120, units='mm') 
+ggsave(outfile, plot=pontus_multiplot1,  width = 140, height = 160, units='mm') 
 embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
@@ -540,6 +548,20 @@ pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]]
 
 ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_kha_", lut_name, ".png"), 
        plot=pontus_multiplotme2,  width = 20, height = 10) 
+
+# Individual regular sized figures for separate saving with margin of error
+ap = list()
+mep = list()
+
+for(i in 1:length(strata_names)){
+  ap[[i]] = ggplotGrob(plot_list3[[i]][[1]])
+  mep[[i]] = ggplotGrob(plot_list3[[i]][[2]])
+  g = rbind(ap[[i]], mep[[i]], size="first") 
+  g$widths = unit.pmax(ap[[i]]$widths, mep[[i]]$widths)
+  
+  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  ggsave(filename, plot=g, width=12, height = 15, units = "in")
+}
 
 
 ########## AREA PLOTS USING RESULTS WITHOUT BUFFER
@@ -623,7 +645,7 @@ for (i in 1:length(gpl1_nb)){
 
 left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+bottom_axlabel = textGrob("Year", gp=gpar(fontsize=12, fontface="bold"))
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
 pontus_multiplot1_nb = grid.arrange(textGrob(""), gpl1_nb[[1]], gpl1_nb[[2]], gpl1_nb[[4]], 
@@ -710,6 +732,18 @@ print(xtable(t(named_df_nb$se_area_kha), digits=1,type = "latex",sanitize.text.f
 # Comparison of ci, buffer vs no buffer
 print(xtable(t(ci_compare), digits=1,type = "latex",sanitize.text.function=function(x){x}))
 
+# Comparison of standard errors, buffer vs no buffer
+compare_se_list = list()
+for (i in (1:4)){
+  temp = cbind(named_df$se_area_kha[,i+7], named_df_nb$se_area_kha[,i+7])
+  compare_se_list[[i]] = temp
+}
+
+compare_se = as.data.frame(do.call(cbind, lapply(compare_se_list, '[')))
+rownames(compare_se) = periods_long
+colnames(compare_se) = rep(c("Buffer", "No buffer"), 4)
+print(xtable(format(compare_se, digits=1)))
+
 # Margins of error
 print(xtable(t(named_df$margin_error*100), digits=1,type = "latex",sanitize.text.function=function(x){x}))
 
@@ -728,20 +762,41 @@ print(xtable(t(prod_acc_table), digits=0, type = "latex",sanitize.text.function=
 
 ## TABLE OF STRATA DESCRIPTION
 
-strata_descript = c("Other transitions that are not relevant", "Stable forest", "Stable natural grassland",
-                    "Areas that show stable urban cover, as well as other bright surfces like exposed rock and sand",
-                    "Stable human introduced pasturelands and croplands", 
-                    "Areas that show sustained vegetation regrow over the course of two years or more",
-                    "Stable water bodies", "Areas that experienced conversion from forest to pastures or croplands",
+strata_descript = c("Other transitions that are not relevant.", 
+                    "Stable forest.", 
+                    "Stable natural grassland.",
+                    "Areas that show stable urban cover, as well as other bright surfaces like exposed rock and sand.",
+                    "Stable human introduced pasturelands and croplands.", 
+                    "Areas that show sustained vegetation regrowth over the course of two years or more.",
+                    "Stable water bodies.", 
+                    "Areas that experienced conversion from forest to pastures or croplands.",
                     "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
-                    thereafter and display a regrowing trend", "Areas that experienced a conversion from pastures, 
-                    grasslands, urban, water and other to regrowing vegetation", "Areas that experienced a conversion
-                    to any other class, except to forest")
+                    thereafter and display a regrowing trend.", 
+                    "Areas that experienced a conversion from pastures, grasslands, urban, 
+                    water and other to secondary forest.", 
+                    "Areas of classes other than forest and secondary forest that experienced a disturbance 
+                    but have no class label afterwards.",
+                    "Areas of secondary forest that were converted to any other class (except to forest).",
+                    "Areas of stable forest that were assigned to a 'buffer' stratum around change areas.")
 
-strata_description_table = cbind(strata_names, strata_descript) 
+strata_description_table = cbind(orig_strata_names[-c(11,13)], strata_descript[-c(11,13)]) 
 colnames(strata_description_table) = c("Stratum name", "Description")
 strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
 print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF STRATA DESCRIPTION INCLUDING CLASS 13 AND 16, AS WELL AS WEIGHTS AND SAMPLE ALLOCATION
+# Load original stratification pixel count
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
+# Remove classes we don't need in the calculation (i.e. NoData)
+ss = ss[!(ss$stratum %in% cr),]
+tot_area_pix = sum(ss$pixels) 
+str_weight = ss$pixels / tot_area_pix
+
+strata_description_table = cbind(orig_strata_names, strata_descript, format(str_weight*100, digits=1), strata_pixels$x)
+colnames(strata_description_table) = c("Stratum name", "Description", "W_h", "n_h")
+strata_description_table = rbind(strata_description_table[2:13,], strata_description_table[1,])
+print(xtable(as.data.frame(strata_description_table),type = "latex",sanitize.text.function=function(x){x},
+             sanitize.colnames.function=bold), include.rownames=FALSE)
 
 
 ## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
@@ -790,12 +845,6 @@ for (i in 1:7){ # Couldn't get this to work with mapply!
 
 ### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
 
-# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
-ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
-
-# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
-ss = ss[!(ss$stratum %in% cr),] 
-
 # Calculate original strata weights and area proportions 
 orig_strata_weight = (ss$pixels / tot_area_pix) *100
 orig_strata_area = ss$pixels * 30^2 / 100^2
@@ -805,8 +854,6 @@ orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c
 align(orig_strata_table_out) = "llrcc"
 print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
       sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
-
-
 
 
 ######################## OTHER PLOTS

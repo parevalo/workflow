@@ -39,7 +39,6 @@ source(paste0(funcs_path, "area_estimation_fncs.R"))
 source(paste0(funcs_path, "plotting_fncs.R"))
 source(paste0(strata_config, "input_variables_original_buffer3B.R")) # CHANGE THIS FILE TO RUN WITH OTHER INPUT PARAMETERS!
 
-
 # Set up important global variables
 start = 2001
 end = 2016
@@ -219,8 +218,9 @@ ct = calc_ct(samples[[orig_stratif]], strata, class_codes)
 # REQUIRED for comparison between mapped and estimated areas only. 
 # TODO: CONVERT THIS SECTION TO A FUNCTION
 mapped_areas_list = list()
-# Classes to be removed from the pixcount list bc they are not estimated
-cr_extra = c(13,16) 
+# Classes to be removed from the pixcount list bc they are not estimated. 
+# shouldn't this include 15 as well? It is not changing the calculations though.
+cr_extra = c(13,15) 
 
 for(i in 1:(length(short_years)-1)){
   fname = paste0("strata_", short_years[i], "_", short_years[i+1], pixcount_suffix)
@@ -439,15 +439,17 @@ se_area_kha = se_area_ha / 1000
 
 # Vector of max and min y axis values for pontus modes
 # Selected to guarantee that one of the breaks (6 total) is zero
-maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 
-               300000, 300000, 300000, 300000)
+maxy_vect1 = c(12000, 45000000, 2000000, 180000, 3600000, 2000000, 1000000, 
+               180000, 60000, 60000, 60000)
 maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 
                400000, 400000, 400000, 400000)
+miny_vect1 = c(0, 37000000, 0,0,0,0,0,0,0,0,0)
 miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
 # Limits in kha
 maxy_vect1 = maxy_vect1 / 1000
 maxy_vect2 = maxy_vect2 / 1000
+miny_vect1 = miny_vect1 / 1000
 miny_vect2 = miny_vect2 / 1000
 
 # Create each plot in the original order
@@ -470,6 +472,11 @@ plot_periods = years[-1]
 plot_periods = seq(2,14,2)
 plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
 
+# Other to other was removed from paper figures
+label_letters2 = c("a", "a", "c", "b", "d", "e", "f", "g", "h", "i", "j")
+plot_labels2 = mapply(paste0, label_letters2, ") ", strata_names)
+
+
 tot_area_kha = tot_area_ha / 1000
 mapped_areas_kha = mapped_areas / 1000
 
@@ -477,7 +484,7 @@ mapped_areas_kha = mapped_areas / 1000
 for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
                                area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
+                               margin_error[,i], miny_vect1[i], maxy_vect1[i], plot_labels2[i], plotmode=1)  
   plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
                                area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
@@ -523,17 +530,17 @@ gpar_settings = gpar(fontsize=7,
                      fontface="bold")
 left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
 right_axlabel = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar_settings)
+bottom_axlabel = textGrob("Year", gp=gpar_settings)
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
-pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
+pontus_multiplot1 = grid.arrange(gpl1[[2]], gpl1[[4]], 
                                  gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
-                                 gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
+                                 gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=2, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
 # Formatted for article
 outfile=paste0(savepath, "ALL_Pontus1_step", step, "_kha_", lut_name, ".pdf")
-ggsave(outfile, plot=pontus_multiplot1,  width = 190, height = 120, units='mm') 
+ggsave(outfile, plot=pontus_multiplot1,  width = 140, height = 160, units='mm') 
 embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
