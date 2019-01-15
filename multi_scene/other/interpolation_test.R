@@ -408,3 +408,37 @@ plot(testvar)
 
 out_vg = interpolate_fnc(cropped_raster, new_shp, test_class_list[[class]])
 plot(out_vg[[1]])
+
+####### Get empirical variograms in whole study area.
+setwd("/projectnb/landsat/projects/Colombia/accuracy_interpolation/shp/sample_05_07_labels_pts")
+testshp = readOGR("sample_05_07_labels_pts.shp", "sample_05_07_labels_pts")
+omission_raster=raster("/projectnb/landsat/projects/Colombia/Mosaics/M3/sp_error/omission_prob_full_2006.tif")
+class_diff_raster=raster("/projectnb/landsat/projects/Colombia/Mosaics/M3/sp_error/class_prob_diff_2006_full.tif")
+
+# Create new column indicating perfect label match or not and get classes per shp
+# Remove class 0 bc it creates problems for the ROC calculation
+
+testshp@data$map_strata = testshp@data$STRATUM 
+testshp@data$map_strata[testshp@data$map_strata == 16] = 1
+testshp@data$binmatch = (testshp@data$map_strata == testshp@data$ref_strata)*1
+cl_temp = sort(unique(testshp$ref_strata))
+test_class_list = cl_temp[!(cl_temp %in% 0)]
+
+# Extract omission and class diff values and remove rows with nodata
+testshp = raster::extract(omission_raster, testshp, sp = TRUE) 
+testshp = raster::extract(class_diff_raster, testshp, sp = TRUE) 
+testshp = testshp[complete.cases(testshp@data),]
+
+# Use points inside the class we need
+subset_shp = testshp[testshp$map_strata == test_class_list[[3]],]
+coords = coordinates(subset_shp)
+subset_shp$x = coords[,1]
+subset_shp$y = coords[,2]
+
+# Check empirical varioagram
+vg_test = variogram(binmatch~x+y, subset_shp, subset_shp)
+plot(vg_test)
+
+# The semivariograms are really not showing any clear autocorrelation, with or without
+# a linear trend, for the whole study area!. There's no point in modelling this way if 
+# no relationship is found.
