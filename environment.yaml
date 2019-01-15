@@ -1,0 +1,38 @@
+# Conda environment file for YATSM
+# Includes optional dependencies since conda makes installing them pretty easy
+name: wf_env_new
+channels:
+    - r
+    - conda-forge
+dependencies:
+    # Base
+    - python=2.7
+    - numpy>=1.9.0
+    - scipy>=0.14.0
+    - cython>=0.20.1
+    # Statistics
+    - statsmodels>=0.5.0
+    - scikit-learn>=0.15.1
+    - pandas>=0.16.0
+    - patsy>=0.3.0
+    # GDAL
+    - gdal>=2.1.2
+    # IO
+    - fiona>=1.7.0
+    - rasterio>=1.0a2
+    - shapely>=1.5
+    # CLI
+    - click>=4.0
+    # Config file, update to >4.2 as soon as it's available
+    - pyyaml>=3.11
+    # Plotting
+    - matplotlib>=1.4.2
+    # Accelerated functions w/ numba (OPTIONAL)
+    - numba>=0.22.0
+    # Python interface to R (OPTIONAL)
+    - rpy2
+    - pip:
+        # GLMNET (OPTIONAL)
+        - git+git://github.com/ceholden/glmnet-python.git@v2.0.1
+        - click_plugins>=1.0
+        - palettable>=2.0.0 
