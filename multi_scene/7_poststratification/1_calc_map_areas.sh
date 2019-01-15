@@ -12,7 +12,7 @@ outsuffix="_pixcount.csv"
 for i in $(ls $matchstring); do
    yr=$(ls $i | grep -Eo "[0-9]{2}_[0-9]{2}")
     qsub -j y -b y -V -N str_area_$yr -l mem_per_core=8G\
-     $spath/count_pixels.py $i "strata_"$yr$outsuffix
+     $spath/helper_scripts/count_pixels.py $i "strata_"$yr$outsuffix
 
 done
 

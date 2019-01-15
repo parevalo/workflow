@@ -30,5 +30,4 @@ df_plot = ggplot(data=df, aes(x=time, y=me, fill=label, order=label)) +
 
 outfile = "/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/biannual_sampling/results/post_katelyn/figures/me_compare.pdf" 
 ggsave(outfile, device="pdf", width = 90, height = 70, units='mm')
-
 embed_fonts(outfile)
