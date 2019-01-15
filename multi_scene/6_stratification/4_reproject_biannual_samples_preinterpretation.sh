@@ -45,6 +45,10 @@ for yr in $(seq -w $fy $step $ly); do
 #           $sname"_east_UTM18N.tif"
 #
 #    # Reproject east samples to UTM19
+#    # WARNING: This step causes the loss of some samples
+#    # Samples should probably be reprojected directly from vector, but
+     # there is no way to guarantee they will match the landsat grid
+
 #    qsub -j y -b y -V -N reproj_$yr -hold_jid rast_$yr \
 #        gdalwarp -co COMPRESS=PACKBITS -wt Int16 -overwrite \
 #         -te $(gdal_extent $zpath/eastUTM19_2016.tif) -te_srs EPSG:32619 \
