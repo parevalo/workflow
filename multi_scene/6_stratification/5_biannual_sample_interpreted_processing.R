@@ -1,7 +1,8 @@
-# Script to process the biannual samples and calculate area estimates and
-# accuracies
+# SCRIPT TO CALCULATE AREAS AND ACCURACIES PER BIANNUAL PERIOD
+# USING INDIVIDUALLY COLLECTED SAMPLES.
 
-require(tidyverse)
+require(ggplot2)
+require(dplyr)
 require(rgdal)
 require(raster)
 require(rgeos)
@@ -9,13 +10,20 @@ require(grid)
 require(gridExtra)
 require(reshape2)
 require(xtable)
+require(extrafont)
+
+loadfonts() #(device="postscript")
 
 # Set working directories and vars
 auxpath = "/media/paulo/785044BD504483BA/test/"
 setwd("/media/paulo/785044BD504483BA/OneDrive/Lab/area_calculation/biannual_sampling/")
-stratpath = "/home/paulo/workflow/multi_scene/7_poststratification/"
-source(paste0(stratpath, "functions.R"))
-source(paste0(stratpath, "input_variables_original_buffer3B.R"))
+strata_config = "/home/paulo/workflow/multi_scene/7_poststratification/strata_calc_config/"
+funcs_path = "/home/paulo/workflow/multi_scene/R_functions/"
+
+source(paste0(funcs_path, "area_estimation_fncs.R"))
+source(paste0(funcs_path, "plotting_fncs.R"))
+source(paste0(strata_config, "input_variables_original_buffer3B.R"))
+
 lut = read.table(lutpath, header = T, sep = ",")
 
 start = 2001
@@ -108,7 +116,7 @@ join_ref_map_strata = function(map_shp, refstrata_id){
 shp_list_ref = mapply(join_ref_map_strata, shp_list, ref_strata)
 
 # Read basic LUT to compare strata and reference labels and run the comparison
-strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/6_stratification/lut_strata_ref_match.csv",
+strata_ref_lut = read.csv("/home/paulo/workflow/multi_scene/data/lut_strata_ref_match.csv",
                           as.is = c(3))
 
 shp_list_centroid = list()
@@ -129,14 +137,14 @@ for(i in 1:length(shp_list_ref)){
 }
 
 # Save updated poly and point shapefiles for analysis
-for(n in 1:length(samples_names)){
-  outname1 = paste0(samples_names[n], "_labels")
-  outname2 = paste0(samples_names[n], "_labels_pts")
-  writeOGR(shp_list_ref[[n]], paste0("shp/",outname1), outname1,
-           driver="ESRI Shapefile", overwrite_layer = T)
-  writeOGR(shp_list_centroid[[n]], paste0("shp/",outname2), outname2,
-           driver="ESRI Shapefile", overwrite_layer = T)
-}
+# for(n in 1:length(samples_names)){
+#   outname1 = paste0(samples_names[n], "_labels")
+#   outname2 = paste0(samples_names[n], "_labels_pts")
+#   writeOGR(shp_list_ref[[n]], paste0("shp/",outname1), outname1,
+#            driver="ESRI Shapefile", overwrite_layer = T)
+#   writeOGR(shp_list_centroid[[n]], paste0("shp/",outname2), outname2,
+#            driver="ESRI Shapefile", overwrite_layer = T)
+# }
 
 ## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
 # apply_deformod = function(df){
@@ -249,10 +257,58 @@ area_upper = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 3)))
 area_lower = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 4)))
 margin_error = as.data.frame(do.call(rbind, lapply(areas_out, '[[', 5)))
 
+area_prop = as.data.frame(do.call(rbind, lapply(prop_out, '[[', 11)))
+se_simple_rnd_sampling_area_ha = sqrt(area_prop*(1-area_prop)/1050) * tot_area_ha
+se_area_ha = as.data.frame(do.call(rbind, se_prop))* tot_area_ha
+
+# Areas in kha, for article tables and figures
+area_kha = area_ha / 1000
+ci_kha = ci_ha /1000
+area_upper_kha = area_upper / 1000
+area_lower_kha = area_lower / 1000
+se_area_kha = se_area_ha / 1000
+se_simple_rnd_sampling_kha = se_simple_rnd_sampling_area_ha / 1000
+
 # Create table with results for buffer class
 buffer_table = as.data.frame(do.call(rbind, lapply(cm_list, function(x) x[13,])))
 
+# Add column and row names
+df_list = list(usr_acc, usr_acc_lower, usr_acc_upper,
+            prod_acc, prod_acc_lower, prod_acc_upper,
+            area_ha, area_upper, area_lower, 
+            ci_ha, margin_error, se_area_ha, se_simple_rnd_sampling_area_ha,
+            area_kha, ci_kha, area_upper_kha, area_lower_kha, 
+            se_area_kha, se_simple_rnd_sampling_kha)
 
+df_names = c("usr_acc", "usr_acc_lower", "usr_acc_upper",
+             "prod_acc", "prod_acc_lower", "prod_acc_upper",
+             "area_ha", "area_upper", "area_lower", 
+             "ci_ha", "margin_error", "se_area_ha", "se_simple_rnd_sampling_area_ha",
+             "area_kha", "ci_kha", "area_upper_kha", "area_lower_kha", 
+             "se_area_kha", "se_simple_rnd_sampling_kha")
+
+add_names = function(df, cnames, rnames){
+  colnames(df) = cnames
+  rownames(df) = rnames
+  return(df)
+}
+
+named_df = lapply(df_list, add_names, cnames=strata_names, rnames=periods_long)
+names(named_df) = df_names
+
+# Save tables
+# save_tables = function(df, savepath, f_suffix, names){
+#   write.csv(df, file=paste0(savepath, names, f_suffix))
+# }
+
+suffix = paste0("_", lut_name,  "_buffered_3B.csv")
+table_savepath = "results/post_katelyn/tables/"
+
+#mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
+
+# write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
+#           file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
+# 
 ####### RUN WITHOUT BUFFER
 
 prop_out_nb = list()
@@ -316,98 +372,64 @@ area_upper_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 3)))
 area_lower_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 4)))
 margin_error_nb = as.data.frame(do.call(rbind, lapply(areas_out_nb, '[[', 5)))
 
-# Compare CI and accuracies between buffer and no buffer results
-ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb 
-plot(ci_compare$V8)
+area_prop_nb = as.data.frame(do.call(rbind, lapply(prop_out_nb, '[[', 11)))
+se_area_ha_nb = as.data.frame(do.call(rbind, se_prop_nb))* tot_area_ha
+se_simple_rnd_sampling_area_ha_nb = sqrt(area_prop_nb*(1-area_prop_nb)/1050) * tot_area_ha
+
+# Areas in kha, for article tables and figures
+area_kha_nb = area_ha_nb / 1000
+ci_kha_nb = ci_ha_nb /1000
+area_upper_kha_nb = area_upper_nb / 1000
+area_lower_kha_nb = area_lower_nb / 1000
+se_area_kha_nb = se_area_ha_nb / 1000
+se_simple_rnd_sampling_kha_nb = se_simple_rnd_sampling_area_ha_nb / 1000
+
+# Add column and row names
+df_list_nb = list(usr_acc_nb, usr_acc_lower_nb, usr_acc_upper_nb,
+               prod_acc_nb, prod_acc_lower_nb, prod_acc_upper_nb,
+               area_ha_nb, area_upper_nb, area_lower_nb, 
+               ci_ha_nb, margin_error_nb, se_area_ha_nb, se_simple_rnd_sampling_area_ha_nb,
+               area_kha_nb, ci_kha_nb, area_upper_kha_nb, area_lower_kha_nb, 
+               se_area_kha_nb, se_simple_rnd_sampling_kha_nb)
+
+df_names_nb = c("usr_acc_nb", "usr_acc_lower_nb", "usr_acc_upper_nb",
+                "prod_acc_nb", "prod_acc_lower_nb", "prod_acc_upper_nb",
+                "area_ha_nb", "area_upper_nb", "area_lower_nb", 
+                "ci_ha_nb", "margin_error_nb", "se_area_ha_nb", "se_simple_rnd_sampling_area_ha_nb",
+                "area_kha_nb", "ci_kha_nb", "area_upper_kha_nb", "area_lower_kha_nb", 
+                "se_area_kha_nb", "se_simple_rnd_sampling_kha_nb")
+
+named_df_nb = lapply(df_list_nb, add_names, cnames=strata_names, rnames=periods_long)
+names(named_df_nb) = df_names_nb
+
+#mapply(save_tables, named_df_nb, savepath=table_savepath, f_suffix=suffix, names=df_names_nb)
+# 
+# write.csv(cbind(overall_acc_nb, overall_acc_lower_nb, overall_acc_upper_nb), 
+#           file=paste0(table_savepath, "overall_accuracies_minmax_nb", suffix))
+
+# Compare buffer vs no buffer
+ci_compare = (ci_ha - ci_ha_nb) / ci_ha_nb * 100
+colnames(ci_compare) = strata_names
+rownames(ci_compare) = periods_long
+  
 
 ############################# PLOT AREAS
-
-plot_areas = function(totareaha, xlabels, areaha, lower, upper, mappedarea, me, miny, maxy, plot_title, plotmode){
-  # Need two copies bc of the complexity of the graph
-  tempdf = as.data.frame(cbind(seq(1,length(xlabels)), areaha, lower, upper, mappedarea, me))
-  names(tempdf) = c("Years", "Area_ha", "Lower", "Upper", "Mapped_area", "Margin_error")
-  tempdf2 = tempdf
-  
-  # Find rows where the CI or the area go below 0 and assign NA's
-  ind_area = which(tempdf$Area_ha < 0)
-  ind_lower = which(tempdf$Lower < 0)
-  
-  tempdf[union(ind_area, ind_lower), 'Area_ha'] = NA
-  tempdf[ind_lower, 'Lower'] = NA
-  tempdf[ind_lower, 'Upper'] = NA
-    
-  # Define breaks manually so that the two y axes grids match
-  bks = seq(miny, maxy, length.out = 6)
-  bks2 = bks / totareaha * 100
-  
-  # Global options for all plots, unless overrriden below
-  yscale = scale_y_continuous(labels=function(n){format(n, scientific = FALSE, big.mark = ",")},breaks=bks, limits=c(miny,maxy), 
-                              sec.axis = sec_axis(~./totareaha * 100, breaks=bks2, labels=function(n){format(n, digits=2)},
-                                                  name="Percentage of total area\n"))
-  ribbon = geom_ribbon(data=tempdf, aes(x=Years, ymin=Lower, ymax=Upper), fill="deepskyblue4", alpha=0.3)
-  markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=1)
-  map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red")
-  
-  # Remove CI and area when it intersects with zero
-  if (plotmode == 1){
-    
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8)
-  
-  # Or keep the original outlines but remove the fill
-  } else if (plotmode == 2) {
-    
-    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area_ha), linetype=8)
-  
-  # Or keep plotmode1 format but make labels and markers bigger
-  } else if (plotmode == 3) {
-    
-    lowerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Lower), linetype=8, size=1.1)
-    upperline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Upper), linetype=8, size=1.1) 
-    centerline = geom_line(data=tempdf[!is.na(tempdf$Area_ha),], aes(x=Years, y=Area_ha), linetype=8, size=1.1)
-    markers = geom_point(data=tempdf, aes(x=Years, y=Area_ha), shape=3, size=4, stroke=2)
-    map_area = geom_line(data=tempdf2, aes(x=Years, y=Mapped_area), colour="red", size=1.2) 
-  }
-  
-  
-  # Plot areas with CI. Add dashed lines on top of ribbon for places where CI < 0
-  regular_theme = theme(plot.title = element_text(size=18), axis.text=element_text(size=18),
-                        axis.title=element_text(size=18)) 
-  
-  area_plot = ggplot() +  
-    lowerline + upperline + centerline + ribbon + map_area + markers +
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) +
-    yscale + ylab("Area and 95% CI [ha]\n") + xlab("\nTime") +
-    ggtitle(plot_title)  + geom_hline(yintercept = 0, size=0.3) + regular_theme
-    
-  # Plot margin of error
-  me_plot = ggplot(data=tempdf, aes(x=Years, y=Margin_error * 100)) + geom_line(size=1.1) + 
-    scale_x_continuous(breaks=seq(1,length(xlabels)), labels=xlabels, minor_breaks = NULL) + ylim(0, 200) + 
-    ylab("Margin of error [%]\n") + xlab("\nTime") + ggtitle(plot_title) + regular_theme
-  
-  # Change fontsize if labels biglabels is False
-  small_theme = theme(axis.title=element_blank(), axis.text.x=element_text(size=11), axis.text.y=element_text(size=12)) 
-  area_plot_small = area_plot + small_theme
-  me_plot_small = me_plot + small_theme
-  
-  if (plotmode == 1 | plotmode == 2){
-    return_list = list(area_plot_small, me_plot_small)
-  } else if (plotmode == 3) {
-    return_list = list(area_plot, me_plot)
-  }
-
-  return(return_list)
-}
+########## AREA PLOTS USING RESULTS WITH BUFFER
 
 # Vector of max and min y axis values for pontus modes
 # Selected to guarantee that one of the breaks (6 total) is zero
-maxy_vect1 = c(12000, 45000000, 4500000, 300000, 4500000, 4500000, 4500000, 300000, 300000, 300000, 300000)
-maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 400000, 400000, 400000, 400000)
-miny_vect2 = c(-3000, 0, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
+maxy_vect1 = c(10, 44000000, 4500000, 90000, 4500000, 1000000, 1000000, 
+               300000, 90000, 60000, 60000)
+maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 
+               400000, 400000, 400000, 400000)
+miny_vect1 = c(0,39000000,0,0,0,0,0,0,0,0,0)
+miny_vect2 = c(-3000, 38000000, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
 
+# Limits in kha
+maxy_vect1 = maxy_vect1 / 1000
+miny_vect1 = miny_vect1 / 1000
+maxy_vect2 = maxy_vect2 / 1000
+miny_vect2 = miny_vect2 / 1000
 
 # Create each plot in the original order
 plot_list1 = list()
@@ -425,16 +447,29 @@ widths3 = list()
 widths1me = list()
 widths2me = list()
 widths3me = list()
-plot_periods = seq(2002,2014,2)
-plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
+#plot_periods = seq(2002,2014,2)
+plot_periods = seq(2,14,2)
+# Need a slightly difference letter order to create the full figure in order. 
 
-# Get AREA PLOTS  in the original order, for both plot modes plus regular
+label_letters = c("a", "b", "d", "c", "e", "f", "g", "h", "i", "j", "k")
+# Other to other was removed from paper figures
+label_letters2 = c("a", "a", "c", "b", "d", "e", "f", "g", "h", "i", "j")
+plot_labels = mapply(paste0, label_letters, ") ", strata_names)
+plot_labels2 = mapply(paste0, label_letters2, ") ", strata_names)
+
+tot_area_kha = tot_area_ha / 1000
+mapped_areas_kha = mapped_areas / 1000
+
+# Get AREA PLOTS in the original order, for both plot modes plus regular
 for(i in 1:length(strata_names)){
-  plot_list1[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
-                               margin_error[,i], 0, maxy_vect1[i], plot_labels[i], plotmode=1)  
-  plot_list2[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i],
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
+                               margin_error[,i], miny_vect1[i], maxy_vect1[i], plot_labels2[i], plotmode=1)
+  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
+                               area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
-  plot_list3[[i]] = plot_areas(tot_area_ha, plot_periods, area_ha[,i], area_lower[,i], area_upper[,i], mapped_areas[,i],
+  plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
+                               area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], 0, maxy_vect2[i], strata_names[i], plotmode=3)  
   
   gpl1[[i]] = ggplotGrob(plot_list1[[i]][[1]])
@@ -469,39 +504,50 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-left_axlabel = textGrob("Area [ha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
-right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
-bottom_axlabel = textGrob("Time", gp=gpar(fontsize=12, fontface="bold"))
+gpar_settings = gpar(fontsize=7, 
+                     fontfamily="Times New Roman", 
+                     fontface="bold")
+left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar_settings, rot=-90)
+bottom_axlabel = textGrob("Year", gp=gpar_settings)
 
 # Arrange AREA PLOTS in the NEW grouping order and save multiplots
-pontus_multiplot1 = grid.arrange(textGrob(""), gpl1[[1]], gpl1[[2]], gpl1[[4]], 
+pontus_multiplot1 = grid.arrange(gpl1[[2]], gpl1[[4]], 
                          gpl1[[3]], gpl1[[5]], gpl1[[6]], gpl1[[7]],
-                         gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=4, 
+                         gpl1[[8]], gpl1[[9]], gpl1[[10]], gpl1[[11]],ncol=2, 
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1_", lut_name, ".png"), plot=pontus_multiplot1,  width = 20, height = 10, units='in') 
+# Formatted for article
+outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot1,  width = 140, height = 160, units='mm') 
+embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2_", lut_name, ".png"), plot=pontus_multiplot2,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_", lut_name, ".png"), 
+       plot=pontus_multiplot2,  width = 20, height = 10) 
 
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
+left_axlabel_me = textGrob("Margin of error [%]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
 pontus_multiplotme1 = grid.arrange(textGrob(""), mep1[[1]], mep1[[2]], mep1[[4]], 
                                  mep1[[3]], mep1[[5]], mep1[[6]], mep1[[7]],
-                                 mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4)
+                                 mep1[[8]], mep1[[9]], mep1[[10]], mep1[[11]],ncol=4,
+                                 left=left_axlabel_me,  bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus1me_", lut_name, ".png"), plot=pontus_multiplotme1,  width = 20, height = 10) 
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_kha_", lut_name, ".png"), 
+       plot=pontus_multiplotme1,  width = 20, height = 10) 
 
 pontus_multiplotme2 = grid.arrange(textGrob(""), mep2[[1]], mep2[[2]], mep2[[4]], 
                                  mep2[[3]], mep2[[5]], mep2[[6]], mep2[[7]],
-                                 mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4)
+                                 mep2[[8]], mep2[[9]], mep2[[10]], mep2[[11]],ncol=4,
+                                 left=left_axlabel_me,  bottom=bottom_axlabel)
 
-ggsave(paste0("plots/post_katelyn/", "ALL_Pontus2me_", lut_name, ".png"), plot=pontus_multiplotme2,  width = 20, height = 10) 
-
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_kha_", lut_name, ".png"), 
+       plot=pontus_multiplotme2,  width = 20, height = 10) 
 
 # Individual regular sized figures for separate saving with margin of error
 ap = list()
@@ -513,12 +559,304 @@ for(i in 1:length(strata_names)){
   g = rbind(ap[[i]], mep[[i]], size="first") 
   g$widths = unit.pmax(ap[[i]]$widths, mep[[i]]$widths)
   
-  filename = paste0("plots/post_katelyn/", strata_names[[i]], "_areas_me_", lut_name, ".png")
+  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_", lut_name, ".png")
   ggsave(filename, plot=g, width=12, height = 15, units = "in")
 }
 
 
-###### OTHER PLOTS
+########## AREA PLOTS USING RESULTS WITHOUT BUFFER
+
+# Vector of max and min y axis values for pontus modes
+# Selected to guarantee that one of the breaks (6 total) is zero
+maxy_vect1_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 
+                  2500000, 2500000, 2500000, 2500000)
+maxy_vect2_nb = c(300000, 45000000, 4500000, 400000, 5500000, 4500000, 4500000, 
+                  2500000, 2500000, 2500000, 2500000)
+miny_vect2_nb = c(-85000, 0, 0, -100000, 0, 0, 0, 0, -100000, -100000, -100000)
+
+# Limits in kha
+maxy_vect1_nb = maxy_vect1_nb / 1000 
+maxy_vect2_nb = maxy_vect2_nb / 1000
+miny_vect2_nb = miny_vect2_nb / 1000
+
+
+# Create each plot in the original order
+plot_list1_nb = list()
+plot_list2_nb = list()
+plot_list3_nb = list()
+gpl1_nb = list()
+gpl2_nb = list()
+gpl3_nb = list()
+mep1_nb = list()
+mep2_nb = list()
+mep3_nb = list()
+widths1_nb = list()
+widths2_nb = list()
+widths3_nb = list()
+widths1me_nb = list()
+widths2me_nb = list()
+widths3me_nb = list()
+plot_periods = seq(2002,2014,2)
+plot_labels = mapply(paste0, letters[seq(1,11)], ") ", strata_names)
+
+# Get AREA PLOTS in the original order, for both plot modes plus regular
+for(i in 1:length(strata_names)){
+  plot_list1_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas_kha[,i],
+                                  margin_error_nb[,i], 0, maxy_vect1_nb[i], plot_labels[i], plotmode=1)  
+  plot_list2_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas[,i],
+                                  margin_error_nb[,i], miny_vect2[i], maxy_vect2_nb[i], strata_names[i], plotmode=2)  
+  plot_list3_nb[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha_nb[,i], 
+                                  area_lower_kha_nb[,i], area_upper_kha_nb[,i], mapped_areas[,i],
+                                  margin_error_nb[,i], 0, maxy_vect2_nb[i], strata_names[i], plotmode=3)  
+  
+  gpl1_nb[[i]] = ggplotGrob(plot_list1_nb[[i]][[1]])
+  gpl2_nb[[i]] = ggplotGrob(plot_list2_nb[[i]][[1]])
+  gpl3_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[1]])
+  mep1_nb[[i]] = ggplotGrob(plot_list1_nb[[i]][[2]])
+  mep2_nb[[i]] = ggplotGrob(plot_list2_nb[[i]][[2]])
+  mep3_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[2]])
+  widths1_nb[[i]] = gpl1_nb[[i]]$widths[2:5]
+  widths2_nb[[i]] = gpl2_nb[[i]]$widths[2:5]
+  widths3_nb[[i]] = gpl3_nb[[i]]$widths[2:5]
+  widths1me_nb[[i]] = mep1_nb[[i]]$widths[2:5]
+  widths2me_nb[[i]] = mep2_nb[[i]]$widths[2:5]
+  widths3me_nb[[i]] = mep3_nb[[i]]$widths[2:5]
+}
+
+# Calculate max width among all the grobs for each case and use that value for all of them
+# This ensures the plotted areas match despite different y axis widths.
+maxwidth1_nb = do.call(grid::unit.pmax, widths1_nb)
+maxwidth2_nb = do.call(grid::unit.pmax, widths2_nb)
+maxwidth3_nb = do.call(grid::unit.pmax, widths3_nb)
+maxwidth1me_nb = do.call(grid::unit.pmax, widths1me_nb)
+maxwidth2me_nb = do.call(grid::unit.pmax, widths2me_nb)
+maxwidth3me_nb = do.call(grid::unit.pmax, widths3me_nb)
+
+for (i in 1:length(gpl1_nb)){
+  gpl1_nb[[i]]$widths[2:5] = as.list(maxwidth1_nb)
+  gpl2_nb[[i]]$widths[2:5] = as.list(maxwidth2_nb)
+  gpl3_nb[[i]]$widths[2:5] = as.list(maxwidth3_nb)
+  mep1_nb[[i]]$widths[2:5] = as.list(maxwidth1me_nb)
+  mep2_nb[[i]]$widths[2:5] = as.list(maxwidth2me_nb)
+  mep3_nb[[i]]$widths[2:5] = as.list(maxwidth3me_nb)
+}
+
+left_axlabel = textGrob("Area [kha]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
+right_axlabel = textGrob("Percentage of total area", gp=gpar(fontsize=12, fontface="bold"), rot=-90)
+bottom_axlabel = textGrob("Year", gp=gpar(fontsize=12, fontface="bold"))
+
+# Arrange AREA PLOTS in the NEW grouping order and save multiplots
+pontus_multiplot1_nb = grid.arrange(textGrob(""), gpl1_nb[[1]], gpl1_nb[[2]], gpl1_nb[[4]], 
+                                 gpl1_nb[[3]], gpl1_nb[[5]], gpl1_nb[[6]], gpl1_nb[[7]],
+                                 gpl1_nb[[8]], gpl1_nb[[9]], gpl1_nb[[10]], gpl1_nb[[11]],ncol=4, 
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_nb_", lut_name, ".png"), 
+       plot=pontus_multiplot1_nb,  width = 20, height = 10, units='in') 
+
+pontus_multiplot2_nb = grid.arrange(textGrob(""), gpl2_nb[[1]], gpl2_nb[[2]], gpl2_nb[[4]], 
+                                 gpl2_nb[[3]], gpl2_nb[[5]], gpl2_nb[[6]], gpl2_nb[[7]],
+                                 gpl2_nb[[8]], gpl2_nb[[9]], gpl2_nb[[10]], gpl2_nb[[11]],ncol=4, 
+                                 left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_nb_", lut_name, ".png"), 
+       plot=pontus_multiplot2_nb,  width = 20, height = 10) 
+
+
+# Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
+pontus_multiplotme1_nb = grid.arrange(textGrob(""), mep1_nb[[1]], mep1_nb[[2]], mep1_nb[[4]], 
+                                   mep1_nb[[3]], mep1_nb[[5]], mep1_nb[[6]], mep1_nb[[7]],
+                                   mep1_nb[[8]], mep1_nb[[9]], mep1_nb[[10]], mep1_nb[[11]],ncol=4)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus1me_kha_nb_", lut_name, ".png"), 
+       plot=pontus_multiplotme1_nb,  width = 20, height = 10) 
+
+pontus_multiplotme2_nb = grid.arrange(textGrob(""), mep2_nb[[1]], mep2_nb[[2]], mep2_nb[[4]], 
+                                   mep2_nb[[3]], mep2_nb[[5]], mep2_nb[[6]], mep2_nb[[7]],
+                                   mep2_nb[[8]], mep2_nb[[9]], mep2_nb[[10]], mep2_nb[[11]],ncol=4)
+
+ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2me_kha_nb_", lut_name, ".png"), 
+       plot=pontus_multiplotme2_nb,  width = 20, height = 10) 
+
+
+# Individual regular sized figures for separate saving with margin of error
+ap_nb = list()
+mep_nb = list()
+
+for(i in 1:length(strata_names)){
+  ap_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[1]])
+  mep_nb[[i]] = ggplotGrob(plot_list3_nb[[i]][[2]])
+  g = rbind(ap_nb[[i]], mep_nb[[i]], size="first") 
+  g$widths = unit.pmax(ap_nb[[i]]$widths, mep_nb[[i]]$widths)
+  
+  filename = paste0("results/post_katelyn/figures/", strata_names[[i]], "_areas_me_nb_", lut_name, ".png")
+  ggsave(filename, plot=g, width=12, height = 15, units = "in")
+}
+
+############## CREATE TABLES FOR PAPER AND PRESENTATIONS
+
+# TABLE OF STRATA AREAS AND PROPORTIONS
+# Do calculations first, then assemble table.
+melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
+melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
+melted_pixcount$stratum_percentages=round(melted_pixcount$pixels / tot_area_pix * 100, digits=3) 
+pixcount_df = spread(dplyr::select(melted_pixcount, -c(area_ha, stratum_percentages)), L1, pixels)
+pixcount_area_ha = spread(dplyr::select(melted_pixcount, -c(pixels, stratum_percentages)), L1, area_ha)
+pixcount_stratum_percentages = spread(dplyr::select(melted_pixcount, -c(area_ha, pixels)), L1, stratum_percentages)
+
+fulldf = as.data.frame(matrix(nrow=nrow(pixcount_df), ncol=0))
+for (i in 2:ncol(pixcount_df)){
+  fulldf = cbind(fulldf, pixcount_area_ha[,i], pixcount_stratum_percentages[,i])
+}
+
+rownames(fulldf) = orig_strata_names 
+# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
+colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
+# Create table in Latex instead, and produce the pdf there, much easier than grid.table
+print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLES OF AREAS, STANDARD ERRORS, CI COMPARISON, MARGINS OF ERROR
+# With buffer, biannual samples
+print(xtable(t(named_df$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# SE With buffer, simulating simple random sampling
+print(xtable(t(named_df$se_simple_rnd_sampling_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Without buffer, biannual samples
+print(xtable(t(named_df_nb$area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df_nb$se_area_kha), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Comparison of ci, buffer vs no buffer
+print(xtable(t(ci_compare), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+# Comparison of standard errors, buffer vs no buffer
+compare_se_list = list()
+for (i in (1:4)){
+  temp = cbind(named_df$se_area_kha[,i+7], named_df_nb$se_area_kha[,i+7])
+  compare_se_list[[i]] = temp
+}
+
+compare_se = as.data.frame(do.call(cbind, lapply(compare_se_list, '[')))
+rownames(compare_se) = periods_long
+colnames(compare_se) = rep(c("Buffer", "No buffer"), 4)
+print(xtable(format(compare_se, digits=1)))
+
+# Margins of error
+print(xtable(t(named_df$margin_error*100), digits=1,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF USERS AND PRODUCERS ACCURACY
+print(xtable(t(named_df$usr_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+print(xtable(t(named_df$prod_acc), digits=0,type = "latex",sanitize.text.function=function(x){x}))
+
+## Test printing accuracies with confidence intervals in parenthesis, looks weird...
+prod_acc_ci = named_df$prod_acc_upper - named_df$prod_acc_lower
+prod_acc_ci_out = format(prod_acc_ci, digits=0)
+prod_acc_out = format(named_df$prod_acc, digits=0)
+prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
+rownames(prod_acc_table) = periods_long
+colnames(prod_acc_table) = strata_names
+print(xtable(t(prod_acc_table), digits=0, type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF STRATA DESCRIPTION
+
+strata_descript = c("Other transitions that are not relevant.", 
+                    "Stable forest.", 
+                    "Stable natural grassland.",
+                    "Areas that show stable urban cover, as well as other bright surfaces like exposed rock and sand.",
+                    "Stable human introduced pasturelands and croplands.", 
+                    "Areas that show sustained vegetation regrowth over the course of two years or more.",
+                    "Stable water bodies.", 
+                    "Areas that experienced conversion from forest to pastures or croplands.",
+                    "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
+                    thereafter and display a regrowing trend.", 
+                    "Areas that experienced a conversion from pastures, grasslands, urban, 
+                    water and other to secondary forest.", 
+                    "Areas of classes other than forest and secondary forest that experienced a disturbance 
+                    but have no class label afterwards.",
+                    "Areas of secondary forest that were converted to any other class (except to forest).",
+                    "Areas of stable forest that were assigned to a 'buffer' stratum around change areas.")
+
+strata_description_table = cbind(orig_strata_names[-c(11,13)], strata_descript[-c(11,13)]) 
+colnames(strata_description_table) = c("Stratum name", "Description")
+strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
+print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
+
+## TABLE OF STRATA DESCRIPTION INCLUDING CLASS 13 AND 16, AS WELL AS WEIGHTS AND SAMPLE ALLOCATION
+# Load original stratification pixel count
+ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
+# Remove classes we don't need in the calculation (i.e. NoData)
+ss = ss[!(ss$stratum %in% cr),]
+tot_area_pix = sum(ss$pixels) 
+str_weight = ss$pixels / tot_area_pix
+
+strata_description_table = cbind(orig_strata_names, strata_descript, format(str_weight*100, digits=1), strata_pixels$x)
+colnames(strata_description_table) = c("Stratum name", "Description", "W_h", "n_h")
+strata_description_table = rbind(strata_description_table[2:13,], strata_description_table[1,])
+print(xtable(as.data.frame(strata_description_table),type = "latex",sanitize.text.function=function(x){x},
+             sanitize.colnames.function=bold), include.rownames=FALSE)
+
+
+## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
+orig_strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                            "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                            "For. to Sec. For", "Sec. For. Gain", "To Uncl.", "Sec. For. Loss", "Buff")
+
+strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
+                       "Past.", "Sec. For.", "Wat", "For. to Past.", 
+                       "For. to Sec. For", "Sec. For. Gain", "Sec. For. Loss")
+
+
+# I'm removing TO UNCLASS and BUFFER from ref labels bc they only exist for the
+# strata, and that also saves space in the table.
+
+cm_out_colnames = c(orig_strata_names_short[-c(11,13)], "Samp, size ($n_h$)", "Strat. weight ($W_h$)")
+cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
+
+cm_list_out = lapply(cm_list_out, function(x){x[,-c(11,13)]})
+
+cm_prop_list_out = cm_list_out
+col_digits1 = c(rep(0, 13), 2)
+col_digits2 = c(0, rep(4, 11), 0,2)
+
+bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
+
+for (i in 1:7){ # Couldn't get this to work with mapply!
+  cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_list_out[[i]]) = cm_out_colnames
+  rownames(cm_list_out[[i]]) = orig_strata_names_short
+  print(xtable(cm_list_out[[i]], digits = col_digits1, 
+               caption=paste0("Confusion matrix in sample counts for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
+  
+  # Calculate proportions, ugly way
+  cm_prop_list_out[[i]][,1:11] = (cm_list_out[[i]][,1:11] * cm_list_out[[i]][,13]) / cm_list_out[[i]][,12]
+  cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
+  colnames(cm_prop_list_out[[i]]) = cm_out_colnames
+  rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
+  print(xtable(cm_prop_list_out[[i]], digits = col_digits2,
+               caption=paste0("Confusion matrix in area proportions for period ", periods_long[i])), 
+        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
+        caption.placement="top")
+}
+
+### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
+
+# Calculate original strata weights and area proportions 
+orig_strata_weight = (ss$pixels / tot_area_pix) *100
+orig_strata_area = ss$pixels * 30^2 / 100^2
+orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
+colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area $W_h$ [\\%]", "Sample size ($n_h$)") 
+orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
+align(orig_strata_table_out) = "llrcc"
+print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
+      sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
+
+
+######################## OTHER PLOTS
 
 # Create a single big tidy df to facilitate creating the complex plots
 list_vars = list(area_ha, ci_ha, area_upper, area_lower, margin_error)
@@ -575,7 +913,7 @@ regr_plot <- ggplot(regr_area, aes(x=year,y=area_ha,group=class,fill=class)) +
 
 
 print(regr_plot)
-filename = paste0("plots/post_katelyn/", "secondary_forest_dynamics", ".png")
+filename = paste0("results/post_katelyn/figures/", "secondary_forest_dynamics", ".png")
 ggsave(filename, plot=regr_plot, device="png")
 
 ##### DEFOR plot
@@ -604,7 +942,7 @@ defor_plot <- ggplot(defor_area, aes(x=year,y=area_ha,group=class,fill=class)) +
         legend.title=element_blank()) 
 
 print(defor_plot)
-filename = paste0("plots/post_katelyn/", "defor_plot", ".png")
+filename = paste0("results/post_katelyn/figures/", "defor_plot", ".png")
 ggsave(filename, plot=defor_plot, device="png")
 
 
@@ -668,125 +1006,5 @@ get_condition_rows(2,1,2)
 #   shp_list_ref[[i]]@data[match_rows, "ref_strata"] = mc
 # }
 
-
-
-############## CREATE TABLES FOR PAPER AND PRESENTATIONS
-
-# TABLE OF AREAS
-# Do calculations first, then assemble table.
-melted_pixcount = melt(pixcount_list, id.vars = c('stratum', 'pixels'), value.name = 'value')
-melted_pixcount$area_ha = melted_pixcount$pixels * 30^2 / 100^2
-melted_pixcount$stratum_percentages=round(melted_pixcount$pixels / tot_area_pix * 100, digits=3) 
-pixcount_df = spread(dplyr::select(melted_pixcount, -c(area_ha, stratum_percentages)), L1, pixels)
-pixcount_area_ha = spread(dplyr::select(melted_pixcount, -c(pixels, stratum_percentages)), L1, area_ha)
-pixcount_stratum_percentages = spread(dplyr::select(melted_pixcount, -c(area_ha, pixels)), L1, stratum_percentages)
-
-fulldf = as.data.frame(matrix(nrow=nrow(pixcount_df), ncol=0))
-for (i in 2:ncol(pixcount_df)){
-  fulldf = cbind(fulldf, pixcount_area_ha[,i], pixcount_stratum_percentages[,i])
-}
-
-rownames(fulldf) = orig_strata_names 
-# Need to escape special characters, including backslash itself (e.g. $\\alpha$)
-colnames(fulldf) = rep(c("Area [ha]", "Area proportion [%]"), 7) 
-# Create table in Latex instead, and produce the pdf there, much easier than grid.table
-print(xtable(fulldf, digits=2,type = "latex",sanitize.text.function=function(x){x}))
-
-## TABLE OF USERS AND PRODUCERS ACCURACY
-rownames(prod_acc) = periods_long
-colnames(prod_acc) = strata_names
-print(xtable(t(prod_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
-
-rownames(usr_acc) = periods_long
-colnames(usr_acc) = strata_names
-print(xtable(t(usr_acc), digits=2,type = "latex",sanitize.text.function=function(x){x}))
-
-## SAME but with confidence intervals, vals in parenthesis look weird...
-prod_acc_ci = prod_acc_upper - prod_acc
-prod_acc_ci_out = format(prod_acc_ci, digits=2)
-prod_acc_table = mapply(paste0, prod_acc_out, " (", prod_acc_ci_out, ")")
-rownames(prod_acc_table) = periods_long
-colnames(prod_acc_table) = strata_names
-print(xtable(t(prod_acc_table),type = "latex",sanitize.text.function=function(x){x}))
-
-## TABLE OF STRATA DESCRIPTION
-
-strata_descript = c("Other transitions that are not relevant", "Stable forest", "Stable natural grassland",
-                    "Areas that show stable urban cover, as well as other bright surfces like exposed rock and sand",
-                    "Stable human introduced pasturelands and croplands", 
-                    "Areas that show sustained vegetation regrow over the course of two years or more",
-                    "Stable water bodies", "Areas that experienced conversion from forest to pastures or croplands",
-                    "Areas that experienced a brief conversion to pastures or croplands that were abandoned shortly 
-                    thereafter and display a regrowing trend", "Areas that experienced a conversion from pastures, 
-                    grasslands, urban, water and other to regrowing vegetation", "Areas that experienced a conversion
-                    to any other class, except to forest")
-
-strata_description_table = cbind(strata_names, strata_descript) 
-colnames(strata_description_table) = c("Stratum name", "Description")
-strata_description_table = rbind(strata_description_table[2:11,], strata_description_table[1,])
-print(xtable(strata_description_table,type = "latex",sanitize.text.function=function(x){x}))
-
-
-## INDIVIDUAL CONFUSION MATRICES FOR APPENDIX. 
-orig_strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
-                            "Past.", "Sec. For.", "Wat", "For. to Past.", 
-                            "For. to Sec. For", "Sec. For. Gain", "To Uncl.", "Sec. For. Loss", "Buff")
-
-strata_names_short = c("Oth. to Oth.", "For.", "Grass.", "Urban", 
-                       "Past.", "Sec. For.", "Wat", "For. to Past.", 
-                       "For. to Sec. For", "Sec. For. Gain", "Sec. For. Loss")
-
-
-# I'm removing TO UNCLASS and BUFFER from ref labels bc they only exist for the
-# strata, and that also saves space in the table.
-
-cm_out_colnames = c(orig_strata_names_short[-c(11,13)], "Samp, size ($n_h$)", "Strat. weight ($W_h$)")
-cm_list_out = lapply(cm_list, cbind, strata_pixels$x)
-
-cm_list_out = lapply(cm_list_out, function(x){x[,-c(11,13)]})
-
-cm_prop_list_out = cm_list_out
-col_digits1 = c(rep(0, 13), 2)
-col_digits2 = c(0, rep(4, 11), 0,2)
-
-bold <- function(x) {paste('{\\textbf{',x,'}}', sep ='')}
-
-for (i in 1:7){ # Couldn't get this to work with mapply!
-  cm_list_out[[i]] = cbind(cm_list_out[[i]], t(strata_weights)[,i])
-  colnames(cm_list_out[[i]]) = cm_out_colnames
-  rownames(cm_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_list_out[[i]], digits = col_digits1, 
-               caption=paste0("Confusion matrix in sample counts for period ", periods_long[i])), 
-        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
-        caption.placement="top")
-    
-  # Calculate proportions, ugly way
-  cm_prop_list_out[[i]][,1:11] = (cm_list_out[[i]][,1:11] * cm_list_out[[i]][,13]) / cm_list_out[[i]][,12]
-  cm_prop_list_out[[i]] = cbind(cm_prop_list_out[[i]], t(strata_weights)[,i])
-  colnames(cm_prop_list_out[[i]]) = cm_out_colnames
-  rownames(cm_prop_list_out[[i]]) = orig_strata_names_short
-  print(xtable(cm_prop_list_out[[i]], digits = col_digits2,
-               caption=paste0("Confusion matrix in area proportions for period ", periods_long[i])), 
-        type='latex', sanitize.text.function=function(x){x}, sanitize.colnames.function=bold,
-        caption.placement="top")
-}
-
-### TABLE OF STRATIFICATION 2001-2016, AREA WEIGHTS AND SAMPLES FOR REFERENCE (SLIDES)
-
-# Load mapped area of the ORIGINAL Stratification (e.g. 01-16)
-ss=read.csv(paste0(auxpath, pixcount_strata), header=TRUE, col.names=c("stratum", "pixels"))
-
-# Filter classes NOT in the list of classes from the pixel count files to be ignored. 
-ss = ss[!(ss$stratum %in% cr),] 
-
-# Calculate original strata weights and area proportions 
-orig_strata_weight = (ss$pixels / tot_area_pix) *100
-orig_strata_area = ss$pixels * 30^2 / 100^2
-orig_strata_table = data.frame(orig_strata_names, orig_strata_area, orig_strata_weight, t(map_sample_count[1,]))
-colnames(orig_strata_table) =  c("Strata names", "Area [ha]", "Area $W_h$ [\\%]", "Sample size ($n_h$)") 
-orig_strata_table_out = xtable(orig_strata_table, digits=c(0,0,2,4,0), display=c("d", "s", "f", "f", "d"))
-align(orig_strata_table_out) = "llrcc"
-print(orig_strata_table_out,type = "latex", sanitize.text.function=function(x){x},
-      sanitize.colnames.function=bold, format.args=list(big.mark = "'"), include.rownames=F)
 
 

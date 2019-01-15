@@ -46,8 +46,8 @@ for yr in $(seq -w $fy $step $ly); do
     fi
     
     qsub -j y -b y -V -N strata_$yr -l mem_total=94G \
-     python $spath/6_stratification/create_strata.py $first $second \
-     $spath/data/$lut $outfile
+     python $spath/6_stratification/helper_scripts/create_strata.py \
+      $first $second $spath/data/$lut $outfile
 
 done
 
@@ -58,7 +58,7 @@ if [ $annual = true ]; then
     outfile="final_strata_"$y1"_"$y2"_UTM18N"$lutsuf".tif"
 
     qsub -j y -b y -V -N strata_$lutsuf -l mem_total=94G \
-        python $spath/6_stratification/create_strata.py \
+        python $spath/6_stratification/helper_scripts/create_strata.py \
          20$y1$suffix 20$y2$suffix $spath/data/$lut $outfile
 
 fi

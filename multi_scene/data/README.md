@@ -14,3 +14,5 @@ transition, so any pixel that shows this behavior is classified as no-forest.
 (final_strata_01_16_UTM18N.tif) except those of stable forest that intersect a 
 buffer (e.g. final_strata_01_UTM18_buffer20.tif) that goes into the forest, for which 
 a new value of 16 is assigned. Only possible combinations are included in the LUT.
+- lut_strata_ref_match: Lookup table used to assign "match" or "mismatch" labels 
+to the sample units to create a visualization and perform an exploratory analysis. 

@@ -6,7 +6,7 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
 
 1. Submit jobs to generate a CSV list of dates and filepaths of each image available for each Landsat scene. This assumes that all images are stored following the file location convention specified in the README.md file. The images are assumed to be stacks of surface reflectance with the same extent per scene. Bands are assumed tto be stacked in the following order: Blue, Green, Red, NIR, SWIR1, SWIR2, brightness temperature and FMask. Preprocessing steps can be found [here](https://github.com/parevalo/landsat_process) 
 2. Cache images on disk to make them faster to read, using yatsm cache.
-3.  Fit segments on time series per pixel, using yatsm line.
+3. Fit segments on time series per pixel, using yatsm line.
 
 ## 2_train-class
 
@@ -33,14 +33,14 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
 ## 4_postprocess
 
 1. Copy files in UTM18 zone to follow naming convention and make it easier to process them.
-2. Perform a masking and sieving operation on the files without modifying the pixels that experienced any change.
+2. Perform a masking and sieving operation on the files without modifying the pixels that experienced any change during the entire study period.
 3. Propagate the sieving to all of the maps in the study period
 4. Clip maps to their WRS2 footprint to make them easier to stack.
 
 ## 5_mosaic
 
 1. Mosaic the scenes present in each of the two UTM zones in the area (18 and 19).
-2. Reproject the east zone mosaic (in UTM19) to UTM18 (move/remove second part of that script and document)
+2. Reproject the east zone mosaic (in UTM19) to UTM18.
 3. Merge the two mosaics into a single one.
 
 ## 6_stratification
@@ -61,13 +61,10 @@ The steps in this workflow were performed in the Shared Computer Cluster at Bost
  being located in the line boundary between two scenes, in which case the sample will be duplicated and a 
  manual decision will have to be made regarding which scene to use. Therefore, it is possible that after 
  this step the total number of samples is temporarily increased. 
-5. Post-interpretation reprojection and processing of the samples in order to be merged into a single
- shapefily that can be compared against the stratification in order to calculate unbiased areas and 
- accuracies.
+5. Calculation of areas and accuracies for each biannual period using unbiased estimators. 
 
-TODO
-- Reproject strata files instead of having to reproject samples?
-- Move output logs from original samples to the samples folder, but need permissions to access it.
+All python scripts are located in /helper_scripts.
+
 
 ## 7_poststratification
 
@@ -83,8 +80,22 @@ calculate_strata_per_year.R along with other things.
  as well as other calculations and plots need to be rewritten. 
 
 
-- area_plot.py: Alternative script to the one written in R to create the figures of areas and confidence
-interval in one axis and the margin of error in the other (not possible to do in ggplot). As of June 11 2017 
-this version is incomplete, and the full version is in a jupyter notebook that I need to include in this 
-repository.
+- The strata_calc_config folder contains different configuration files that allowed calculating the
+areas and accuracies for multiple scenarios (e.g. with and without buffer, using different buffer 
+sizes, etc). Most of them were only used during the exploration phase. 
 
+TODO: Organize scripts to replicate the figures in the Arevalo et al. 2019 paper in a separate, 
+organized folder.
+
+## data
+
+This folder contains lookup tables used for map reclassification and assignment of vector labels.
+It also contains the test data provided in Stehman et al. (2014), used to verify the scripts
+that calculte areas, accuracies and their standard errors using indicator functions (ratio estimator).
+
+## reference
+This folder contains the logs from the creation of the original samples and the number of images per year.
+
+## other
+This folder contains miscelaneous scripts and files that were used at some point in the exploratory
+phase of the analysis and are not needed for the calculation of areas and accuracies. 
