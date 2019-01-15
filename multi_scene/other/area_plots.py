@@ -1,6 +1,9 @@
 #!/usr/env/python
 # coding: utf-8
 
+# Old script used to create area plots. Replaced by the R script in folders
+# 6 and 7
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
