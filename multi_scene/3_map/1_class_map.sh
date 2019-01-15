@@ -10,9 +10,9 @@
 
 # List of scenes to be processed
 
-scn_list="003058 003059 004057 004058 004059 004061 004062 005057 005058 \
-          005059 005060 005061 006058 006059 006060 006061 007058 007059 \
-          007060 007061 008058 008059 008060 009059 009060"
+scn_list="006059" #003058 003059 004057 004058 004059 004061 004062 005057 005058 \
+          #005059 005060 005061 006058 006059 006060 006061 007058 007059 \
+          #007060 007061 008058 008059 008060 009059 009060"
 
 # General setting: path to template, root dir, etc
 
@@ -42,10 +42,10 @@ for s in $scn_list; do
     cd /projectnb/landsat/projects/Colombia/images/$s/Results/M3/Class
 
     # Run map script for multiple dates
-    for yr in $(seq -w 16 16); do    
+    for yr in $(seq -w 1997 1997); do    
         qsub -j y -V -N map_$pt$rw"-"$yr -b y \
          yatsm -v map --root $ts_path --result $res_path --image $img_path \
-          --after --before --predict-proba class 20$yr$dt ClassM3_20$yr$dt"_M3train.tif"
+          --after --before --predict-proba diff class $yr$dt ClassM3_$yr$dt"_M3train.tif"
     done
 
     # For debugging purposes
