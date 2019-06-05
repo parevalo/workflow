@@ -93,10 +93,10 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
   
   # Change fontsize if labels biglabels is False
   small_theme = theme(axis.title=element_blank(), 
-                      text = element_text(size=7, family="Times New Roman"),
-                      plot.title = element_text(size=7, family="Times New Roman"),
-                      axis.text.x=element_text(size=7, family="Times New Roman"), 
-                      axis.text.y=element_text(size=7, family="Times New Roman"),
+                      text = element_text(size=10, family="Times New Roman"),
+                      plot.title = element_text(size=10, family="Times New Roman"),
+                      axis.text.x=element_text(size=10, family="Times New Roman"), 
+                      axis.text.y=element_text(size=10, family="Times New Roman"),
                       axis.ticks = element_line(size = 0.1),
                       panel.grid = element_line(size=0.2)) 
   area_plot_small = area_plot + small_theme

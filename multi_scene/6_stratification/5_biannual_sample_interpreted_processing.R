@@ -171,9 +171,9 @@ for(i in 1:length(shp_list_ref)){
 # pixcount_list = lapply(pixcount_list, apply_deformode2)
 # mapped_areas = list()
 # for (i in 1:(length(periods))){
-#   pixcount_list[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr),] 
-#   mapped_areas[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr_extra),] 
-# }  
+#   pixcount_list[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr),]
+#   mapped_areas[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr_extra),]
+# }
 # 
 # mapped_areas = as.data.frame(do.call(rbind, lapply(mapped_areas, '[[', 2))) * 30^2 / 100^2
   
@@ -515,7 +515,7 @@ for (i in 1:length(gpl1)){
   mep3[[i]]$widths[2:5] = as.list(maxwidth3me)
 }
 
-gpar_settings = gpar(fontsize=7, 
+gpar_settings = gpar(fontsize=10, 
                      fontfamily="Times New Roman", 
                      fontface="bold")
 left_axlabel = textGrob("Area [kha]", gp=gpar_settings, rot=90)
@@ -529,8 +529,8 @@ pontus_multiplot1 = grid.arrange(gpl1[[2]], gpl1[[4]],
                          left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
 # Formatted for article
-outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".pdf")
-ggsave(outfile, plot=pontus_multiplot1,  width = 140, height = 160, units='mm') 
+outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_larger_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot1,  width = 150, height = 200, units='mm') 
 embed_fonts(outfile)
 
 pontus_multiplot2 = grid.arrange(gpl2[[2]], gpl2[[4]], 
@@ -538,9 +538,17 @@ pontus_multiplot2 = grid.arrange(gpl2[[2]], gpl2[[4]],
                                  gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]], ncol=2, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_", lut_name, ".pdf")
-ggsave(outfile, plot=pontus_multiplot2,  width = 140, height = 160, units='mm') 
+outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_larger_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot2,  width = 150, height = 200, units='mm') 
 embed_fonts(outfile)
+
+# Save manually created deforestation plot
+deg = grid.arrange(plot_list1[[8]][[1]] + ggtitle("Deforestation"), 
+                   left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
+outfile = paste0("results/post_katelyn/figures/", "Deforestation_kha_", lut_name, ".pdf")
+ggsave(outfile, plot=deg,  width = 140, height = 120, units='mm') 
+embed_fonts(outfile)
+
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
 left_axlabel_me = textGrob("Margin of error [%]", gp=gpar(fontsize=12, fontface="bold"), rot=90)
