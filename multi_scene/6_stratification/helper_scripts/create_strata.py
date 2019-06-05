@@ -22,7 +22,7 @@ def create_strata(raster1, raster2, csvfile, header, output, delim, quote, forma
     ds2 = rasterio.open(raster2)
 
     with open(csvfile) as f:
-        csvreader = csv.reader(f, delimiter=delim, quotechar=quote)
+        csvreader = csv.reader(f, delimiter=str(delim), quotechar=str(quote))
         if header:
             next(csvreader)
         lut_file = {(int(row[0]), int(row[1])): int(row[2]) for row in csvreader}
