@@ -146,7 +146,8 @@ for(i in 1:length(shp_list_ref)){
 #            driver="ESRI Shapefile", overwrite_layer = T)
 # }
 
-## TEMPORARY DEFORMODE. collapse ref and map labels, and pixcount 
+## TEMPORARY DEFORMODE. collapse forest to pasture and forest to secondary forest
+## as "forest to pasture" in ref and map labels, pixcount, mapped_areas and strata names
 # apply_deformod = function(df){
 #   df$STRATUM[df$STRATUM == 9] = 8
 #   df$ref_strata[df$ref_strata == 9] = 8
@@ -162,8 +163,20 @@ for(i in 1:length(shp_list_ref)){
 # }
 # 
 # # Overwrite files to avoid creating new calls to the functions below
-# pixcount_list = lapply(pixcount_list, apply_deformode2)
 # shp_list_ref = lapply(shp_list_ref, apply_deformod)
+# strata_names = strata_names[-which(strata_names == "Forest to secondary forest")]
+# strata_names[which(strata_names == "Forest to pasture")] = "Deforestation"
+# 
+# # Recalculate mapped areas
+# pixcount_list = lapply(pixcount_list, apply_deformode2)
+# mapped_areas = list()
+# for (i in 1:(length(periods))){
+#   pixcount_list[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr),] 
+#   mapped_areas[[i]] = pixcount_list[[i]][!(pixcount_list[[i]]$stratum %in% cr_extra),] 
+# }  
+# 
+# mapped_areas = as.data.frame(do.call(rbind, lapply(mapped_areas, '[[', 2))) * 30^2 / 100^2
+  
 
 ## END of DEFORMODE
 
@@ -300,15 +313,13 @@ names(named_df) = df_names
 # save_tables = function(df, savepath, f_suffix, names){
 #   write.csv(df, file=paste0(savepath, names, f_suffix))
 # }
-
-suffix = paste0("_", lut_name,  "_buffered_3B.csv")
-table_savepath = "results/post_katelyn/tables/"
-
-#mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
-
-# write.csv(cbind(overall_acc, overall_acc_lower, overall_acc_upper), 
-#           file=paste0(table_savepath, "overall_accuracies_minmax", suffix))
 # 
+# suffix = paste0("_", lut_name,  "_buffered_3B.csv")
+# table_savepath = "results/post_katelyn/tables/"
+# 
+# mapply(save_tables, named_df, savepath=table_savepath, f_suffix=suffix, names=df_names)
+
+ 
 ####### RUN WITHOUT BUFFER
 
 prop_out_nb = list()
@@ -420,10 +431,10 @@ rownames(ci_compare) = periods_long
 # Selected to guarantee that one of the breaks (6 total) is zero
 maxy_vect1 = c(10, 44000000, 4500000, 90000, 4500000, 1000000, 1000000, 
                300000, 90000, 60000, 60000)
-maxy_vect2 = c(12000, 45000000, 4500000, 400000, 4500000, 4500000, 4500000, 
-               400000, 400000, 400000, 400000)
+maxy_vect2 = c(12000, 45000000, 4500000, 90000, 4500000, 1000000, 1000000, 
+               400000, 400000, 200000, 200000)
 miny_vect1 = c(0,39000000,0,0,0,0,0,0,0,0,0)
-miny_vect2 = c(-3000, 38000000, 0, -100000, 0, 0, 0, -100000, -100000, -100000, -100000)
+miny_vect2 = c(-3000, 38000000, 0, -100000, 0, 0, 0, -100000, -100000, -50000, -50000)
 
 # Limits in kha
 maxy_vect1 = maxy_vect1 / 1000
@@ -465,9 +476,9 @@ for(i in 1:length(strata_names)){
   plot_list1[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i],
                                area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
                                margin_error[,i], miny_vect1[i], maxy_vect1[i], plot_labels2[i], plotmode=1)
-  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
-                               area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
-                               margin_error[,i], miny_vect2[i], maxy_vect2[i], strata_names[i], plotmode=2)  
+  plot_list2[[i]] = plot_areas(tot_area_kha, plot_periods, area_kha[,i], 
+                               area_lower_kha[,i], area_upper_kha[,i], mapped_areas_kha[,i],
+                               margin_error[,i], miny_vect2[i], maxy_vect2[i], plot_labels2[i], plotmode=2)  
   plot_list3[[i]] = plot_areas(tot_area_kha, plot_periods, area_ha[,i], 
                                area_lower[,i], area_upper[,i], mapped_areas_kha[,i],
                                margin_error[,i], 0, maxy_vect2[i], strata_names[i], plotmode=3)  
@@ -522,14 +533,14 @@ outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus1_kha_", lut_name, ".
 ggsave(outfile, plot=pontus_multiplot1,  width = 140, height = 160, units='mm') 
 embed_fonts(outfile)
 
-pontus_multiplot2 = grid.arrange(textGrob(""), gpl2[[1]], gpl2[[2]], gpl2[[4]], 
+pontus_multiplot2 = grid.arrange(gpl2[[2]], gpl2[[4]], 
                                  gpl2[[3]], gpl2[[5]], gpl2[[6]], gpl2[[7]],
-                                 gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]],ncol=4, 
+                                 gpl2[[8]], gpl2[[9]], gpl2[[10]], gpl2[[11]], ncol=2, 
                                  left=left_axlabel, right=right_axlabel, bottom=bottom_axlabel)
 
-ggsave(paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_", lut_name, ".png"), 
-       plot=pontus_multiplot2,  width = 20, height = 10) 
-
+outfile=paste0("results/post_katelyn/figures/", "ALL_Pontus2_kha_", lut_name, ".pdf")
+ggsave(outfile, plot=pontus_multiplot2,  width = 140, height = 160, units='mm') 
+embed_fonts(outfile)
 
 # Arrange MARGIN OF ERROR PLOTS in the NEW grouping order and save multiplots
 left_axlabel_me = textGrob("Margin of error [%]", gp=gpar(fontsize=12, fontface="bold"), rot=90)

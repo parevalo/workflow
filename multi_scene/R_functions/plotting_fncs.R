@@ -61,9 +61,9 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
     # Or keep the original outlines but remove the fill
   } else if (plotmode == 2) {
     
-    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8)
+    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8, size=0.3)
+    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8, size=0.3) 
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8, size=0.3)
     
     # Or keep plotmode1 format but make labels and markers bigger
   } else if (plotmode == 3) {
