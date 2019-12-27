@@ -61,9 +61,9 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
     # Or keep the original outlines but remove the fill
   } else if (plotmode == 2) {
     
-    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8)
-    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8) 
-    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8)
+    lowerline = geom_line(data=tempdf2, aes(x=Years, y=Lower), linetype=8, size=0.3)
+    upperline = geom_line(data=tempdf2, aes(x=Years, y=Upper), linetype=8, size=0.3) 
+    centerline = geom_line(data=tempdf2, aes(x=Years, y=Area), linetype=8, size=0.3)
     
     # Or keep plotmode1 format but make labels and markers bigger
   } else if (plotmode == 3) {
@@ -93,10 +93,10 @@ plot_areas = function(totalarea, xlabels, area, lower, upper, mappedarea, me, mi
   
   # Change fontsize if labels biglabels is False
   small_theme = theme(axis.title=element_blank(), 
-                      text = element_text(size=7, family="Times New Roman"),
-                      plot.title = element_text(size=7, family="Times New Roman"),
-                      axis.text.x=element_text(size=7, family="Times New Roman"), 
-                      axis.text.y=element_text(size=7, family="Times New Roman"),
+                      text = element_text(size=10, family="Times New Roman"),
+                      plot.title = element_text(size=10, family="Times New Roman"),
+                      axis.text.x=element_text(size=10, family="Times New Roman"), 
+                      axis.text.y=element_text(size=10, family="Times New Roman"),
                       axis.ticks = element_line(size = 0.1),
                       panel.grid = element_line(size=0.2)) 
   area_plot_small = area_plot + small_theme
